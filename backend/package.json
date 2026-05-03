@@ -19,8 +19,5 @@
     "fluent-ffmpeg": "^2.1.2",
     "nanoid": "^5.0.4",
     "winston": "^3.11.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.2"
   }
 }
