@@ -1,0 +1,188 @@
+{
+  "info": {
+    "_postman_id": "2d6e0e2a-824d-4986-8bf0-078ab172d7b8",
+    "name": "MiniMax Music + Lyrics API",
+    "description": "Collection for MiniMax music and lyrics generation",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "41627984"
+  },
+  "item": [
+    {
+      "name": "Generate Lyrics",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{MINIMAX_API_KEY}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"mode\": \"write_full_song\",\n  \"prompt\": \"Very emotional Hindi-Urdu lo-fi song, rainy night, heartbreak, husky male voice, slow tempo, soulful and poetic, ghazal-inspired\"\n}"
+        },
+        "url": {
+          "raw": "https://api.minimax.io/v1/lyrics_generation",
+          "protocol": "https",
+          "host": [
+            "api",
+            "minimax",
+            "io"
+          ],
+          "path": [
+            "v1",
+            "lyrics_generation"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Generate Music",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{MINIMAX_API_KEY}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"model\": \"music-2.6\",\n  \"prompt\": \"Very emotional and soulful Hindi-Urdu lo-fi ballad, soft husky male vocals, slow tempo, intimate and breathy singing, minimal instrumentation, acoustic guitar and ambient pads, rainy night atmosphere, deep heartbreak and longing, ghazal-inspired poetic expression\",\n  \"lyrics\": \"PASTE_LYRICS_HERE\",\n  \"audio_setting\": {\n    \"sample_rate\": 44100,\n    \"bitrate\": 256000,\n    \"format\": \"mp3\"\n  },\n  \"output_format\": \"url\"\n}"
+        },
+        "url": {
+          "raw": "https://api.minimax.io/v1/music_generation",
+          "protocol": "https",
+          "host": [
+            "api",
+            "minimax",
+            "io"
+          ],
+          "path": [
+            "v1",
+            "music_generation"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "https://api.minimax.io/v1/video_generation",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{MINIMAX_API_KEY}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "\n{\n  \"model\": \"MiniMax-Hailuo-2.3\",\n  \"prompt\": \"A man picks up a book [Pedestal up], then reads [Static shot].\",\n  \"duration\": 6,\n  \"resolution\": \"1080P\"\n}\n",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://api.minimax.io/v1/video_generation",
+          "protocol": "https",
+          "host": [
+            "api",
+            "minimax",
+            "io"
+          ],
+          "path": [
+            "v1",
+            "video_generation"
+          ]
+        },
+        "description": "Generated from cURL: curl --request POST \\\n  --url https://api.minimax.io/v1/video_generation \\\n  --header 'Authorization: Bearer <token>' \\\n  --header 'Content-Type: application/json' \\\n  --data '\n{\n  \"model\": \"MiniMax-Hailuo-2.3\",\n  \"prompt\": \"A man picks up a book [Pedestal up], then reads [Static shot].\",\n  \"duration\": 6,\n  \"resolution\": \"1080P\"\n}\n'"
+      },
+      "response": []
+    },
+    {
+      "name": "https://api.minimax.io/v1/image_generation",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{MINIMAX_API_KEY}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "\n{\n  \"model\": \"image-01\",\n  \"prompt\": \"A man in a white t-shirt, full-body, standing front view, outdoors, with the Venice Beach sign in the background, Los Angeles. Fashion photography in 90s documentary style, film grain, photorealistic.\",\n  \"aspect_ratio\": \"16:9\",\n  \"response_format\": \"url\",\n  \"n\": 3,\n  \"prompt_optimizer\": true\n}\n",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://api.minimax.io/v1/image_generation",
+          "protocol": "https",
+          "host": [
+            "api",
+            "minimax",
+            "io"
+          ],
+          "path": [
+            "v1",
+            "image_generation"
+          ]
+        },
+        "description": "Generated from cURL: curl --request POST \\\n  --url https://api.minimax.io/v1/image_generation \\\n  --header 'Authorization: Bearer <token>' \\\n  --header 'Content-Type: application/json' \\\n  --data '\n{\n  \"model\": \"image-01\",\n  \"prompt\": \"A man in a white t-shirt, full-body, standing front view, outdoors, with the Venice Beach sign in the background, Los Angeles. Fashion photography in 90s documentary style, film grain, photorealistic.\",\n  \"aspect_ratio\": \"16:9\",\n  \"response_format\": \"url\",\n  \"n\": 3,\n  \"prompt_optimizer\": true\n}\n'"
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "MINIMAX_API_KEY",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
