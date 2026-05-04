@@ -5,6 +5,7 @@ import { ProjectModel } from '../../database/models/project.model.js';
 import storage from '../../utils/storage.util.js';
 import config from '../../config/env.config.js';
 import logger from '../../utils/logger.js';
+import axios from 'axios';
 
 export class MusicService {
   constructor() {
@@ -41,7 +42,7 @@ export class MusicService {
 
       logger.info('Generating music', { projectId, lyricsId, model, isInstrumental });
 
-      // Build request to MiniMax
+      // Build request to MiniMax with URL format
       const requestParams: any = {
         model,
         audio_setting: audioSettings || {},
@@ -76,29 +77,8 @@ export class MusicService {
       const response = await this.client.generateMusic(requestParams);
 
       logger.info('MiniMax response received', { responseKeys: Object.keys(response || {}) });
-        model,
-        audio_setting: audioSettings || {},
-      };
 
-      if (isInstrumental) {
-        requestParams.is_instrumental = true;
-        if (prompt) {
-          requestParams.prompt = prompt;
-        }
-      } else {
-        if (!lyricsContent) {
-          throw new Error('Lyrics content is empty');
-        }
-        requestParams.lyrics = lyricsContent;
-        if (prompt) {
-          requestParams.prompt = prompt;
-        }
-      }
-
-      // Call MiniMax API
-      const response = await this.client.generateMusic(requestParams);
-
-      // Validate response - API returns data.audio (hex) directly
+      // Validate response
       if (!response || !response.data) {
         throw new Error('Invalid response from MiniMax API: missing data field');
       }
@@ -107,11 +87,20 @@ export class MusicService {
         throw new Error(`Music generation not ready, status: ${response.data.status}`);
       }
 
+      // Get audio URL from response
+      const audioUrl = response.data.audio;
+      if (!audioUrl || typeof audioUrl !== 'string') {
+        throw new Error('Invalid response: audio URL not found');
+      }
+
+      logger.info('Downloading audio from URL', { audioUrl: audioUrl.substring(0, 50) + '...' });
+
+      // Download file from URL
+      const audioResponse = await axios.get(audioUrl, { responseType: 'arraybuffer' });
+      const audioBuffer = Buffer.from(audioResponse.data);
+
       // Get next version number
       const version = MusicModel.getNextVersion(projectId);
-
-      // Convert hex audio to buffer and save
-      const audioBuffer = Buffer.from(response.data.audio, 'hex');
 
       // Save original file
       const originalFilePath = storage.getMusicFilePath(projectId, version, 'original');
