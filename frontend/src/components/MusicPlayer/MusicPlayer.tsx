@@ -11,7 +11,7 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [musicHistory, setMusicHistory] = useState<MusicGeneration[]>([]);
-  const [model, setModel] = useState('M2');
+  const [model, setModel] = useState('music-2.6');
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/music`)
@@ -71,7 +71,7 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
           <div>
             <label className="block text-sm text-gray-400 mb-2">Model</label>
             <div className="flex gap-2">
-              {['M2', 'M2-raw'].map(m => (
+              {['music-2.6', 'music-cover'].map(m => (
                 <button
                   key={m}
                   onClick={() => setModel(m)}

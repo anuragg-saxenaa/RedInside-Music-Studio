@@ -13,7 +13,7 @@ export class MusicService {
 
   async generateMusic(params) {
     try {
-      const { projectId, lyricsId, prompt, model = 'M2',
+      const { projectId, lyricsId, prompt, model = 'music-2.6',
         isInstrumental = false, audioSettings } = params;
 
       // Validate projectId
@@ -34,7 +34,7 @@ export class MusicService {
       }
 
       // Validate model
-      const validModels = ['M2', 'M2-raw'];
+      const validModels = ['music-2.6', 'music-cover'];
       if (!validModels.includes(model)) {
         throw new Error(`Invalid model. Must be one of: ${validModels.join(', ')}`);
       }
@@ -48,11 +48,14 @@ export class MusicService {
       };
 
       if (isInstrumental) {
-        requestParams.instrumental = true;
+        requestParams.is_instrumental = true;
         if (prompt) {
           requestParams.prompt = prompt;
         }
       } else {
+        if (!lyricsContent) {
+          throw new Error('Lyrics content is empty');
+        }
         requestParams.lyrics = lyricsContent;
         if (prompt) {
           requestParams.prompt = prompt;
@@ -62,24 +65,20 @@ export class MusicService {
       // Call MiniMax API
       const response = await this.client.generateMusic(requestParams);
 
-      // Validate response
-      if (!response || !response.audio_file || !response.task_id) {
-        throw new Error('Invalid response from MiniMax API: missing required fields');
+      // Validate response - API returns data.audio (hex) directly
+      if (!response || !response.data) {
+        throw new Error('Invalid response from MiniMax API: missing data field');
+      }
+
+      if (response.data.status !== 2) {
+        throw new Error(`Music generation not ready, status: ${response.data.status}`);
       }
 
       // Get next version number
       const version = MusicModel.getNextVersion(projectId);
 
-      // Download audio file
-      const audioFileId = response.audio_file.file_id;
-      const fileResponse = await this.client.retrieveFile(audioFileId);
-
-      if (!fileResponse || !fileResponse.audio_content) {
-        throw new Error('Failed to retrieve audio file from MiniMax API');
-      }
-
-      // Convert base64 to buffer and save
-      const audioBuffer = Buffer.from(fileResponse.audio_content, 'base64');
+      // Convert hex audio to buffer and save
+      const audioBuffer = Buffer.from(response.data.audio, 'hex');
 
       // Save original file
       const originalFilePath = storage.getMusicFilePath(projectId, version, 'original');
@@ -95,10 +94,10 @@ export class MusicService {
         audioSettings,
         isInstrumental,
         originalFilePath,
-        durationSeconds: response.audio_file.duration || null,
-        sampleRate: response.audio_file.sample_rate || 44100,
-        bitrate: response.audio_file.bitrate || 256000,
-        format: response.audio_file.format || 'mp3',
+        durationSeconds: response.extra_info?.music_duration || null,
+        sampleRate: response.extra_info?.music_sample_rate || 44100,
+        bitrate: response.extra_info?.bitrate || 256000,
+        format: 'mp3',
       });
 
       // Increment project version

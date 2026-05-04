@@ -310,6 +310,28 @@ class MusicService {
 - `music-2.6-free` - Free tier (lower RPM)
 - `music-cover-free` - Free cover generation
 
+**MiniMax API Response Format**:
+```javascript
+{
+  "data": {
+    "status": 2,              // 2 = completed, 0-1 = processing
+    "audio": "<hex-encoded audio data>"
+  },
+  "extra_info": {
+    "music_duration": 25364,   // duration in seconds
+    "music_sample_rate": 44100,
+    "bitrate": 256000,
+    "music_size": 813651
+  },
+  "base_resp": {
+    "status_code": 0,          // 0 = success
+    "status_msg": "success"
+  }
+}
+```
+- Audio is returned as hex-encoded data in `data.audio`, NOT via file download
+- Convert hex to buffer and save directly: `Buffer.from(data.audio, 'hex')`
+
 **Data Model**:
 ```sql
 CREATE TABLE music_generations (
