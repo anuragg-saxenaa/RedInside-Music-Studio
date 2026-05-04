@@ -26,15 +26,18 @@ class MinimaxClient {
         url,
         headers: this.getHeaders(),
         data,
+        timeout: 60000, // 60 second timeout
       });
 
       logger.info(`MiniMax API response: ${response.status}`);
       return response.data;
     } catch (error) {
+      // Sanitize error before logging - don't expose headers or API keys
       logger.error('MiniMax API error:', {
         endpoint,
         status: error.response?.status,
         message: error.response?.data || error.message,
+        // Don't log headers or full error object
       });
       throw this.handleError(error);
     }
@@ -64,25 +67,40 @@ class MinimaxClient {
 
   // Lyrics Generation API
   async generateLyrics(params) {
+    if (!params || typeof params !== 'object' || Array.isArray(params)) {
+      throw new Error('params must be an object');
+    }
     return this.request('/v1/lyrics_generation', 'POST', params);
   }
 
   // Music Generation API
   async generateMusic(params) {
+    if (!params || typeof params !== 'object' || Array.isArray(params)) {
+      throw new Error('params must be an object');
+    }
     return this.request('/v1/music_generation', 'POST', params);
   }
 
   // Video Generation API (async)
   async generateVideo(params) {
+    if (!params || typeof params !== 'object' || Array.isArray(params)) {
+      throw new Error('params must be an object');
+    }
     return this.request('/v1/video_generation', 'POST', params);
   }
 
   async queryVideoStatus(taskId) {
-    return this.request(`/v1/query/video_generation?task_id=${taskId}`, 'GET');
+    if (!taskId || typeof taskId !== 'string') {
+      throw new Error('taskId must be a non-empty string');
+    }
+    return this.request(`/v1/query/video_generation?task_id=${encodeURIComponent(taskId)}`, 'GET');
   }
 
   async retrieveFile(fileId) {
-    return this.request(`/v1/files/retrieve?file_id=${fileId}`, 'GET');
+    if (!fileId || typeof fileId !== 'string') {
+      throw new Error('fileId must be a non-empty string');
+    }
+    return this.request(`/v1/files/retrieve?file_id=${encodeURIComponent(fileId)}`, 'GET');
   }
 }
 
