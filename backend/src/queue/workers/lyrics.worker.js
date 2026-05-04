@@ -1,8 +1,8 @@
 import { Worker } from 'bullmq';
-import { queues, getRedisConnection } from './queue.config.js';
-import { JobModel } from './jobs.service.js';
-import { LyricsService } from '../modules/lyrics/lyrics.service.js';
-import logger from '../utils/logger.js';
+import { queues, getRedisConnection } from '../queue.config.js';
+import { JobModel } from '../jobs.service.js';
+import { LyricsService } from '../../modules/lyrics/lyrics.service.js';
+import logger from '../../utils/logger.js';
 
 const lyricsService = new LyricsService();
 const connection = getRedisConnection();

@@ -1,8 +1,8 @@
 import { Worker } from 'bullmq';
-import { queues, getRedisConnection } from './queue.config.js';
-import { JobModel } from './jobs.service.js';
-import ffmpegService from '../modules/ffmpeg/ffmpeg.service.js';
-import logger from '../utils/logger.js';
+import { queues, getRedisConnection } from '../queue.config.js';
+import { JobModel } from '../jobs.service.js';
+import ffmpegService from '../../modules/ffmpeg/ffmpeg.service.js';
+import logger from '../../utils/logger.js';
 
 const connection = getRedisConnection();
 
