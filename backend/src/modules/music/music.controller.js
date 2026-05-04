@@ -1,0 +1,63 @@
+import { MusicService } from './music.service.js';
+import logger from '../../utils/logger.js';
+
+const musicService = new MusicService();
+
+export const MusicController = {
+  async generate(req, res, next) {
+    try {
+      const { projectId, lyricsId, prompt, model, isInstrumental, audioSettings } = req.body;
+
+      if (!projectId) {
+        return res.status(400).json({
+          error: 'projectId is required',
+        });
+      }
+
+      if (!lyricsId && !isInstrumental) {
+        return res.status(400).json({
+          error: 'lyricsId is required for non-instrumental music',
+        });
+      }
+
+      const result = await musicService.generateMusic({
+        projectId,
+        lyricsId,
+        prompt,
+        model,
+        isInstrumental,
+        audioSettings,
+      });
+
+      res.json(result);
+    } catch (error) {
+      logger.error('Error generating music:', error);
+      next(error);
+    }
+  },
+
+  async getById(req, res, next) {
+    try {
+      const { id } = req.params;
+      const music = await musicService.getMusic(id);
+
+      if (!music) {
+        return res.status(404).json({ error: 'Music not found' });
+      }
+
+      res.json(music);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async getByProject(req, res, next) {
+    try {
+      const { projectId } = req.params;
+      const music = await musicService.getProjectMusic(projectId);
+      res.json(music);
+    } catch (error) {
+      next(error);
+    }
+  },
+};
