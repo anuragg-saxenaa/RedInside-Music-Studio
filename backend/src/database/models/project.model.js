@@ -3,15 +3,24 @@ import { nanoid } from 'nanoid';
 
 export const ProjectModel = {
   create(data) {
-    const id = nanoid();
-    const stmt = db.prepare(`
-      INSERT INTO projects (id, name, description, workflow_mode)
-      VALUES (?, ?, ?, ?)
-    `);
+    try {
+      // Validate input
+      if (!data.name || typeof data.name !== 'string' || data.name.trim() === '') {
+        throw new Error('Project name is required and must be a non-empty string');
+      }
 
-    stmt.run(id, data.name, data.description || null, data.workflowMode || 'hybrid');
+      const id = nanoid();
+      const stmt = db.prepare(`
+        INSERT INTO projects (id, name, description, workflow_mode)
+        VALUES (?, ?, ?, ?)
+      `);
 
-    return this.findById(id);
+      stmt.run(id, data.name, data.description || null, data.workflowMode || 'hybrid');
+
+      return this.findById(id);
+    } catch (error) {
+      throw new Error(`Failed to create project: ${error.message}`);
+    }
   },
 
   findById(id) {
@@ -23,34 +32,54 @@ export const ProjectModel = {
   },
 
   update(id, data) {
-    const updates = [];
-    const values = [];
+    try {
+      const updates = [];
+      const values = [];
 
-    if (data.name !== undefined) {
-      updates.push('name = ?');
-      values.push(data.name);
+      if (data.name !== undefined) {
+        if (typeof data.name !== 'string' || data.name.trim() === '') {
+          throw new Error('Project name must be a non-empty string');
+        }
+        updates.push('name = ?');
+        values.push(data.name);
+      }
+      if (data.description !== undefined) {
+        updates.push('description = ?');
+        values.push(data.description);
+      }
+      if (data.workflowMode !== undefined) {
+        updates.push('workflow_mode = ?');
+        values.push(data.workflowMode);
+      }
+
+      // Check if there are any updates to apply
+      if (updates.length === 0) {
+        return this.findById(id);
+      }
+
+      updates.push('updated_at = CURRENT_TIMESTAMP');
+      values.push(id);
+
+      const stmt = db.prepare(`UPDATE projects SET ${updates.join(', ')} WHERE id = ?`);
+      stmt.run(...values);
+
+      return this.findById(id);
+    } catch (error) {
+      throw new Error(`Failed to update project: ${error.message}`);
     }
-    if (data.description !== undefined) {
-      updates.push('description = ?');
-      values.push(data.description);
-    }
-    if (data.workflowMode !== undefined) {
-      updates.push('workflow_mode = ?');
-      values.push(data.workflowMode);
-    }
-
-    updates.push('updated_at = CURRENT_TIMESTAMP');
-    values.push(id);
-
-    const stmt = db.prepare(`UPDATE projects SET ${updates.join(', ')} WHERE id = ?`);
-    stmt.run(...values);
-
-    return this.findById(id);
   },
 
   incrementVersion(id, type) {
-    const field = `current_${type}_version`;
-    db.prepare(`UPDATE projects SET ${field} = ${field} + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(id);
+    try {
+      // Add validation to prevent SQL injection
+      if (!['lyrics', 'music'].includes(type)) {
+        throw new Error(`Invalid version type: ${type}`);
+      }
+      const field = `current_${type}_version`;
+      db.prepare(`UPDATE projects SET ${field} = ${field} + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(id);
+    } catch (error) {
+      throw new Error(`Failed to increment version: ${error.message}`);
+    }
   },
 
   delete(id) {
