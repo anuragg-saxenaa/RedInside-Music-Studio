@@ -54,6 +54,8 @@ Set `output_format: "url"` in request and parse URL from response.
 }
 ```
 
+**Note:** `music_duration` is in milliseconds. Divide by 1000 for seconds.
+
 ## Implementation Changes
 
 ### music.service.js
