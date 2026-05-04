@@ -1,4 +1,6 @@
 import { MusicService } from './music.service.js';
+import { JobModel } from '../../queue/jobs.service.js';
+import { addMusicJob } from '../../queue/workers/music.worker.js';
 import logger from '../../utils/logger.js';
 
 const musicService = new MusicService();
@@ -20,16 +22,31 @@ export const MusicController = {
         });
       }
 
-      const result = await musicService.generateMusic({
+      // Create job record in DB
+      const job = JobModel.create({
+        projectId,
+        type: 'generate-music',
+        inputParams: { lyricsId, prompt, model, isInstrumental, audioSettings },
+      });
+
+      // Add to BullMQ queue (async processing)
+      addMusicJob({
         projectId,
         lyricsId,
         prompt,
         model,
         isInstrumental,
         audioSettings,
+        jobId: job.id,
       });
 
-      res.json(result);
+      logger.info('Music job queued', { jobId: job.id, projectId });
+
+      res.status(202).json({
+        message: 'Music generation queued',
+        jobId: job.id,
+        status: job.status,
+      });
     } catch (error) {
       logger.error('Error generating music:', error);
       next(error);

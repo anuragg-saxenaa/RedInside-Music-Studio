@@ -9,6 +9,7 @@ interface MusicPlayerProps {
 
 export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerated }: MusicPlayerProps) {
   const [generating, setGenerating] = useState(false);
+  const [pollingJobId, setPollingJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [musicHistory, setMusicHistory] = useState<MusicGeneration[]>([]);
   const [model, setModel] = useState('music-2.6');
@@ -19,6 +20,38 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
       .then(setMusicHistory)
       .catch(console.error);
   }, [projectId]);
+
+  // Poll for job completion
+  useEffect(() => {
+    if (!pollingJobId) return;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/jobs/${pollingJobId}`);
+        const job = await res.json();
+
+        if (job.status === 'completed' && job.result?.musicId) {
+          const musicRes = await fetch(`/api/music/${job.result.musicId}`);
+          const music = await musicRes.json();
+          setMusicHistory(prev => [music, ...prev]);
+          onMusicGenerated(music);
+          setPollingJobId(null);
+          setGenerating(false);
+        } else if (job.status === 'failed') {
+          setError(job.error_message || 'Music generation failed');
+          setPollingJobId(null);
+          setGenerating(false);
+        } else {
+          setTimeout(poll, 3000);
+        }
+      } catch (err) {
+        console.error('Poll error:', err);
+        setTimeout(poll, 3000);
+      }
+    };
+
+    poll();
+  }, [pollingJobId]);
 
   const generateMusic = async () => {
     if (!selectedLyrics) {
@@ -46,11 +79,15 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
       }
 
       const music = await response.json();
-      setMusicHistory(prev => [music, ...prev]);
-      onMusicGenerated(music);
+      if (music.jobId) {
+        setPollingJobId(music.jobId);
+      } else {
+        setMusicHistory(prev => [music, ...prev]);
+        onMusicGenerated(music);
+        setGenerating(false);
+      }
     } catch (err: any) {
       setError(err.message);
-    } finally {
       setGenerating(false);
     }
   };
@@ -87,12 +124,21 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
 
           {error && <div className="text-red-400 text-sm">{error}</div>}
 
+          {pollingJobId && (
+            <div className="bg-blue-900/50 p-3 rounded text-sm">
+              <div className="flex items-center gap-2">
+                <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
+                <span>Generating... (job: {pollingJobId.slice(0, 8)}...)</span>
+              </div>
+            </div>
+          )}
+
           <button
             onClick={generateMusic}
-            disabled={generating || !selectedLyrics}
+            disabled={generating || !selectedLyrics || !!pollingJobId}
             className="bg-blue-600 px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
           >
-            {generating ? 'Generating...' : 'Generate Music'}
+            {pollingJobId ? 'Generating...' : generating ? 'Starting...' : 'Generate Music'}
           </button>
         </div>
       </div>
