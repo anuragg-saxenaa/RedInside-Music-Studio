@@ -45,6 +45,7 @@ export class MusicService {
       const requestParams: any = {
         model,
         audio_setting: audioSettings || {},
+        output_format: 'url',
       };
 
       if (isInstrumental) {
