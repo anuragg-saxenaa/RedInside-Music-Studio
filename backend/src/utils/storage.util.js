@@ -8,7 +8,35 @@ class StorageUtil {
     this.basePath = config.storage.path;
   }
 
+  validateProjectId(projectId) {
+    if (!projectId || typeof projectId !== 'string') {
+      throw new Error('projectId must be a non-empty string');
+    }
+    // Only allow alphanumeric, hyphens, underscores
+    if (!/^[a-zA-Z0-9_-]+$/.test(projectId)) {
+      throw new Error('projectId contains invalid characters');
+    }
+    // Prevent directory traversal
+    if (projectId.includes('..') || projectId.includes('/') || projectId.includes('\\')) {
+      throw new Error('projectId cannot contain path separators');
+    }
+    return projectId;
+  }
+
+  validateFilename(filename) {
+    if (!filename || typeof filename !== 'string') {
+      throw new Error('filename must be a non-empty string');
+    }
+    // Use path.basename to prevent traversal
+    const safe = path.basename(filename);
+    if (safe !== filename || safe.includes('..')) {
+      throw new Error('Invalid filename');
+    }
+    return safe;
+  }
+
   getProjectDir(projectId) {
+    projectId = this.validateProjectId(projectId);
     return path.join(this.basePath, 'projects', projectId);
   }
 
@@ -29,6 +57,7 @@ class StorageUtil {
   }
 
   createProjectDirs(projectId) {
+    projectId = this.validateProjectId(projectId);
     const dirs = [
       this.getLyricsDir(projectId),
       this.getMusicDir(projectId),
@@ -52,27 +81,47 @@ class StorageUtil {
   }
 
   getTempFilePath(projectId, filename) {
+    projectId = this.validateProjectId(projectId);
+    filename = this.validateFilename(filename);
     return path.join(this.getTempDir(projectId), filename);
   }
 
   saveLyrics(projectId, version, data) {
-    const filePath = this.getLyricsFilePath(projectId, version);
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-    return filePath;
+    try {
+      projectId = this.validateProjectId(projectId);
+      this.createProjectDirs(projectId);
+      const filePath = this.getLyricsFilePath(projectId, version);
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+      return filePath;
+    } catch (error) {
+      throw new Error(`Failed to save lyrics: ${error.message}`);
+    }
   }
 
   saveAudioFile(buffer, filePath) {
-    fs.writeFileSync(filePath, buffer);
-    return filePath;
+    try {
+      fs.writeFileSync(filePath, buffer);
+      return filePath;
+    } catch (error) {
+      throw new Error(`Failed to save audio file: ${error.message}`);
+    }
   }
 
   readFile(filePath) {
-    return fs.readFileSync(filePath);
+    try {
+      return fs.readFileSync(filePath);
+    } catch (error) {
+      throw new Error(`Failed to read file: ${error.message}`);
+    }
   }
 
   deleteFile(filePath) {
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch (error) {
+      throw new Error(`Failed to delete file: ${error.message}`);
     }
   }
 }
