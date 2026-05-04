@@ -180,7 +180,10 @@
 							"script": {
 								"exec": [
 									"var jsonData = pm.response.json();",
-									"if (jsonData.id) {",
+									"if (jsonData.jobId) {",
+									"    pm.collectionVariables.set('jobId', jsonData.jobId);",
+									"    console.log('Music job queued:', jsonData.jobId);",
+									"} else if (jsonData.id) {",
 									"    pm.collectionVariables.set('musicId', jsonData.id);",
 									"    console.log('Music created:', jsonData.id);",
 									"}"

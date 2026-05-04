@@ -42,7 +42,39 @@ export class MusicService {
       logger.info('Generating music', { projectId, lyricsId, model, isInstrumental });
 
       // Build request to MiniMax
-      const requestParams = {
+      const requestParams: any = {
+        model,
+        audio_setting: audioSettings || {},
+      };
+
+      if (isInstrumental) {
+        requestParams.is_instrumental = true;
+        if (prompt) {
+          requestParams.prompt = prompt;
+        }
+      } else {
+        if (!lyricsContent) {
+          throw new Error('Lyrics content is empty');
+        }
+        requestParams.lyrics = lyricsContent;
+        if (prompt) {
+          requestParams.prompt = prompt;
+        }
+      }
+
+      logger.info('MiniMax request', {
+        endpoint: '/v1/music_generation',
+        model: requestParams.model,
+        hasLyrics: !!requestParams.lyrics,
+        lyricsLength: requestParams.lyrics?.length || 0,
+        hasPrompt: !!requestParams.prompt,
+        isInstrumental: requestParams.is_instrumental || false,
+      });
+
+      // Call MiniMax API
+      const response = await this.client.generateMusic(requestParams);
+
+      logger.info('MiniMax response received', { responseKeys: Object.keys(response || {}) });
         model,
         audio_setting: audioSettings || {},
       };

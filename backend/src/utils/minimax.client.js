@@ -26,7 +26,7 @@ class MinimaxClient {
         url,
         headers: this.getHeaders(),
         data,
-        timeout: 60000, // 60 second timeout
+        timeout: 180000, // 180 second timeout for music generation
       });
 
       logger.info(`MiniMax API response: ${response.status}`);
