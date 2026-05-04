@@ -43,7 +43,7 @@ export class MusicService {
       logger.info('Generating music', { projectId, lyricsId, model, isInstrumental });
 
       // Build request to MiniMax with URL format
-      const requestParams: any = {
+      const requestParams = {
         model,
         audio_setting: audioSettings || {},
         output_format: 'url',
