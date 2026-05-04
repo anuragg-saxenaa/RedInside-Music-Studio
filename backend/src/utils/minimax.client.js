@@ -30,6 +30,14 @@ class MinimaxClient {
       });
 
       logger.info(`MiniMax API response: ${response.status}`);
+
+      // Check for API-level errors even on 200 status
+      if (response.data.base_resp && response.data.base_resp.status_code !== 0) {
+        const error = new Error();
+        error.response = { data: response.data };
+        throw this.handleError(error);
+      }
+
       return response.data;
     } catch (error) {
       // Sanitize error before logging - don't expose headers or API keys

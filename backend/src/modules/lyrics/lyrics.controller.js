@@ -9,11 +9,15 @@ export const LyricsController = {
     try {
       const { projectId, prompt, stylePreset, mode } = req.body;
 
-      if (!projectId || !prompt) {
-        return res.status(400).json({
-          error: 'projectId and prompt are required',
-        });
+      if (!projectId || typeof projectId !== 'string') {
+        return res.status(400).json({ error: 'projectId is required and must be a string' });
       }
+
+      if (!prompt || typeof prompt !== 'string') {
+        return res.status(400).json({ error: 'prompt is required and must be a string' });
+      }
+
+      // Service will validate stylePreset and mode
 
       const result = await lyricsService.generateLyrics({
         projectId,
@@ -24,7 +28,11 @@ export const LyricsController = {
 
       res.json(result);
     } catch (error) {
-      logger.error('Error generating lyrics:', error);
+      // Log without exposing full error
+      logger.error('Lyrics generation error:', {
+        message: error.message,
+        projectId: req.body.projectId
+      });
       next(error);
     }
   },
