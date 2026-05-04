@@ -1,0 +1,87 @@
+import db from '../connection.js';
+import { nanoid } from 'nanoid';
+
+export const MusicModel = {
+  create(data) {
+    const id = nanoid();
+    const stmt = db.prepare(`
+      INSERT INTO music_generations (
+        id, project_id, lyrics_id, version, model, prompt,
+        audio_settings, is_instrumental, original_file_path,
+        processed_file_path, duration_seconds, sample_rate, bitrate, format
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      id,
+      data.projectId,
+      data.lyricsId || null,
+      data.version,
+      data.model,
+      data.prompt || null,
+      data.audioSettings ? JSON.stringify(data.audioSettings) : null,
+      data.isInstrumental ? 1 : 0,
+      data.originalFilePath || null,
+      data.processedFilePath || null,
+      data.durationSeconds || null,
+      data.sampleRate || null,
+      data.bitrate || null,
+      data.format || null
+    );
+
+    return this.findById(id);
+  },
+
+  findById(id) {
+    const row = db.prepare('SELECT * FROM music_generations WHERE id = ?').get(id);
+    if (row && row.audio_settings) {
+      row.audio_settings = JSON.parse(row.audio_settings);
+    }
+    if (row) {
+      row.is_instrumental = Boolean(row.is_instrumental);
+    }
+    return row;
+  },
+
+  findByProject(projectId) {
+    const rows = db.prepare('SELECT * FROM music_generations WHERE project_id = ? ORDER BY version DESC').all(projectId);
+    return rows.map(row => {
+      if (row.audio_settings) row.audio_settings = JSON.parse(row.audio_settings);
+      row.is_instrumental = Boolean(row.is_instrumental);
+      return row;
+    });
+  },
+
+  update(id, data) {
+    const updates = [];
+    const values = [];
+
+    if (data.originalFilePath !== undefined) {
+      updates.push('original_file_path = ?');
+      values.push(data.originalFilePath);
+    }
+    if (data.processedFilePath !== undefined) {
+      updates.push('processed_file_path = ?');
+      values.push(data.processedFilePath);
+    }
+    if (data.durationSeconds !== undefined) {
+      updates.push('duration_seconds = ?');
+      values.push(data.durationSeconds);
+    }
+    if (data.bitrate !== undefined) {
+      updates.push('bitrate = ?');
+      values.push(data.bitrate);
+    }
+
+    values.push(id);
+    const stmt = db.prepare(`UPDATE music_generations SET ${updates.join(', ')} WHERE id = ?`);
+    stmt.run(...values);
+
+    return this.findById(id);
+  },
+
+  getNextVersion(projectId) {
+    const result = db.prepare('SELECT MAX(version) as max_version FROM music_generations WHERE project_id = ?').get(projectId);
+    return (result?.max_version || 0) + 1;
+  },
+};
