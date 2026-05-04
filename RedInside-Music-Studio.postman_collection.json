@@ -1,0 +1,265 @@
+{
+	"info": {
+		"name": "RedInside Music Studio",
+		"description": "API collection for RedInside Music Studio - Desi hip-hop music creation platform",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000"
+		},
+		{
+			"key": "projectId",
+			"value": ""
+		},
+		{
+			"key": "lyricsId",
+			"value": ""
+		},
+		{
+			"key": "musicId",
+			"value": ""
+		}
+	],
+	"item": [
+		{
+			"name": "Health Check",
+			"request": {
+				"method": "GET",
+				"url": "{{baseUrl}}/health",
+				"description": "Check if server is running"
+			}
+		},
+		{
+			"name": "Projects",
+			"item": [
+				{
+					"name": "Create Project",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.collectionVariables.set('projectId', jsonData.id);",
+									"console.log('Project created:', jsonData.id);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/projects",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"My Song Project\",\n    \"description\": \"Test project via Postman\"\n}"
+						},
+						"description": "Create a new project"
+					}
+				},
+				{
+					"name": "List All Projects",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/projects",
+						"description": "Get all projects"
+					}
+				},
+				{
+					"name": "Get Project by ID",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/projects/{{projectId}}",
+						"description": "Get specific project details"
+					}
+				},
+				{
+					"name": "Update Project",
+					"request": {
+						"method": "PUT",
+						"url": "{{baseUrl}}/api/projects/{{projectId}}",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated Project Name\"\n}"
+						},
+						"description": "Update project details"
+					}
+				},
+				{
+					"name": "Delete Project",
+					"request": {
+						"method": "DELETE",
+						"url": "{{baseUrl}}/api/projects/{{projectId}}",
+						"description": "Delete a project"
+					}
+				}
+			]
+		},
+		{
+			"name": "Lyrics",
+			"item": [
+				{
+					"name": "Get Style Presets",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/lyrics/presets",
+						"description": "Get available style presets"
+					}
+				},
+				{
+					"name": "Generate Lyrics",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.id) {",
+									"    pm.collectionVariables.set('lyricsId', jsonData.id);",
+									"    console.log('Lyrics created:', jsonData.id);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/lyrics/generate",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"projectId\": \"{{projectId}}\",\n    \"prompt\": \"Viral desi rap about Mumbai streets and street food\",\n    \"stylePreset\": \"hinglish-urban\",\n    \"mode\": \"write_full_song\"\n}"
+						},
+						"description": "Generate lyrics with style preset"
+					}
+				},
+				{
+					"name": "Get Lyrics by ID",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/lyrics/{{lyricsId}}",
+						"description": "Get specific lyrics"
+					}
+				},
+				{
+					"name": "Get Project Lyrics",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/projects/{{projectId}}/lyrics",
+						"description": "Get all lyrics for a project"
+					}
+				}
+			]
+		},
+		{
+			"name": "Music",
+			"item": [
+				{
+					"name": "Generate Music",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.id) {",
+									"    pm.collectionVariables.set('musicId', jsonData.id);",
+									"    console.log('Music created:', jsonData.id);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/music/generate",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"projectId\": \"{{projectId}}\",\n    \"lyricsId\": \"{{lyricsId}}\",\n    \"model\": \"music-2.6\"\n}"
+						},
+						"description": "Generate music from lyrics - models: music-2.6, music-cover"
+					}
+				},
+				{
+					"name": "Get Music by ID",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/music/{{musicId}}",
+						"description": "Get specific music generation"
+					}
+				},
+				{
+					"name": "Get Project Music",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/projects/{{projectId}}/music",
+						"description": "Get all music for a project"
+					}
+				}
+			]
+		},
+		{
+			"name": "Jobs",
+			"item": [
+				{
+					"name": "Create Job",
+					"request": {
+						"method": "POST",
+						"url": "{{baseUrl}}/api/jobs",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"projectId\": \"{{projectId}}\",\n    \"type\": \"generate-lyrics\",\n    \"inputParams\": {\n        \"prompt\": \"Test prompt\",\n        \"stylePreset\": \"hinglish-urban\"\n    }\n}"
+						},
+						"description": "Create a job - types: generate-lyrics, generate-music, ffmpeg-process"
+					}
+				},
+				{
+					"name": "Get Job by ID",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/jobs/:id",
+						"description": "Get job status"
+					}
+				},
+				{
+					"name": "Get Project Jobs",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/projects/{{projectId}}/jobs",
+						"description": "Get all jobs for a project"
+					}
+				}
+			]
+		}
+	]
+}
