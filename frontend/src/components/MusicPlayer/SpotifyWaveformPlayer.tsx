@@ -76,6 +76,58 @@ export default function SpotifyWaveformPlayer({
     };
   }, [onTimeUpdate]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      switch (e.code) {
+        case 'Space':
+          e.preventDefault();
+          if (audioRef.current) {
+            if (isPlaying) audioRef.current.pause();
+            else audioRef.current.play();
+          }
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          if (audioRef.current) audioRef.current.currentTime -= 5;
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          if (audioRef.current) audioRef.current.currentTime += 5;
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          const newVolUp = Math.min(1, volume + 0.05);
+          if (audioRef.current) audioRef.current.volume = newVolUp;
+          setVolume(newVolUp);
+          setIsMuted(false);
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          const newVolDown = Math.max(0, volume - 0.05);
+          if (audioRef.current) audioRef.current.volume = newVolDown;
+          setVolume(newVolDown);
+          break;
+        case 'KeyM':
+          e.preventDefault();
+          if (audioRef.current) {
+            if (isMuted) {
+              audioRef.current.volume = volume || 0.8;
+              setIsMuted(false);
+            } else {
+              audioRef.current.volume = 0;
+              setIsMuted(true);
+            }
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isPlaying, volume, isMuted]);
+
   const togglePlay = () => {
     const audio = audioRef.current;
     if (!audio) return;
