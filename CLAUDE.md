@@ -103,6 +103,17 @@ Client at `backend/src/utils/minimax.client.js` handles:
 
 Error codes mapped: 0=success, 1002=rate limit, 1004=auth failed, 1008=balance, 1026=sensitive, 2013=invalid params, 2049=invalid key
 
+## Music Generation Notes
+
+- `output_format: 'url'` - MiniMax music API requires URL format to avoid timeout on >30s songs
+- `/api/music/:id/file` serves processed 320kbps if available, falls back to original
+- Music fields: `original_file_path` (DB/API), `processedFilePath` (JS), `durationSeconds` (API returns ms, display as seconds)
+- FFmpeg version parsing: use `/^v(\d+)/` regex on filename, not `split('-').pop()` (returns NaN)
+
+## Infrastructure
+
+- BullMQ requires Redis at localhost:6379 (Docker: redinside-redis container)
+
 ## Style Presets (Lyrics)
 Located at `backend/src/modules/lyrics/presets.js`:
 - `hinglish-urban`: Hindi-English mix, trap/drill
