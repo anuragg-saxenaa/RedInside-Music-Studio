@@ -109,6 +109,12 @@ export default function SpotifyWaveformPlayer({
     }
   };
 
+  const seekBy = (seconds: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime += seconds;
+  };
+
   return (
     <div
       style={{
@@ -173,35 +179,17 @@ export default function SpotifyWaveformPlayer({
         <span>{formatTime(durationMs)}</span>
       </div>
 
-      {/* Controls placeholder */}
-      <div
-        style={{
-          backgroundColor: '#282828',
-          borderRadius: '4px',
-          height: '48px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#B3B3B3',
-          fontSize: '14px',
-          gap: '8px',
-        }}
-      >
-        <button onClick={togglePlay}>
-          {isPlaying ? 'Pause' : 'Play'}
-        </button>
-        <button onClick={toggleMute}>
-          {isMuted ? 'Unmute' : 'Mute'}
-        </button>
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.1"
-          value={isMuted ? 0 : volume}
-          onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-        />
-        Playback controls (Task 3)
+      {/* Controls */}
+      <div className="controls" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <button onClick={() => seekBy(-10)} style={{ background: 'none', border: 'none', color: '#E8E8E8', fontSize: 20, cursor: 'pointer', padding: 8 }}>⏪</button>
+          <button onClick={togglePlay} style={{ background: '#F59200', border: 'none', color: '#000', fontSize: 28, cursor: 'pointer', borderRadius: '50%', width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{isPlaying ? '⏸' : '▶'}</button>
+          <button onClick={() => seekBy(10)} style={{ background: 'none', border: 'none', color: '#E8E8E8', fontSize: 20, cursor: 'pointer', padding: 8 }}>⏩</button>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button onClick={toggleMute} style={{ background: 'none', border: 'none', color: '#E8E8E8', fontSize: 20, cursor: 'pointer', padding: 8 }}>{isMuted || volume === 0 ? '🔇' : volume < 0.5 ? '🔉' : '🔊'}</button>
+          <input type="range" min="0" max="1" step="0.01" value={isMuted ? 0 : volume} onChange={(e) => handleVolumeChange(parseFloat(e.target.value))} style={{ width: 80, cursor: 'pointer' }} />
+        </div>
       </div>
     </div>
   );
