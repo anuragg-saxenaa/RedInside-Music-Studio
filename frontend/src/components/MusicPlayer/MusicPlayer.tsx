@@ -6,9 +6,10 @@ interface MusicPlayerProps {
   projectId: string;
   selectedLyrics: LyricsGeneration | null;
   onMusicGenerated: (music: MusicGeneration) => void;
+  onSelectForPlayer?: (music: MusicGeneration) => void;
 }
 
-export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerated }: MusicPlayerProps) {
+export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerated, onSelectForPlayer }: MusicPlayerProps) {
   const [generating, setGenerating] = useState(false);
   const [pollingJobId, setPollingJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -272,6 +273,38 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
 
                 {/* Quick Export Actions */}
                 <div style={{ marginTop: '12px', display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {/* Play in persistent bar */}
+                  <button
+                    onClick={() => onSelectForPlayer?.(music)}
+                    style={{
+                      color: '#E63946',
+                      textDecoration: 'none',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      backgroundColor: 'rgba(230, 57, 70, 0.1)',
+                      border: '1px solid rgba(230, 57, 70, 0.3)',
+                      padding: '8px 14px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                    onMouseOver={(e) => {
+                      (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(230, 57, 70, 0.2)';
+                      (e.currentTarget as HTMLElement).style.borderColor = '#E63946';
+                    }}
+                    onMouseOut={(e) => {
+                      (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(230, 57, 70, 0.1)';
+                      (e.currentTarget as HTMLElement).style.borderColor = 'rgba(230, 57, 70, 0.3)';
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path d="M3 2V10L10 6L3 2Z" fill="currentColor"/>
+                    </svg>
+                    Play in Bar
+                  </button>
+
                   {/* Download button */}
                   <a
                     href={`/api/music/${music.id}/file`}

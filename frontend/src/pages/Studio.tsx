@@ -3,6 +3,7 @@ import type { Project, LyricsGeneration, MusicGeneration } from '../App';
 import LyricsEditor from '../components/LyricsEditor/LyricsEditor';
 import MusicPlayer from '../components/MusicPlayer/MusicPlayer';
 import WorkflowStepper from '../components/WorkflowControl/WorkflowStepper';
+import SpotifyWaveformPlayer from '../components/MusicPlayer/SpotifyWaveformPlayer';
 
 interface StudioProps {
   project: Project;
@@ -15,6 +16,7 @@ export default function Studio({ project, onBack }: StudioProps) {
   const [currentStep, setCurrentStep] = useState<WorkflowStep>('lyrics');
   const [selectedLyrics, setSelectedLyrics] = useState<LyricsGeneration | null>(null);
   const [selectedMusic, setSelectedMusic] = useState<MusicGeneration | null>(null);
+  const [activePlayerMusic, setActivePlayerMusic] = useState<MusicGeneration | null>(null);
 
   useEffect(() => {
     if (currentStep === 'export' && !selectedMusic && project.current_music_version > 0) {
@@ -36,11 +38,16 @@ export default function Studio({ project, onBack }: StudioProps) {
 
   const handleMusicGenerated = (music: MusicGeneration) => {
     setSelectedMusic(music);
+    setActivePlayerMusic(music); // Auto-play in persistent player
     setCurrentStep('export');
   };
 
+  const handleSelectForPlayer = (music: MusicGeneration) => {
+    setActivePlayerMusic(music);
+  };
+
   return (
-    <div style={{ backgroundColor: '#0A0A0A', minHeight: '100vh', padding: '24px', fontFamily: 'DM Sans, sans-serif' }}>
+    <div style={{ backgroundColor: '#0A0A0A', minHeight: '100vh', padding: '24px', fontFamily: 'DM Sans, sans-serif', paddingBottom: activePlayerMusic ? '140px' : '24px' }}>
       <div style={{ maxWidth: '900px', margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
           <button
@@ -61,7 +68,7 @@ export default function Studio({ project, onBack }: StudioProps) {
           hasMusic={project.current_music_version > 0}
         />
 
-        <div style={{ backgroundColor: '#141414', borderRadius: '12px', padding: '24px', marginTop: '24px', border: '1px solid #2A2A2A' }}>
+        <div style={{ backgroundColor: '#141414', borderRadius: '12px', padding: '24px', marginTop: '24px', border: '1px solid #2A2A2A', minHeight: '400px' }}>
           <div style={{ display: currentStep === 'lyrics' ? 'block' : 'none' }}>
             <LyricsEditor
               projectId={project.id}
@@ -73,6 +80,7 @@ export default function Studio({ project, onBack }: StudioProps) {
               projectId={project.id}
               selectedLyrics={selectedLyrics}
               onMusicGenerated={handleMusicGenerated}
+              onSelectForPlayer={handleSelectForPlayer}
             />
           </div>
           <div style={{ display: currentStep === 'export' ? 'block' : 'none' }}>
@@ -84,6 +92,31 @@ export default function Studio({ project, onBack }: StudioProps) {
           </div>
         </div>
       </div>
+
+      {/* Persistent Player Bar */}
+      {activePlayerMusic && (
+        <div style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: '#141414',
+          borderTop: '1px solid #2A2A2A',
+          padding: '12px 24px',
+          zIndex: 1000,
+        }}>
+          <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+            <SpotifyWaveformPlayer
+              musicId={activePlayerMusic.id}
+              version={activePlayerMusic.version}
+              durationMs={(activePlayerMusic.duration_seconds || 0) * 1000}
+              audioUrl={`/api/music/${activePlayerMusic.id}/file`}
+              title={activePlayerMusic.title || `Version ${activePlayerMusic.version}`}
+              model={activePlayerMusic.model}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -158,7 +191,6 @@ function FFmpegPanel({ projectId, selectedMusic, onMusicSelect }: FFmpegPanelPro
     return null;
   };
 
-  // Sort by version descending (newest first)
   const sortedMusic = [...allMusic].sort((a, b) => b.version - a.version);
 
   return (
@@ -168,7 +200,6 @@ function FFmpegPanel({ projectId, selectedMusic, onMusicSelect }: FFmpegPanelPro
         <p style={{ color: '#A0A0A0', fontSize: '14px' }}>Download your track as a premium 320kbps MP3</p>
       </div>
 
-      {/* Track Selection */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <label style={{ color: '#A0A0A0', fontSize: '12px', fontWeight: 500 }}>Choose a version to export:</label>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -207,7 +238,6 @@ function FFmpegPanel({ projectId, selectedMusic, onMusicSelect }: FFmpegPanelPro
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    {/* Radio indicator */}
                     <div style={{
                       width: '18px',
                       height: '18px',
@@ -262,7 +292,6 @@ function FFmpegPanel({ projectId, selectedMusic, onMusicSelect }: FFmpegPanelPro
                     </div>
                   </div>
 
-                  {/* Action */}
                   {processed ? (
                     <a
                       href={`/api/music/${music.id}/file`}
@@ -325,7 +354,6 @@ function FFmpegPanel({ projectId, selectedMusic, onMusicSelect }: FFmpegPanelPro
                   )}
                 </div>
 
-                {/* Processing bar */}
                 {isCurrentlyProcessing && (
                   <div style={{
                     marginTop: '16px',
@@ -349,7 +377,6 @@ function FFmpegPanel({ projectId, selectedMusic, onMusicSelect }: FFmpegPanelPro
         </div>
       </div>
 
-      {/* Info */}
       <div style={{
         backgroundColor: '#0A0A0A',
         borderRadius: '10px',
