@@ -14,6 +14,7 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
   const [error, setError] = useState<string | null>(null);
   const [musicHistory, setMusicHistory] = useState<MusicGeneration[]>([]);
   const [model, setModel] = useState('music-2.6');
+  const [convertingId, setConvertingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/music`)
@@ -89,6 +90,42 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
     } catch (err: any) {
       setError(err.message);
       setGenerating(false);
+    }
+  };
+
+  const convertTo320 = async (music: MusicGeneration) => {
+    setConvertingId(music.id);
+    try {
+      const response = await fetch('/api/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: music.project_id,
+          type: 'ffmpeg-process',
+          inputParams: { musicId: music.id },
+        }),
+      });
+      const job = await response.json();
+      const poll = async () => {
+        const res = await fetch(`/api/jobs/${job.id}`);
+        const updatedJob = await res.json();
+        if (updatedJob.status === 'completed') {
+          // Refresh music to get updated processed_file_path
+          const musicRes = await fetch(`/api/music/${music.id}`);
+          const updatedMusic = await musicRes.json();
+          setMusicHistory(prev => prev.map(m => m.id === music.id ? updatedMusic : m));
+          setConvertingId(null);
+        } else if (updatedJob.status === 'failed') {
+          setConvertingId(null);
+          alert('Conversion failed');
+        } else {
+          setTimeout(poll, 1000);
+        }
+      };
+      poll();
+    } catch (error) {
+      setConvertingId(null);
+      alert('Failed to start conversion');
     }
   };
 
@@ -232,20 +269,105 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
                     model={music.model}
                   />
                 )}
-                <div style={{ marginTop: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+
+                {/* Quick Export Actions */}
+                <div style={{ marginTop: '12px', display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {/* Download button */}
                   <a
                     href={`/api/music/${music.id}/file`}
                     download
-                    style={{ color: '#E63946', textDecoration: 'none', fontSize: '13px', fontWeight: 500 }}
-                    onMouseOver={(e) => (e.currentTarget as HTMLElement).style.color = '#FF4757'}
-                    onMouseOut={(e) => (e.currentTarget as HTMLElement).style.color = '#E63946'}
+                    style={{
+                      color: '#FFFFFF',
+                      textDecoration: 'none',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      backgroundColor: '#2A2A2A',
+                      padding: '8px 14px',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                    onMouseOver={(e) => (e.currentTarget as HTMLElement).style.backgroundColor = '#3A3A3A'}
+                    onMouseOut={(e) => (e.currentTarget as HTMLElement).style.backgroundColor = '#2A2A2A'}
                   >
-                    ⬇ Download MP3
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path d="M6 1V7.5M3 5L6 8.5L9 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M1.5 10H10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                    </svg>
+                    Download
                   </a>
-                  {music.version > 1 && (
-                    <span style={{ color: '#00D26A', fontSize: '11px' }}>
-                      ✓ 320kbps available
+
+                  {/* 320kbps quick action */}
+                  {music.processed_file_path ? (
+                    <a
+                      href={`/api/music/${music.id}/file`}
+                      download
+                      style={{
+                        color: '#000000',
+                        textDecoration: 'none',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        backgroundColor: '#00D26A',
+                        padding: '8px 14px',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                      onMouseOver={(e) => (e.currentTarget as HTMLElement).style.backgroundColor = '#00E676'}
+                      onMouseOut={(e) => (e.currentTarget as HTMLElement).style.backgroundColor = '#00D26A'}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M10 6L4.5 10.5V1.5L10 6Z" fill="currentColor"/>
+                      </svg>
+                      320kbps MP3
+                    </a>
+                  ) : convertingId === music.id ? (
+                    <span style={{
+                      color: '#E63946',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      padding: '8px 14px',
+                      backgroundColor: 'rgba(230, 57, 70, 0.1)',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}>
+                      <div style={{ width: '12px', height: '12px', border: '2px solid #E63946', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                      Converting...
                     </span>
+                  ) : (
+                    <button
+                      onClick={() => convertTo320(music)}
+                      style={{
+                        color: '#FFB800',
+                        fontSize: '13px',
+                        fontWeight: 500,
+                        backgroundColor: 'rgba(255, 184, 0, 0.1)',
+                        border: '1px solid rgba(255, 184, 0, 0.3)',
+                        padding: '8px 14px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                      onMouseOver={(e) => {
+                        (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255, 184, 0, 0.2)';
+                        (e.currentTarget as HTMLElement).style.borderColor = '#FFB800';
+                      }}
+                      onMouseOut={(e) => {
+                        (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255, 184, 0, 0.1)';
+                        (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255, 184, 0, 0.3)';
+                      }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M10 6L4.5 10.5V1.5L10 6Z" fill="currentColor"/>
+                      </svg>
+                      Get 320kbps
+                    </button>
                   )}
                 </div>
               </div>
