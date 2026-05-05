@@ -56,7 +56,7 @@ export default function Studio({ project, onBack }: StudioProps) {
 
         <WorkflowStepper
           currentStep={currentStep === 'export' ? 'ffmpeg' : currentStep}
-          onStepChange={(step) => setCurrentStep(step as WorkflowStep)}
+          onStepChange={(step) => setCurrentStep(step === 'ffmpeg' ? 'export' : step as WorkflowStep)}
           hasLyrics={project.current_lyrics_version > 0}
           hasMusic={project.current_music_version > 0}
         />
