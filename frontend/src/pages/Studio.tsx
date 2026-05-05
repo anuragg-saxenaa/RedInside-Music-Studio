@@ -16,7 +16,6 @@ export default function Studio({ project, onBack }: StudioProps) {
   const [selectedLyrics, setSelectedLyrics] = useState<LyricsGeneration | null>(null);
   const [selectedMusic, setSelectedMusic] = useState<MusicGeneration | null>(null);
 
-  // Fetch latest music when entering ffmpeg step if no music selected
   useEffect(() => {
     if (currentStep === 'ffmpeg' && !selectedMusic && project.current_music_version > 0) {
       fetch(`/api/projects/${project.id}/music`)
@@ -41,41 +40,45 @@ export default function Studio({ project, onBack }: StudioProps) {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <button
-          onClick={onBack}
-          className="text-gray-400 hover:text-white"
-        >
-          ← Back to Projects
-        </button>
-        <h2 className="text-xl font-semibold">{project.name}</h2>
-      </div>
+    <div style={{ backgroundColor: '#0A0A0A', minHeight: '100vh', padding: '24px', fontFamily: 'DM Sans, sans-serif' }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+          <button
+            onClick={onBack}
+            style={{ background: 'none', border: 'none', color: '#A0A0A0', cursor: 'pointer', fontSize: '14px', padding: '8px 12px', borderRadius: '8px' }}
+            onMouseOver={(e) => e.currentTarget.style.color = '#FFFFFF'}
+            onMouseOut={(e) => e.currentTarget.style.color = '#A0A0A0'}
+          >
+            ← Back to Projects
+          </button>
+          <h2 style={{ color: '#FFFFFF', fontSize: '24px', fontWeight: 600, fontFamily: 'Outfit, sans-serif' }}>{project.name}</h2>
+        </div>
 
-      <WorkflowStepper
-        currentStep={currentStep}
-        onStepChange={setCurrentStep}
-        hasLyrics={project.current_lyrics_version > 0}
-        hasMusic={project.current_music_version > 0}
-      />
+        <WorkflowStepper
+          currentStep={currentStep}
+          onStepChange={setCurrentStep}
+          hasLyrics={project.current_lyrics_version > 0}
+          hasMusic={project.current_music_version > 0}
+        />
 
-      <div className="bg-gray-800 rounded-lg p-6">
-        {currentStep === 'lyrics' && (
-          <LyricsEditor
-            projectId={project.id}
-            onLyricsGenerated={handleLyricsGenerated}
-          />
-        )}
-        {currentStep === 'music' && (
-          <MusicPlayer
-            projectId={project.id}
-            selectedLyrics={selectedLyrics}
-            onMusicGenerated={handleMusicGenerated}
-          />
-        )}
-        {currentStep === 'ffmpeg' && selectedMusic && (
-          <FFmpegPanel music={selectedMusic} />
-        )}
+        <div style={{ backgroundColor: '#141414', borderRadius: '12px', padding: '24px', marginTop: '24px', border: '1px solid #2A2A2A' }}>
+          {currentStep === 'lyrics' && (
+            <LyricsEditor
+              projectId={project.id}
+              onLyricsGenerated={handleLyricsGenerated}
+            />
+          )}
+          {currentStep === 'music' && (
+            <MusicPlayer
+              projectId={project.id}
+              selectedLyrics={selectedLyrics}
+              onMusicGenerated={handleMusicGenerated}
+            />
+          )}
+          {currentStep === 'ffmpeg' && selectedMusic && (
+            <FFmpegPanel music={selectedMusic} />
+          )}
+        </div>
       </div>
     </div>
   );
@@ -98,7 +101,6 @@ function FFmpegPanel({ music }: { music: MusicGeneration }) {
         }),
       });
       const job = await response.json();
-      // Poll for job completion
       const poll = async () => {
         const res = await fetch(`/api/jobs/${job.id}`);
         const updatedJob = await res.json();
@@ -120,19 +122,21 @@ function FFmpegPanel({ music }: { music: MusicGeneration }) {
   };
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Audio Processing</h3>
-      <p className="text-gray-400">Convert audio to 320kbps MP3</p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div>
+        <h3 style={{ color: '#FFFFFF', fontSize: '18px', fontWeight: 600, marginBottom: '8px', fontFamily: 'Outfit, sans-serif' }}>Audio Processing</h3>
+        <p style={{ color: '#A0A0A0', fontSize: '14px' }}>Convert audio to 320kbps MP3</p>
+      </div>
       {result ? (
-        <div className="bg-green-900/50 p-4 rounded">
-          <p className="text-green-400">Processing complete!</p>
-          <p>Duration: {result.durationSeconds?.toFixed(1)}s | Bitrate: {Math.round(result.bitrate / 1000)}kbps</p>
+        <div style={{ backgroundColor: '#1E1E1E', padding: '16px', borderRadius: '8px', border: '1px solid #00D26A' }}>
+          <p style={{ color: '#00D26A', fontSize: '14px', fontWeight: 500 }}>Processing complete!</p>
+          <p style={{ color: '#A0A0A0', fontSize: '13px', marginTop: '8px' }}>Duration: {result.durationSeconds?.toFixed(1)}s | Bitrate: {Math.round(result.bitrate / 1000)}kbps</p>
         </div>
       ) : (
         <button
           onClick={processAudio}
           disabled={processing}
-          className="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+          style={{ backgroundColor: '#E63946', color: '#FFFFFF', border: 'none', padding: '12px 24px', borderRadius: '8px', fontSize: '14px', fontWeight: 500, cursor: processing ? 'not-allowed' : 'pointer', opacity: processing ? 0.5 : 1, alignSelf: 'flex-start' }}
         >
           {processing ? 'Processing...' : 'Convert to 320kbps'}
         </button>

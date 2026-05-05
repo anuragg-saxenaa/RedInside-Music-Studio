@@ -171,24 +171,23 @@ export default function SpotifyWaveformPlayer({
   return (
     <div
       style={{
-        backgroundColor: '#1A1A1A',
+        backgroundColor: '#282828',
         color: '#FFFFFF',
         borderRadius: '8px',
-        padding: '20px',
+        padding: '16px',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        maxWidth: '600px',
-        margin: '0 auto',
+        width: '100%',
       }}
     >
       <audio ref={audioRef} src={audioUrl} preload="metadata" onLoadedData={() => setIsLoading(false)} onTimeUpdate={() => {}} onPlay={() => {}} onPause={() => {}} onEnded={() => {}} />
 
       {/* Header */}
-      <div style={{ marginBottom: '16px' }}>
-        <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>
+      <div style={{ marginBottom: '12px' }}>
+        <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '4px' }}>
           {title || `Version ${version}`}
-        </h2>
-        <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#B3B3B3' }}>
-          <span>Version {version}</span>
+        </div>
+        <div style={{ display: 'flex', gap: '8px', fontSize: '11px', color: '#B3B3B3' }}>
+          <span>v{version}</span>
           {model && <span>{model}</span>}
           <span>{formatTime(durationMs)}</span>
         </div>
@@ -207,17 +206,19 @@ export default function SpotifyWaveformPlayer({
             setCurrentTime(newTime);
           }
         }}
-        style={{ cursor: isLoading ? 'default' : 'pointer', backgroundColor: '#282828', borderRadius: '4px', height: '80px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '2px', padding: '0 4px' }}
+        style={{ cursor: isLoading ? 'default' : 'pointer', backgroundColor: '#333333', borderRadius: '4px', height: '48px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '1px', padding: '0 4px' }}
       >
         {isLoading ? (
           <>
-            {Array.from({ length: 50 }).map((_, index) => (
+            {Array.from({ length: 40 }).map((_, index) => (
               <div
                 key={index}
                 style={{
-                  height: `${30 + Math.sin(index * 0.3) * 20}%`,
-                  width: '2px',
-                  backgroundColor: '#444444',
+                  height: `${20 + Math.sin(index * 0.3) * 15}%`,
+                  flex: 1,
+                  minWidth: '3px',
+                  maxWidth: '4px',
+                  backgroundColor: '#555555',
                   animation: 'pulse 1.5s ease-in-out infinite',
                   animationDelay: `${index * 30}ms`,
                 }}
@@ -233,8 +234,10 @@ export default function SpotifyWaveformPlayer({
                 key={index}
                 style={{
                   height: `${height}%`,
-                  width: '2px',
-                  backgroundColor: isPlayed ? '#F59200' : '#333333',
+                  flex: 1,
+                  minWidth: '3px',
+                  maxWidth: '4px',
+                  backgroundColor: isPlayed ? '#E63946' : '#4a4a4a',
                   transition: 'background-color 100ms linear',
                 }}
               />
@@ -244,37 +247,36 @@ export default function SpotifyWaveformPlayer({
       </div>
 
       {/* Time display */}
-      <div style={{ fontSize: '12px', color: '#B3B3B3', marginBottom: '16px' }}>
+      <div style={{ fontSize: '11px', color: '#B3B3B3', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
         <span>{formatTime(currentTime)}</span>
-        <span> / </span>
         <span>{formatTime(durationMs)}</span>
       </div>
 
       {/* Controls */}
-      <div className="controls" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <button onClick={() => seekBy(-10)} style={{ background: 'none', border: 'none', color: '#E8E8E8', fontSize: 20, cursor: 'pointer', padding: 8 }}>⏪</button>
-          <button onClick={togglePlay} style={{ background: '#F59200', border: 'none', color: '#000', fontSize: 28, cursor: 'pointer', borderRadius: '50%', width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{isPlaying ? '⏸' : '▶'}</button>
-          <button onClick={() => seekBy(10)} style={{ background: 'none', border: 'none', color: '#E8E8E8', fontSize: 20, cursor: 'pointer', padding: 8 }}>⏩</button>
+      <div className="controls" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button onClick={() => seekBy(-10)} style={{ background: 'none', border: 'none', color: '#E8E8E8', fontSize: 16, cursor: 'pointer', padding: 4 }}>⏪</button>
+          <button onClick={togglePlay} style={{ background: '#E63946', border: 'none', color: '#000', fontSize: 18, cursor: 'pointer', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{isPlaying ? '⏸' : '▶'}</button>
+          <button onClick={() => seekBy(10)} style={{ background: 'none', border: 'none', color: '#E8E8E8', fontSize: 16, cursor: 'pointer', padding: 4 }}>⏩</button>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button onClick={toggleMute} style={{ background: 'none', border: 'none', color: '#E8E8E8', fontSize: 20, cursor: 'pointer', padding: 8 }}>{isMuted || volume === 0 ? '🔇' : volume < 0.5 ? '🔉' : '🔊'}</button>
-          <input type="range" min="0" max="1" step="0.01" value={isMuted ? 0 : volume} onChange={(e) => handleVolumeChange(parseFloat(e.target.value))} style={{ width: 80, cursor: 'pointer' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button onClick={toggleMute} style={{ background: 'none', border: 'none', color: '#E8E8E8', fontSize: 14, cursor: 'pointer', padding: 4 }}>{isMuted || volume === 0 ? '🔇' : volume < 0.5 ? '🔉' : '🔊'}</button>
+          <input type="range" min="0" max="1" step="0.01" value={isMuted ? 0 : volume} onChange={(e) => handleVolumeChange(parseFloat(e.target.value))} style={{ width: 60, height: 4, cursor: 'pointer' }} />
         </div>
       </div>
 
       {/* Download Options */}
-      <div style={{ marginTop: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
+      <div style={{ marginTop: 12, display: 'flex', gap: 12, alignItems: 'center' }}>
         <a
           href={`/api/music/${_musicId}/file`}
           download
-          style={{ color: '#F59200', textDecoration: 'none', fontSize: 14 }}
+          style={{ color: '#1DB954', textDecoration: 'none', fontSize: 12, fontWeight: 500 }}
         >
           Download MP3
         </a>
         {version > 1 && (
-          <span style={{ color: '#666', fontSize: 12 }}>
-            • 320kbps processed version available
+          <span style={{ color: '#666', fontSize: 11 }}>
+            • 320kbps
           </span>
         )}
       </div>

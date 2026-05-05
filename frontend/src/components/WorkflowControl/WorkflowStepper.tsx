@@ -29,29 +29,66 @@ export default function WorkflowStepper({ currentStep, onStepChange, hasLyrics, 
   };
 
   return (
-    <div className="flex items-center justify-center gap-4">
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
       {STEPS.map((step, index) => {
         const state = getStepState(step.key);
         const canAccess = canAccessStep(step.key);
 
+        const getButtonStyle = () => {
+          const base = {
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 20px',
+            borderRadius: '9999px',
+            border: 'none',
+            fontSize: '14px',
+            fontWeight: 500,
+            cursor: canAccess ? 'pointer' : 'not-allowed',
+            transition: 'all 150ms ease',
+          };
+
+          if (state === 'completed') {
+            return { ...base, backgroundColor: '#1E1E1E', color: '#00D26A', border: '1px solid #00D26A' };
+          }
+          if (state === 'active') {
+            return { ...base, backgroundColor: '#E63946', color: '#FFFFFF' };
+          }
+          return { ...base, backgroundColor: '#1E1E1E', color: canAccess ? '#A0A0A0' : '#666666', border: '1px solid #2A2A2A' };
+        };
+
         return (
-          <div key={step.key} className="flex items-center">
+          <div key={step.key} style={{ display: 'flex', alignItems: 'center' }}>
             <button
               onClick={() => canAccess && onStepChange(step.key)}
               disabled={!canAccess}
-              className={`
-                flex items-center gap-2 px-4 py-2 rounded-full
-                ${state === 'completed' ? 'bg-green-600' : ''}
-                ${state === 'active' ? 'bg-purple-600' : ''}
-                ${state === 'pending' ? 'bg-gray-700' : ''}
-                ${!canAccess ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80'}
-              `}
+              style={getButtonStyle()}
+              onMouseOver={(e) => {
+                if (canAccess && state !== 'active') {
+                  e.currentTarget.style.borderColor = '#E63946';
+                  e.currentTarget.style.color = '#FFFFFF';
+                }
+              }}
+              onMouseOut={(e) => {
+                if (canAccess && state !== 'active') {
+                  e.currentTarget.style.borderColor = '#2A2A2A';
+                  e.currentTarget.style.color = '#A0A0A0';
+                }
+              }}
             >
               <span>{step.icon}</span>
               <span>{step.label}</span>
             </button>
             {index < STEPS.length - 1 && (
-              <div className={`w-8 h-0.5 ${state === 'completed' ? 'bg-green-600' : 'bg-gray-700'}`} />
+              <div
+                style={{
+                  width: '40px',
+                  height: '2px',
+                  backgroundColor: state === 'completed' ? '#00D26A' : '#2A2A2A',
+                  marginLeft: '8px',
+                  marginRight: '8px',
+                }}
+              />
             )}
           </div>
         );

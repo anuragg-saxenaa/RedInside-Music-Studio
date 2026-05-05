@@ -55,16 +55,15 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      <header className="bg-gray-800 border-b border-gray-700 p-4">
-        <h1 className="text-2xl font-bold text-purple-500">RedInside Music Studio</h1>
+    <div style={{ backgroundColor: '#0A0A0A', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
+      <header style={{ backgroundColor: '#141414', borderBottom: '1px solid #2A2A2A', padding: '16px 24px' }}>
+        <h1 style={{ color: '#E63946', fontSize: '24px', fontWeight: 700, fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.5px' }}>
+          RedInside <span style={{ color: '#FFFFFF' }}>Music Studio</span>
+        </h1>
       </header>
-      <main className="container mx-auto p-4">
+      <main style={{ maxWidth: '600px', margin: '0 auto', padding: '32px 16px' }}>
         {!project ? (
-          <div className="max-w-md mx-auto mt-8">
-            <h2 className="text-xl mb-4">Create or Load Project</h2>
-            <ProjectSelector onCreate={createProject} onLoad={loadProject} />
-          </div>
+          <ProjectSelector onCreate={createProject} onLoad={loadProject} />
         ) : (
           <Studio project={project} onBack={() => setProject(null)} />
         )}
@@ -85,34 +84,75 @@ function ProjectSelector({ onCreate, onLoad }: { onCreate: (name: string) => voi
   }, []);
 
   return (
-    <div className="space-y-4">
-      <div className="flex gap-2">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{ display: 'flex', gap: '8px' }}>
         <input
           type="text"
           value={name}
           onChange={e => setName(e.target.value)}
           placeholder="New project name"
-          className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2"
+          style={{
+            flex: 1,
+            backgroundColor: '#141414',
+            border: '1px solid #2A2A2A',
+            borderRadius: '8px',
+            padding: '12px 16px',
+            color: '#FFFFFF',
+            fontSize: '14px',
+            outline: 'none',
+          }}
+          onFocus={(e) => e.currentTarget.style.borderColor = '#E63946'}
+          onBlur={(e) => e.currentTarget.style.borderColor = '#2A2A2A'}
         />
         <button
           onClick={() => name && onCreate(name)}
-          className="bg-purple-600 px-4 py-2 rounded hover:bg-purple-700"
+          style={{
+            backgroundColor: '#E63946',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '12px 24px',
+            fontSize: '14px',
+            fontWeight: 500,
+            cursor: 'pointer',
+          }}
+          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#FF4757'}
+          onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#E63946'}
         >
           Create
         </button>
       </div>
       {projects.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-lg mb-2">Existing Projects</h3>
-          <div className="space-y-2">
+        <div style={{ marginTop: '24px' }}>
+          <h3 style={{ color: '#A0A0A0', fontSize: '12px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
+            Existing Projects
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {projects.map(p => (
               <button
                 key={p.id}
                 onClick={() => onLoad(p.id)}
-                className="w-full text-left bg-gray-800 p-3 rounded border border-gray-700 hover:border-purple-500"
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  backgroundColor: '#141414',
+                  border: '1px solid #2A2A2A',
+                  borderRadius: '8px',
+                  padding: '16px',
+                  cursor: 'pointer',
+                  transition: 'all 150ms ease',
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.borderColor = '#E63946';
+                  e.currentTarget.style.backgroundColor = '#1E1E1E';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.borderColor = '#2A2A2A';
+                  e.currentTarget.style.backgroundColor = '#141414';
+                }}
               >
-                <div className="font-medium">{p.name}</div>
-                <div className="text-sm text-gray-400">
+                <div style={{ color: '#FFFFFF', fontSize: '16px', fontWeight: 500, marginBottom: '4px' }}>{p.name}</div>
+                <div style={{ color: '#666666', fontSize: '13px' }}>
                   {p.current_lyrics_version} lyrics, {p.current_music_version} music versions
                 </div>
               </button>
