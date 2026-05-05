@@ -17,19 +17,26 @@ export default function Studio({ project, onBack }: StudioProps) {
   const [selectedLyrics, setSelectedLyrics] = useState<LyricsGeneration | null>(null);
   const [selectedMusic, setSelectedMusic] = useState<MusicGeneration | null>(null);
   const [activePlayerMusic, setActivePlayerMusic] = useState<MusicGeneration | null>(null);
+  const [allMusicList, setAllMusicList] = useState<MusicGeneration[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    if (currentStep === 'export' && !selectedMusic && project.current_music_version > 0) {
-      fetch(`/api/projects/${project.id}/music`)
-        .then(res => res.json())
-        .then(musicList => {
-          if (musicList.length > 0) {
-            setSelectedMusic(musicList[0]);
-          }
-        })
-        .catch(console.error);
+    if (project.current_music_version > 0) {
+      fetchMusicList();
     }
-  }, [currentStep, project.id, selectedMusic, project.current_music_version]);
+  }, [project.id, project.current_music_version, refreshKey]);
+
+  const fetchMusicList = () => {
+    fetch(`/api/projects/${project.id}/music`)
+      .then(res => res.json())
+      .then(musicList => {
+        setAllMusicList(musicList);
+        if (currentStep === 'export' && !selectedMusic && musicList.length > 0) {
+          setSelectedMusic(musicList[0]);
+        }
+      })
+      .catch(console.error);
+  };
 
   const handleLyricsGenerated = (lyrics: LyricsGeneration) => {
     setSelectedLyrics(lyrics);
@@ -38,12 +45,16 @@ export default function Studio({ project, onBack }: StudioProps) {
 
   const handleMusicGenerated = (music: MusicGeneration) => {
     setSelectedMusic(music);
-    setActivePlayerMusic(music); // Auto-play in persistent player
+    setActivePlayerMusic(music);
     setCurrentStep('export');
   };
 
   const handleSelectForPlayer = (music: MusicGeneration) => {
     setActivePlayerMusic(music);
+  };
+
+  const handleConversionComplete = () => {
+    setRefreshKey(k => k + 1);
   };
 
   return (
@@ -81,6 +92,8 @@ export default function Studio({ project, onBack }: StudioProps) {
               selectedLyrics={selectedLyrics}
               onMusicGenerated={handleMusicGenerated}
               onSelectForPlayer={handleSelectForPlayer}
+              allMusic={allMusicList}
+              onConversionComplete={handleConversionComplete}
             />
           </div>
           <div style={{ display: currentStep === 'export' ? 'block' : 'none' }}>
@@ -88,6 +101,8 @@ export default function Studio({ project, onBack }: StudioProps) {
               projectId={project.id}
               selectedMusic={selectedMusic}
               onMusicSelect={setSelectedMusic}
+              allMusic={allMusicList}
+              onConversionComplete={handleConversionComplete}
             />
           </div>
         </div>
@@ -125,20 +140,14 @@ interface FFmpegPanelProps {
   projectId: string;
   selectedMusic: MusicGeneration | null;
   onMusicSelect: (music: MusicGeneration) => void;
+  allMusic: MusicGeneration[];
+  onConversionComplete?: () => void;
 }
 
-function FFmpegPanel({ projectId, selectedMusic, onMusicSelect }: FFmpegPanelProps) {
-  const [allMusic, setAllMusic] = useState<MusicGeneration[]>([]);
+function FFmpegPanel({ projectId, selectedMusic, onMusicSelect, allMusic, onConversionComplete }: FFmpegPanelProps) {
   const [processing, setProcessing] = useState(false);
   const [processingVersion, setProcessingVersion] = useState<number | null>(null);
   const [downloadReady, setDownloadReady] = useState<Record<string, { durationSeconds: number; bitrate: number }>>({});
-
-  useEffect(() => {
-    fetch(`/api/projects/${projectId}/music`)
-      .then(res => res.json())
-      .then(setAllMusic)
-      .catch(console.error);
-  }, [projectId]);
 
   const processAudio = async (music: MusicGeneration) => {
     setProcessing(true);
@@ -164,6 +173,7 @@ function FFmpegPanel({ projectId, selectedMusic, onMusicSelect }: FFmpegPanelPro
           }));
           setProcessing(false);
           setProcessingVersion(null);
+          onConversionComplete?.();
         } else if (updatedJob.status === 'failed') {
           setProcessing(false);
           setProcessingVersion(null);
@@ -275,11 +285,11 @@ function FFmpegPanel({ projectId, selectedMusic, onMusicSelect }: FFmpegPanelPro
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ color: '#666666', fontSize: '12px' }}>
-                          {currentBitrate ? `${currentBitrate}kbps source` : 'Unknown source'}
-                        </span>
-                        {currentBitrate && (
+                        {currentBitrate ? (
                           <>
+                            <span style={{ color: '#FFB800', fontSize: '12px', fontWeight: 600 }}>
+                              {currentBitrate}kbps
+                            </span>
                             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ color: '#666666' }}>
                               <path d="M2 7H12M8 3L12 7L8 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                             </svg>
@@ -287,6 +297,10 @@ function FFmpegPanel({ projectId, selectedMusic, onMusicSelect }: FFmpegPanelPro
                               {processed ? `${processedBitrate}kbps MP3 ✓` : '320kbps MP3'}
                             </span>
                           </>
+                        ) : (
+                          <span style={{ color: '#666666', fontSize: '12px' }}>
+                            {processed ? `${processedBitrate}kbps MP3 ✓` : 'Pending conversion...'}
+                          </span>
                         )}
                       </div>
                     </div>

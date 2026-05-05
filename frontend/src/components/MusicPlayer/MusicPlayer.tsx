@@ -7,9 +7,11 @@ interface MusicPlayerProps {
   selectedLyrics: LyricsGeneration | null;
   onMusicGenerated: (music: MusicGeneration) => void;
   onSelectForPlayer?: (music: MusicGeneration) => void;
+  allMusic?: MusicGeneration[];
+  onConversionComplete?: () => void;
 }
 
-export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerated, onSelectForPlayer }: MusicPlayerProps) {
+export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerated, onSelectForPlayer, allMusic, onConversionComplete }: MusicPlayerProps) {
   const [generating, setGenerating] = useState(false);
   const [pollingJobId, setPollingJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -116,6 +118,7 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
           const updatedMusic = await musicRes.json();
           setMusicHistory(prev => prev.map(m => m.id === music.id ? updatedMusic : m));
           setConvertingId(null);
+          onConversionComplete?.();
         } else if (updatedJob.status === 'failed') {
           setConvertingId(null);
           alert('Conversion failed');
