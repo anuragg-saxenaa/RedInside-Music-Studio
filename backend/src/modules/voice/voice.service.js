@@ -1,9 +1,10 @@
 import * as MinimaxClientModule from '../../utils/minimax.client.js';
+import config from '../../config/env.config.js';
 const MinimaxClient = MinimaxClientModule.default;
 
 export class VoiceService {
   constructor() {
-    this.minimax = new MinimaxClient();
+    this.minimax = new MinimaxClient(config.minimax.apiKey, config.minimax.baseURL);
   }
 
   async designVoice({ prompt, previewText, voiceId }) {
