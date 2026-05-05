@@ -166,16 +166,16 @@ export default function ArtworkGenerator({ projectId, onSelectArtwork }: Artwork
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
             {images.map(img => (
               img.imageUrls.map((url, i) => (
-                <div key={`${img.id}-${i}`} style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#1E1E1E' }}>
-                  <img src={url} alt={`Artwork ${i + 1}`} style={{ width: '100%', height: '180px', objectFit: 'cover', display: 'block' }} />
-                  <div style={{ position: 'absolute', bottom: '8px', left: '8px', right: '8px', display: 'flex', gap: '8px', justifyContent: 'space-between' }}>
+                <div key={`${img.id}-${i}`} style={{ backgroundColor: '#1E1E1E', borderRadius: '8px', overflow: 'hidden' }}>
+                  <img src={url} alt={`Artwork ${i + 1}`} style={{ width: '100%', height: 'auto', display: 'block', aspectRatio: '1/1', objectFit: 'cover' }} />
+                  <div style={{ padding: '12px', display: 'flex', gap: '8px' }}>
                     <button
                       onClick={() => { console.log('Set theme clicked:', url); onSelectArtwork?.(url); }}
-                      style={{ backgroundColor: '#E63946', border: 'none', borderRadius: '6px', padding: '8px 12px', color: '#FFFFFF', fontSize: '12px', cursor: 'pointer', flex: 1 }}
+                      style={{ backgroundColor: '#E63946', border: 'none', borderRadius: '6px', padding: '10px 16px', color: '#FFFFFF', fontSize: '13px', cursor: 'pointer', flex: 1, fontWeight: 600 }}
                     >
                       Set Theme
                     </button>
-                    <a href={url} download style={{ backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: '6px', padding: '8px 12px', color: '#FFFFFF', textDecoration: 'none', fontSize: '12px', flexShrink: 0 }}>↓</a>
+                    <a href={url} download style={{ backgroundColor: '#2A2A2A', borderRadius: '6px', padding: '10px 16px', color: '#FFFFFF', textDecoration: 'none', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>↓</a>
                   </div>
                 </div>
               ))
