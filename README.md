@@ -2,6 +2,14 @@
 
 Self-hosted desi hip-hop music creation platform using MiniMax AI APIs.
 
+## Architecture & Flow
+
+**Complete system architecture**: [docs/superpowers/specs/2026-05-05-architecture-flow.md](https://github.com/anuragg-saxenaa/RedInside-Music-Studio/blob/main/docs/superpowers/specs/2026-05-05-architecture-flow.md)
+
+Includes: component diagram, workflow (Lyrics → Music → FFmpeg → Download), database schema, file structure, endpoints.
+
+---
+
 ## Features
 
 - **Lyrics Generation** - AI-powered lyrics with style presets (Hinglish, Punjabi, Hindi-Urdu, Regional Fusion)
