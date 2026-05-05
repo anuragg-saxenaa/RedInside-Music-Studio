@@ -196,7 +196,11 @@ function FFmpegPanel({ projectId, selectedMusic, onMusicSelect, allMusic, onConv
 
   const getProcessedBitrate = (music: MusicGeneration) => {
     if (downloadReady[music.id]) {
-      return Math.round(downloadReady[music.id].bitrate / 1000);
+      return Math.round((downloadReady[music.id].bitrate || 320000) / 1000);
+    }
+    // If music has processed_file_path from API, assume 320kbps
+    if (music.processed_file_path) {
+      return 320;
     }
     return null;
   };
@@ -294,12 +298,12 @@ function FFmpegPanel({ projectId, selectedMusic, onMusicSelect, allMusic, onConv
                               <path d="M2 7H12M8 3L12 7L8 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                             </svg>
                             <span style={{ color: '#00D26A', fontSize: '12px', fontWeight: 600 }}>
-                              {processed ? `${processedBitrate}kbps MP3 ✓` : '320kbps MP3'}
+                              {processed ? `${processedBitrate || 320}kbps MP3 ✓` : '320kbps MP3'}
                             </span>
                           </>
                         ) : (
                           <span style={{ color: '#666666', fontSize: '12px' }}>
-                            {processed ? `${processedBitrate}kbps MP3 ✓` : 'Pending conversion...'}
+                            {processed ? `320kbps MP3 ✓` : 'Pending conversion...'}
                           </span>
                         )}
                       </div>
