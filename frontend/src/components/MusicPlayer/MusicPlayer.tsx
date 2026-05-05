@@ -11,7 +11,7 @@ interface MusicPlayerProps {
   onConversionComplete?: () => void;
 }
 
-export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerated, onSelectForPlayer, allMusic, onConversionComplete }: MusicPlayerProps) {
+export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerated, onSelectForPlayer,  onConversionComplete }: MusicPlayerProps) {
   const [generating, setGenerating] = useState(false);
   const [pollingJobId, setPollingJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

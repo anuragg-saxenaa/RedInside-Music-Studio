@@ -154,7 +154,7 @@ interface FFmpegPanelProps {
   onConversionComplete?: () => void;
 }
 
-function FFmpegPanel({ projectId, selectedMusic, onMusicSelect, allMusic, onConversionComplete }: FFmpegPanelProps) {
+function FFmpegPanel({ selectedMusic, onMusicSelect, allMusic, onConversionComplete }: FFmpegPanelProps) {
   const [processing, setProcessing] = useState(false);
   const [processingVersion, setProcessingVersion] = useState<number | null>(null);
   const [downloadReady, setDownloadReady] = useState<Record<string, { durationSeconds: number; bitrate: number }>>({});

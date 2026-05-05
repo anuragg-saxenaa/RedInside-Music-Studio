@@ -15,7 +15,7 @@ const STEPS = [
   { key: 'export', label: 'Export', icon: '🔧' },
 ] as const;
 
-export default function WorkflowStepper({ currentStep, onStepChange, hasLyrics, hasMusic, hasArtwork, hasVoice }: WorkflowStepperProps) {
+export default function WorkflowStepper({ currentStep, onStepChange, hasLyrics, hasMusic, hasVoice }: WorkflowStepperProps) {
   const getStepState = (step: typeof STEPS[number]['key']) => {
     const stepIndex = STEPS.findIndex(s => s.key === step);
     const currentIndex = STEPS.findIndex(s => s.key === currentStep);
