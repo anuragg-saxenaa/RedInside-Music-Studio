@@ -36,6 +36,7 @@ export default function SpotifyWaveformPlayer({
   model,
   onTimeUpdate,
 }: SpotifyWaveformPlayerProps) {
+  const [isLoading, setIsLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(1);
@@ -127,7 +128,7 @@ export default function SpotifyWaveformPlayer({
         margin: '0 auto',
       }}
     >
-      <audio ref={audioRef} src={audioUrl} preload="metadata" onTimeUpdate={() => {}} onPlay={() => {}} onPause={() => {}} onEnded={() => {}} />
+      <audio ref={audioRef} src={audioUrl} preload="metadata" onLoadedData={() => setIsLoading(false)} onTimeUpdate={() => {}} onPlay={() => {}} onPause={() => {}} onEnded={() => {}} />
 
       {/* Header */}
       <div style={{ marginBottom: '16px' }}>
@@ -145,6 +146,7 @@ export default function SpotifyWaveformPlayer({
       <div
         className="waveform"
         onClick={(e) => {
+          if (isLoading) return;
           const rect = e.currentTarget.getBoundingClientRect();
           const percent = (e.clientX - rect.left) / rect.width;
           const newTime = percent * durationMs;
@@ -153,23 +155,40 @@ export default function SpotifyWaveformPlayer({
             setCurrentTime(newTime);
           }
         }}
-        style={{ cursor: 'pointer', backgroundColor: '#282828', borderRadius: '4px', height: '80px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '2px', padding: '0 4px' }}
+        style={{ cursor: isLoading ? 'default' : 'pointer', backgroundColor: '#282828', borderRadius: '4px', height: '80px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '2px', padding: '0 4px' }}
       >
-        {waveformBars.map((height, index) => {
-          const barPercent = (index / waveformBars.length) * 100;
-          const isPlayed = barPercent < progressPercent;
-          return (
-            <div
-              key={index}
-              style={{
-                height: `${height}%`,
-                width: '2px',
-                backgroundColor: isPlayed ? '#F59200' : '#333333',
-                transition: 'background-color 100ms linear',
-              }}
-            />
-          );
-        })}
+        {isLoading ? (
+          <>
+            {Array.from({ length: 50 }).map((_, index) => (
+              <div
+                key={index}
+                style={{
+                  height: `${30 + Math.sin(index * 0.3) * 20}%`,
+                  width: '2px',
+                  backgroundColor: '#444444',
+                  animation: 'pulse 1.5s ease-in-out infinite',
+                  animationDelay: `${index * 30}ms`,
+                }}
+              />
+            ))}
+          </>
+        ) : (
+          waveformBars.map((height, index) => {
+            const barPercent = (index / waveformBars.length) * 100;
+            const isPlayed = barPercent < progressPercent;
+            return (
+              <div
+                key={index}
+                style={{
+                  height: `${height}%`,
+                  width: '2px',
+                  backgroundColor: isPlayed ? '#F59200' : '#333333',
+                  transition: 'background-color 100ms linear',
+                }}
+              />
+            );
+          })
+        )}
       </div>
 
       {/* Time display */}
@@ -190,6 +209,22 @@ export default function SpotifyWaveformPlayer({
           <button onClick={toggleMute} style={{ background: 'none', border: 'none', color: '#E8E8E8', fontSize: 20, cursor: 'pointer', padding: 8 }}>{isMuted || volume === 0 ? '🔇' : volume < 0.5 ? '🔉' : '🔊'}</button>
           <input type="range" min="0" max="1" step="0.01" value={isMuted ? 0 : volume} onChange={(e) => handleVolumeChange(parseFloat(e.target.value))} style={{ width: 80, cursor: 'pointer' }} />
         </div>
+      </div>
+
+      {/* Download Options */}
+      <div style={{ marginTop: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
+        <a
+          href={`/api/music/${_musicId}/file`}
+          download
+          style={{ color: '#F59200', textDecoration: 'none', fontSize: 14 }}
+        >
+          Download MP3
+        </a>
+        {version > 1 && (
+          <span style={{ color: '#666', fontSize: 12 }}>
+            • 320kbps processed version available
+          </span>
+        )}
       </div>
     </div>
   );
