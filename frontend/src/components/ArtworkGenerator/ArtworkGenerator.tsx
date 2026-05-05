@@ -30,9 +30,14 @@ export default function ArtworkGenerator({ projectId }: ArtworkGeneratorProps) {
         body: JSON.stringify({ projectId, prompt, aspectRatio, n }),
       });
       const result = await response.json();
+      if (!response.ok || result.error) {
+        alert(result.error || 'Artwork generation failed');
+        return;
+      }
       setImages(prev => [result, ...prev]);
     } catch (err) {
       console.error('Artwork generation failed:', err);
+      alert('Network error - please try again');
     } finally {
       setGenerating(false);
     }

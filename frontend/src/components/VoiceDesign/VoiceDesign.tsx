@@ -24,9 +24,14 @@ export default function VoiceDesign() {
         body: JSON.stringify({ prompt, previewText }),
       });
       const result = await response.json();
+      if (!response.ok || result.error) {
+        alert(result.error || 'Voice design failed');
+        return;
+      }
       setVoices(prev => [result, ...prev]);
     } catch (err) {
       console.error('Voice design failed:', err);
+      alert('Network error - please try again');
     } finally {
       setDesigning(false);
     }
