@@ -42,11 +42,12 @@ export default function SpotifyWaveformPlayer({
   const [isMuted, setIsMuted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [audioError, setAudioError] = useState(false);
+  const [actualDuration, setActualDuration] = useState(durationMs);
   const audioRef = useRef<HTMLAudioElement>(null);
   const animationRef = useRef<number>();
 
   const waveformBars = generateWaveformBars(_musicId, 50);
-  const progressPercent = durationMs > 0 ? (currentTime / durationMs) * 100 : 0;
+  const progressPercent = actualDuration > 0 ? (currentTime / actualDuration) * 100 : 0;
 
   // Real time update loop using requestAnimationFrame
   const updateTime = useCallback(() => {
@@ -87,6 +88,9 @@ export default function SpotifyWaveformPlayer({
     const handleLoadedMetadata = () => {
       setIsLoading(false);
       setAudioError(false);
+      if (audioRef.current) {
+        setActualDuration(audioRef.current.duration * 1000);
+      }
     };
     const handleError = () => {
       setIsLoading(false);
@@ -214,11 +218,11 @@ export default function SpotifyWaveformPlayer({
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current;
-    if (!audio || isLoading || audioError) return;
+    if (!audio || isLoading || audioError || !audio.duration) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const percent = (e.clientX - rect.left) / rect.width;
-    const newTime = percent * (audio.duration || durationMs / 1000);
+    const newTime = percent * audio.duration;
     audio.currentTime = newTime;
     setCurrentTime(newTime * 1000);
   };
@@ -302,9 +306,34 @@ export default function SpotifyWaveformPlayer({
           </div>
 
           {/* Time display */}
-          <div style={{ fontSize: '12px', color: '#A0A0A0', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', fontFamily: 'JetBrains Mono, monospace' }}>
+          <div style={{ fontSize: '12px', color: '#A0A0A0', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', fontFamily: 'JetBrains Mono, monospace' }}>
             <span style={{ color: isPlaying ? '#E63946' : '#A0A0A0' }}>{formatTime(currentTime)}</span>
-            <span>{formatTime(durationMs)}</span>
+            <span>{formatTime(actualDuration)}</span>
+          </div>
+
+          {/* Seek Slider */}
+          <div style={{ marginBottom: '16px' }}>
+            <input
+              type="range"
+              min={0}
+              max={actualDuration || 100}
+              value={currentTime}
+              onChange={(e) => {
+                const audio = audioRef.current;
+                if (!audio) return;
+                const newTime = parseFloat(e.target.value) / 1000;
+                audio.currentTime = newTime;
+                setCurrentTime(parseFloat(e.target.value));
+              }}
+              style={{
+                width: '100%',
+                height: '6px',
+                cursor: 'pointer',
+                accentColor: '#E63946',
+                background: `linear-gradient(to right, #E63946 ${progressPercent}%, #3A3A3A ${progressPercent}%)`,
+                borderRadius: '3px',
+              }}
+            />
           </div>
 
           {/* Controls */}
