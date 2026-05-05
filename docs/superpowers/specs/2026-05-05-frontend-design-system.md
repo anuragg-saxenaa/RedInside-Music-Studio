@@ -87,8 +87,9 @@ font-family: 'JetBrains Mono', monospace;
 ### Studio Page (`Studio.tsx`)
 
 - Background: `--bg-primary`
-- Container: centered, max-width 1200px
-- Header: project name left, back button left
+- Container: centered, max-width 900px
+- Header: project name + back button
+- **New**: Persistent player bar at bottom (Spotify-style)
 
 ### WorkflowStepper (`WorkflowStepper.tsx`)
 
@@ -104,16 +105,20 @@ font-family: 'JetBrains Mono', monospace;
 |---------|-----|
 | Gray-700 backgrounds | --bg-secondary cards |
 | White text on gray | --text-primary / --text-secondary |
-| Blue-600 generate button | --accent-primary green button |
+| Blue-600 generate button | --accent-primary red button |
 | Basic select dropdown | Custom styled dropdown |
+| **NEW** | Full lyrics modal on click |
+| **NEW** | Click-to-expand with formatted text |
 
 ### MusicPlayer (`MusicPlayer.tsx`)
 
 | Current | New |
 |---------|-----|
 | Mixed inline + Tailwind styles | Consistent --bg-secondary cards |
-| Blue accent buttons | --accent-primary green |
+| Blue accent buttons | --accent-primary red |
 | Basic border styling | Subtle borders, rounded --radius-lg |
+| **NEW** | Quick 320kbps conversion button |
+| **NEW** | "Play in Bar" for persistent player |
 
 ### SpotifyWaveformPlayer
 
@@ -125,35 +130,54 @@ font-family: 'JetBrains Mono', monospace;
 - Loading and error states
 - Keyboard shortcuts (Space=play/pause, ←→=seek, ↑↓=volume, M=mute)
 - Click waveform to seek
+- **NEW**: Styled range slider for seeking
 
-### Global
+### FFmpegPanel / Export Panel
 
-- Scrollbar: dark themed
-- Focus states: red outline (#E63946)
-- Selection: red background
+| Current | New |
+|---------|-----|
+| "Process" step name | "Export for Release" step |
+| Generic conversion UI | Radio selector per version |
+| No bitrate info | Shows "256kbps → 320kbps" progression |
+| **NEW** | Per-track Export 320kbps button |
+| **NEW** | Green Download button when ready |
+| **NEW** | Info box explaining 320kbps quality |
+
+### App (ProjectSelector)
+
+| Current | New |
+|---------|-----|
+| Basic project list | Search bar to filter |
+| All projects same section | Recent vs Older Projects sections |
+| Basic cards | Progress indicators (lyrics/music versions) |
+| Full timestamps | Relative timestamps ("2h ago") |
+| No empty state | Welcome state with CTA |
 
 ---
 
-## Implementation Tasks
+## Key Features Implemented
 
-1. Create `frontend/src/index.css` with CSS variables, global styles
-2. Update `Studio.tsx` with design system classes
-3. Update `WorkflowStepper.tsx` to match design
-4. Update `LyricsEditor.tsx` with design system
-5. Update `MusicPlayer.tsx` with design system
-6. Add Google Fonts (Outfit, DM Sans, JetBrains Mono)
-7. Update `index.html` for fonts
+### 1. Persistent Player Bar (Spotify-style)
+- Fixed bottom bar across all workflow tabs
+- "Play in Bar" button on each music version
+- Audio continues when switching tabs
+- Auto-launches when music auto-generated
 
----
+### 2. Quick 320kbps Conversion
+- "Get 320kbps" gold button on music version cards
+- Direct conversion from Music step
+- Shows processing spinner during conversion
+- Green "320kbps MP3" button when ready
 
-## Files to Modify
+### 3. Centralized State
+- Music list managed at Studio level (parent component)
+- Both MusicPlayer and FFmpegPanel use same data source
+- Conversion completes → triggers refresh → all views update
 
-- `frontend/index.html` — Add Google Fonts
-- `frontend/src/index.css` — Create with CSS variables + global styles
-- `frontend/src/pages/Studio.tsx` — Update styling
-- `frontend/src/components/WorkflowControl/WorkflowStepper.tsx` — Full redesign
-- `frontend/src/components/LyricsEditor/LyricsEditor.tsx` — Consistent styling
-- `frontend/src/components/MusicPlayer/MusicPlayer.tsx` — Consistent styling
+### 4. Lyrics Modal
+- Click any lyrics card to open full-view modal
+- Pre-formatted text preserving line breaks
+- "Use This Version" action from modal
 
 ---
 
@@ -165,19 +189,25 @@ All components use inline styles (not Tailwind) per project convention. Google F
 
 | Component | File | Status |
 |-----------|------|--------|
-| Studio Page | `Studio.tsx` | ✅ Dark themed |
+| Studio Page | `Studio.tsx` | ✅ Dark themed, persistent player bar |
 | WorkflowStepper | `WorkflowStepper.tsx` | ✅ Red active, green completed, dark pending |
-| LyricsEditor | `LyricsEditor.tsx` | ✅ Full redesign with history cards |
-| MusicPlayer | `MusicPlayer.tsx` | ✅ Dark themed, red buttons, loading states |
-| SpotifyWaveformPlayer | `SpotifyWaveformPlayer.tsx` | ✅ Full player with waveform, controls, keyboard shortcuts |
-| App (ProjectSelector) | `App.tsx` | ✅ Search, Recent/Older sections, progress indicators, relative timestamps |
+| LyricsEditor | `LyricsEditor.tsx` | ✅ Full redesign, click-to-expand modal |
+| MusicPlayer | `MusicPlayer.tsx` | ✅ Dark themed, quick 320kbps conversion |
+| SpotifyWaveformPlayer | `SpotifyWaveformPlayer.tsx` | ✅ Full player with waveform, controls, slider |
+| FFmpegPanel | `Studio.tsx` (inline) | ✅ Export panel with per-track actions |
+| App (ProjectSelector) | `App.tsx` | ✅ Search, Recent/Older, progress indicators |
+
+---
 
 ## Success Criteria
 
 1. ✅ All components use inline styles (no Tailwind)
 2. ✅ Consistent dark theme (#0A0A0A background) across all pages
 3. ✅ Typography hierarchy clear (Outfit headings, DM Sans body)
-4. ✅ Red accent (#E63946) as primary action color (not green)
+4. ✅ Red accent (#E63946) as primary action color
 5. ✅ No generic blue/gray utility classes for colors
 6. ✅ Smooth hover transitions on interactive elements
 7. ✅ Loading states with subtle pulse animation
+8. ✅ Persistent player bar like Spotify/Apple Music
+9. ✅ Quick 320kbps conversion from Music step
+10. ✅ Centralized state for sync across tabs
