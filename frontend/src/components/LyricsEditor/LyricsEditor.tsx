@@ -27,6 +27,7 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
   const [error, setError] = useState<string | null>(null);
   const [lyricsHistory, setLyricsHistory] = useState<LyricsGeneration[]>([]);
   const [presets, setPresets] = useState<Record<string, StylePreset>>({});
+  const [selectedLyrics, setSelectedLyrics] = useState<LyricsGeneration | null>(null);
 
   useEffect(() => {
     fetch('/api/lyrics/presets')
@@ -203,9 +204,17 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
                   borderRadius: '10px',
                   border: '1px solid #2A2A2A',
                   transition: 'all 150ms ease',
+                  cursor: 'pointer',
                 }}
-                onMouseOver={(e) => e.currentTarget.style.borderColor = '#E63946'}
-                onMouseOut={(e) => e.currentTarget.style.borderColor = '#2A2A2A'}
+                onClick={() => setSelectedLyrics(lyrics)}
+                onMouseOver={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor = '#E63946';
+                  (e.currentTarget as HTMLElement).style.backgroundColor = '#282828';
+                }}
+                onMouseOut={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor = '#2A2A2A';
+                  (e.currentTarget as HTMLElement).style.backgroundColor = '#1E1E1E';
+                }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -223,28 +232,148 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
                       {lyrics.style_preset}
                     </span>
                   </div>
-                  <button
-                    onClick={() => onLyricsGenerated(lyrics)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#E63946',
-                      fontSize: '13px',
-                      fontWeight: 500,
-                      cursor: 'pointer',
-                      padding: '4px 8px',
-                    }}
-                    onMouseOver={(e) => e.currentTarget.style.color = '#FF4757'}
-                    onMouseOut={(e) => e.currentTarget.style.color = '#E63946'}
-                  >
-                    Use This →
-                  </button>
+                  <span style={{ color: '#666666', fontSize: '12px' }}>Click to view →</span>
                 </div>
                 <p style={{ color: '#666666', fontSize: '13px', lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                   {lyrics.content}
                 </p>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Lyrics Modal */}
+      {selectedLyrics && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px',
+          }}
+          onClick={() => setSelectedLyrics(null)}
+        >
+          <div
+            style={{
+              backgroundColor: '#141414',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '700px',
+              width: '100%',
+              maxHeight: '80vh',
+              overflow: 'auto',
+              border: '1px solid #2A2A2A',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+              <div>
+                <h3 style={{ color: '#FFFFFF', fontSize: '20px', fontWeight: 600, fontFamily: 'Outfit, sans-serif', marginBottom: '8px' }}>
+                  {selectedLyrics.title || `Version ${selectedLyrics.version}`}
+                </h3>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <span style={{
+                    backgroundColor: '#E63946',
+                    color: '#FFFFFF',
+                    fontSize: '11px',
+                    padding: '4px 10px',
+                    borderRadius: '4px',
+                    fontFamily: 'JetBrains Mono, monospace'
+                  }}>
+                    {selectedLyrics.style_preset}
+                  </span>
+                  <span style={{ color: '#666666', fontSize: '12px', lineHeight: '24px' }}>
+                    v{selectedLyrics.version} • {new Date(selectedLyrics.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedLyrics(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#666666',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                }}
+                onMouseOver={(e) => (e.currentTarget as HTMLElement).style.color = '#FFFFFF'}
+                onMouseOut={(e) => (e.currentTarget as HTMLElement).style.color = '#666666'}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Lyrics Content */}
+            <div style={{
+              backgroundColor: '#0A0A0A',
+              borderRadius: '12px',
+              padding: '20px',
+              marginBottom: '20px',
+              border: '1px solid #2A2A2A',
+            }}>
+              <pre style={{
+                color: '#FFFFFF',
+                fontSize: '14px',
+                lineHeight: 1.8,
+                fontFamily: 'DM Sans, sans-serif',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                margin: 0,
+              }}>
+                {selectedLyrics.content}
+              </pre>
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setSelectedLyrics(null)}
+                style={{
+                  backgroundColor: '#2A2A2A',
+                  color: '#A0A0A0',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '12px 20px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+                onMouseOver={(e) => (e.currentTarget as HTMLElement).style.backgroundColor = '#3A3A3A'}
+                onMouseOut={(e) => (e.currentTarget as HTMLElement).style.backgroundColor = '#2A2A2A'}
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  onLyricsGenerated(selectedLyrics);
+                  setSelectedLyrics(null);
+                }}
+                style={{
+                  backgroundColor: '#E63946',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+                onMouseOver={(e) => (e.currentTarget as HTMLElement).style.backgroundColor = '#FF4757'}
+                onMouseOut={(e) => (e.currentTarget as HTMLElement).style.backgroundColor = '#E63946'}
+              >
+                Use This Version →
+              </button>
+            </div>
           </div>
         </div>
       )}
