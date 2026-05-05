@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { LyricsGeneration, MusicGeneration } from '../../App';
+import SpotifyWaveformPlayer from './SpotifyWaveformPlayer';
 
 interface MusicPlayerProps {
   projectId: string;
@@ -162,13 +163,13 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
                   <span className="text-sm text-gray-500">{music.model}</span>
                 </div>
                 {music.original_file_path && (
-                  <audio
-                    controls
-                    className="w-full mt-2"
-                    src={`/api/music/${music.id}/file`}
-                  >
-                    Your browser does not support the audio element.
-                  </audio>
+                  <SpotifyWaveformPlayer
+                    musicId={music.id}
+                    version={music.version}
+                    durationMs={(music.duration_seconds || 0) * 1000}
+                    audioUrl={`/api/music/${music.id}/file`}
+                                        model={music.model}
+                  />
                 )}
                 <div className="mt-2 flex gap-2">
                   <a
