@@ -1,0 +1,7 @@
+.waveform {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 60px;
+  padding: 0 4px;
+}
