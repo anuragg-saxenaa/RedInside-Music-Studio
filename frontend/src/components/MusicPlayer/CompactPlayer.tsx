@@ -63,12 +63,12 @@ export default function CompactPlayer({
     const audio = audioRef.current;
     if (!audio) return;
     try {
-      if (isPlaying) {
-        await audio.pause();
-        setIsPlaying(false);
-      } else {
+      if (audio.paused) {
         await audio.play();
         setIsPlaying(true);
+      } else {
+        await audio.pause();
+        setIsPlaying(false);
       }
     } catch (err) {
       console.error('Playback error:', err);
@@ -217,14 +217,24 @@ export default function CompactPlayer({
           {formatTime(currentTime)}
         </span>
 
-        <div style={{
-          flex: 1,
-          height: '4px',
-          backgroundColor: '#2A2A2A',
-          borderRadius: '2px',
-          cursor: 'pointer',
-          position: 'relative',
-        }}>
+        <div
+          style={{
+            flex: 1,
+            height: '4px',
+            backgroundColor: '#2A2A2A',
+            borderRadius: '2px',
+            cursor: 'pointer',
+            position: 'relative',
+          }}
+          onClick={(e) => {
+            const audio = audioRef.current;
+            if (!audio || !audio.duration) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            const percent = (e.clientX - rect.left) / rect.width;
+            audio.currentTime = percent * audio.duration;
+            setCurrentTime(percent * audio.duration * 1000);
+          }}
+        >
           <div style={{
             position: 'absolute',
             left: 0,

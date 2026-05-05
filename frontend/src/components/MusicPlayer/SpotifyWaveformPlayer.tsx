@@ -162,12 +162,12 @@ export default function SpotifyWaveformPlayer({
     if (!audio) return;
 
     try {
-      if (isPlaying) {
-        await audio.pause();
-        setIsPlaying(false);
-      } else {
+      if (audio.paused) {
         await audio.play();
         setIsPlaying(true);
+      } else {
+        await audio.pause();
+        setIsPlaying(false);
       }
     } catch (err) {
       console.error('Playback error:', err);
