@@ -62,26 +62,26 @@ export default function Studio({ project, onBack }: StudioProps) {
         />
 
         <div style={{ backgroundColor: '#141414', borderRadius: '12px', padding: '24px', marginTop: '24px', border: '1px solid #2A2A2A' }}>
-          {currentStep === 'lyrics' && (
+          <div style={{ display: currentStep === 'lyrics' ? 'block' : 'none' }}>
             <LyricsEditor
               projectId={project.id}
               onLyricsGenerated={handleLyricsGenerated}
             />
-          )}
-          {currentStep === 'music' && (
+          </div>
+          <div style={{ display: currentStep === 'music' ? 'block' : 'none' }}>
             <MusicPlayer
               projectId={project.id}
               selectedLyrics={selectedLyrics}
               onMusicGenerated={handleMusicGenerated}
             />
-          )}
-          {currentStep === 'export' && (
+          </div>
+          <div style={{ display: currentStep === 'export' ? 'block' : 'none' }}>
             <FFmpegPanel
               projectId={project.id}
               selectedMusic={selectedMusic}
               onMusicSelect={setSelectedMusic}
             />
-          )}
+          </div>
         </div>
       </div>
     </div>
