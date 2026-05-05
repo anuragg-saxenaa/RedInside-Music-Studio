@@ -1,12 +1,12 @@
-# Spotify-Level Music Player UI Implementation Plan
+# RedInside Waveform Player UI Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build SpotifyWaveformPlayer component with waveform visualization, full playback controls, keyboard shortcuts
+**Goal:** Build RedInsideWaveformPlayer component with waveform visualization, full playback controls, keyboard shortcuts
 
-**Architecture:** New `SpotifyWaveformPlayer.tsx` component replaces `<audio>` tag in MusicPlayer. Uses HTML5 Audio API with custom waveform rendering (fake bars, not real analysis). Playback state managed via React hooks.
+**Architecture:** New `SpotifyWaveformPlayer.tsx` component (named for historical reasons, but fully RedInside branded) replaces `<audio>` tag in MusicPlayer. Uses HTML5 Audio API with custom waveform rendering (fake bars, not real analysis). Playback state managed via React hooks.
 
-**Tech Stack:** React, TypeScript, HTML5 Audio API, CSS animations
+**Tech Stack:** React, TypeScript, HTML5 Audio API, inline styles
 
 ---
 
@@ -202,7 +202,7 @@ Replace `<div className="waveform-placeholder" ... />` with:
         className="waveform-bar"
         style={{
           height: `${height}%`,
-          backgroundColor: isPlayed ? '#F59200' : '#333333',
+          backgroundColor: isPlayed ? '#E63946' : '#333333',
           transition: 'background-color 100ms linear',
         }}
       />
@@ -379,7 +379,7 @@ Replace `<div className="controls-placeholder" ... />` with:
 .play-btn {
   font-size: 28px;
   color: #000;
-  background: #F59200;
+  background: '#E63946',
   border-radius: 50%;
   width: 48px;
   height: 48px;
@@ -411,7 +411,7 @@ Replace `<div className="controls-placeholder" ... />` with:
   -webkit-appearance: none;
   width: 12px;
   height: 12px;
-  background: #F59200;
+  background: '#E63946',
   border-radius: 50%;
 }
 ```

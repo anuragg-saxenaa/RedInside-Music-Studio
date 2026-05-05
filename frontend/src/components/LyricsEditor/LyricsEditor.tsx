@@ -29,7 +29,6 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
   const [presets, setPresets] = useState<Record<string, StylePreset>>({});
 
   useEffect(() => {
-    // Load presets
     fetch('/api/lyrics/presets')
       .then(res => res.json())
       .then(data => {
@@ -41,7 +40,6 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
       })
       .catch(console.error);
 
-    // Load existing lyrics
     fetch(`/api/projects/${projectId}/lyrics`)
       .then(res => res.json())
       .then(setLyricsHistory)
@@ -84,23 +82,48 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
   };
 
   return (
-    <div className="space-y-6">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* Generate Section */}
       <div>
-        <h3 className="text-lg font-semibold mb-4">Generate Lyrics</h3>
+        <h3 style={{ color: '#FFFFFF', fontSize: '18px', fontWeight: 600, fontFamily: 'Outfit, sans-serif', marginBottom: '16px' }}>
+          Generate Lyrics
+        </h3>
 
-        <div className="space-y-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Style Preset */}
           <div>
-            <label className="block text-sm text-gray-400 mb-2">Style Preset</label>
-            <div className="flex gap-2 flex-wrap">
+            <label style={{ display: 'block', color: '#A0A0A0', fontSize: '12px', marginBottom: '8px', fontWeight: 500 }}>
+              Style Preset
+            </label>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               {Object.values(presets).map(preset => (
                 <button
                   key={preset.key}
                   onClick={() => setStylePreset(preset.key)}
-                  className={`px-3 py-1 rounded text-sm ${
-                    stylePreset === preset.key
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: '1px solid',
+                    borderColor: stylePreset === preset.key ? '#E63946' : '#2A2A2A',
+                    backgroundColor: stylePreset === preset.key ? '#E63946' : '#1E1E1E',
+                    color: stylePreset === preset.key ? '#FFFFFF' : '#A0A0A0',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    transition: 'all 150ms ease',
+                  }}
+                  onMouseOver={(e) => {
+                    if (stylePreset !== preset.key) {
+                      e.currentTarget.style.borderColor = '#E63946';
+                      e.currentTarget.style.color = '#FFFFFF';
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (stylePreset !== preset.key) {
+                      e.currentTarget.style.borderColor = '#2A2A2A';
+                      e.currentTarget.style.color = '#A0A0A0';
+                    }
+                  }}
                 >
                   {preset.name}
                 </button>
@@ -108,52 +131,118 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
             </div>
           </div>
 
+          {/* Prompt */}
           <div>
-            <label className="block text-sm text-gray-400 mb-2">Prompt</label>
+            <label style={{ display: 'block', color: '#A0A0A0', fontSize: '12px', marginBottom: '8px', fontWeight: 500 }}>
+              Prompt
+            </label>
             <textarea
               value={prompt}
               onChange={e => setPrompt(e.target.value)}
               placeholder="Write a viral desi rap about..."
-              className="w-full bg-gray-900 border border-gray-700 rounded p-3 h-24 resize-none"
+              style={{
+                width: '100%',
+                backgroundColor: '#0A0A0A',
+                border: '1px solid #2A2A2A',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                color: '#FFFFFF',
+                fontSize: '14px',
+                fontFamily: 'DM Sans, sans-serif',
+                resize: 'none',
+                height: '80px',
+                outline: 'none',
+              }}
+              onFocus={(e) => e.currentTarget.style.borderColor = '#E63946'}
+              onBlur={(e) => e.currentTarget.style.borderColor = '#2A2A2A'}
             />
           </div>
 
           {error && (
-            <div className="text-red-400 text-sm">{error}</div>
+            <div style={{ color: '#E63946', fontSize: '13px', padding: '8px 12px', backgroundColor: 'rgba(230, 57, 70, 0.1)', borderRadius: '6px' }}>
+              {error}
+            </div>
           )}
 
           <button
             onClick={generateLyrics}
             disabled={generating}
-            className="bg-purple-600 px-6 py-2 rounded hover:bg-purple-700 disabled:opacity-50"
+            style={{
+              backgroundColor: generating ? '#666666' : '#E63946',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '14px 24px',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: generating ? 'not-allowed' : 'pointer',
+              transition: 'all 150ms ease',
+              alignSelf: 'flex-start',
+            }}
+            onMouseOver={(e) => { if (!generating) e.currentTarget.style.backgroundColor = '#FF4757'; }}
+            onMouseOut={(e) => { if (!generating) e.currentTarget.style.backgroundColor = '#E63946'; }}
           >
-            {generating ? 'Generating...' : 'Generate Lyrics'}
+            {generating ? '✍️ Generating...' : '✍️ Generate Lyrics'}
           </button>
         </div>
       </div>
 
+      {/* History Section */}
       {lyricsHistory.length > 0 && (
         <div>
-          <h4 className="text-md font-medium mb-2">Previous Versions</h4>
-          <div className="space-y-2">
+          <h4 style={{ color: '#FFFFFF', fontSize: '14px', fontWeight: 600, marginBottom: '12px', fontFamily: 'Outfit, sans-serif' }}>
+            Previous Versions
+          </h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {lyricsHistory.map(lyrics => (
               <div
                 key={lyrics.id}
-                className="bg-gray-900 p-3 rounded border border-gray-700"
+                style={{
+                  backgroundColor: '#1E1E1E',
+                  padding: '16px',
+                  borderRadius: '10px',
+                  border: '1px solid #2A2A2A',
+                  transition: 'all 150ms ease',
+                }}
+                onMouseOver={(e) => e.currentTarget.style.borderColor = '#E63946'}
+                onMouseOut={(e) => e.currentTarget.style.borderColor = '#2A2A2A'}
               >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="font-medium">{lyrics.title || `Version ${lyrics.version}`}</span>
-                    <span className="text-sm text-gray-400 ml-2">{lyrics.style_preset}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ color: '#FFFFFF', fontSize: '14px', fontWeight: 500 }}>
+                      {lyrics.title || `Version ${lyrics.version}`}
+                    </span>
+                    <span style={{
+                      backgroundColor: '#2A2A2A',
+                      color: '#A0A0A0',
+                      fontSize: '11px',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      fontFamily: 'JetBrains Mono, monospace'
+                    }}>
+                      {lyrics.style_preset}
+                    </span>
                   </div>
                   <button
                     onClick={() => onLyricsGenerated(lyrics)}
-                    className="text-purple-400 text-sm hover:text-purple-300"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#E63946',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      padding: '4px 8px',
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.color = '#FF4757'}
+                    onMouseOut={(e) => e.currentTarget.style.color = '#E63946'}
                   >
-                    Use This
+                    Use This →
                   </button>
                 </div>
-                <p className="text-gray-400 text-sm mt-1 line-clamp-2">{lyrics.content}</p>
+                <p style={{ color: '#666666', fontSize: '13px', lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                  {lyrics.content}
+                </p>
               </div>
             ))}
           </div>
