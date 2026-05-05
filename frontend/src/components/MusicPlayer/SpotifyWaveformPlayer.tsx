@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 interface SpotifyWaveformPlayerProps {
   musicId: string;
@@ -22,7 +22,7 @@ const generateWaveformBars = (id: string, barCount: number = 50): number[] => {
   const bars: number[] = [];
   for (let i = 0; i < barCount; i++) {
     const value = Math.sin(seed * (i + 1) * 0.1) * 0.5 + 0.5;
-    bars.push(Math.floor(value * 50) + 20); // 20-70 height
+    bars.push(Math.floor(value * 50) + 20);
   }
   return bars;
 };
@@ -36,23 +36,45 @@ export default function SpotifyWaveformPlayer({
   model,
   onTimeUpdate,
 }: SpotifyWaveformPlayerProps) {
-  const [isLoading, setIsLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [audioError, setAudioError] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const animationRef = useRef<number>();
 
   const waveformBars = generateWaveformBars(_musicId, 50);
   const progressPercent = durationMs > 0 ? (currentTime / durationMs) * 100 : 0;
+
+  // Real time update loop using requestAnimationFrame
+  const updateTime = useCallback(() => {
+    if (audioRef.current && isPlaying) {
+      const timeMs = audioRef.current.currentTime * 1000;
+      setCurrentTime(timeMs);
+      onTimeUpdate?.(timeMs);
+      animationRef.current = requestAnimationFrame(updateTime);
+    }
+  }, [isPlaying, onTimeUpdate]);
+
+  useEffect(() => {
+    if (isPlaying) {
+      animationRef.current = requestAnimationFrame(updateTime);
+    } else if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+    }
+    return () => {
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    };
+  }, [isPlaying, updateTime]);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
     const handleTimeUpdate = () => {
-      setCurrentTime(audio.currentTime * 1000);
-      onTimeUpdate?.(audio.currentTime * 1000);
+      // Already handled by animation frame
     };
 
     const handleEnded = () => {
@@ -62,20 +84,39 @@ export default function SpotifyWaveformPlayer({
 
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
+    const handleLoadedMetadata = () => {
+      setIsLoading(false);
+      setAudioError(false);
+    };
+    const handleError = () => {
+      setIsLoading(false);
+      setAudioError(true);
+    };
+    const handleWaiting = () => setIsLoading(true);
+    const handleCanPlay = () => setIsLoading(false);
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('play', handlePlay);
     audio.addEventListener('pause', handlePause);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('error', handleError);
+    audio.addEventListener('waiting', handleWaiting);
+    audio.addEventListener('canplay', handleCanPlay);
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('error', handleError);
+      audio.removeEventListener('waiting', handleWaiting);
+      audio.removeEventListener('canplay', handleCanPlay);
     };
-  }, [onTimeUpdate]);
+  }, []);
 
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -83,43 +124,27 @@ export default function SpotifyWaveformPlayer({
       switch (e.code) {
         case 'Space':
           e.preventDefault();
-          if (audioRef.current) {
-            if (isPlaying) audioRef.current.pause();
-            else audioRef.current.play();
-          }
+          togglePlay();
           break;
         case 'ArrowLeft':
           e.preventDefault();
-          if (audioRef.current) audioRef.current.currentTime -= 5;
+          seekBy(-5);
           break;
         case 'ArrowRight':
           e.preventDefault();
-          if (audioRef.current) audioRef.current.currentTime += 5;
+          seekBy(5);
           break;
         case 'ArrowUp':
           e.preventDefault();
-          const newVolUp = Math.min(1, volume + 0.05);
-          if (audioRef.current) audioRef.current.volume = newVolUp;
-          setVolume(newVolUp);
-          setIsMuted(false);
+          adjustVolume(0.05);
           break;
         case 'ArrowDown':
           e.preventDefault();
-          const newVolDown = Math.max(0, volume - 0.05);
-          if (audioRef.current) audioRef.current.volume = newVolDown;
-          setVolume(newVolDown);
+          adjustVolume(-0.05);
           break;
         case 'KeyM':
           e.preventDefault();
-          if (audioRef.current) {
-            if (isMuted) {
-              audioRef.current.volume = volume || 0.8;
-              setIsMuted(false);
-            } else {
-              audioRef.current.volume = 0;
-              setIsMuted(true);
-            }
-          }
+          toggleMute();
           break;
       }
     };
@@ -128,16 +153,34 @@ export default function SpotifyWaveformPlayer({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isPlaying, volume, isMuted]);
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (isPlaying) {
-      audio.pause();
-    } else {
-      audio.play();
+    try {
+      if (isPlaying) {
+        await audio.pause();
+        setIsPlaying(false);
+      } else {
+        await audio.play();
+        setIsPlaying(true);
+      }
+    } catch (err) {
+      console.error('Playback error:', err);
     }
-    setIsPlaying(!isPlaying);
+  };
+
+  const adjustVolume = (delta: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const newVol = Math.max(0, Math.min(1, volume + delta));
+    audio.volume = newVol;
+    setVolume(newVol);
+    if (newVol > 0 && isMuted) {
+      setIsMuted(false);
+      audio.volume = newVol;
+    }
   };
 
   const handleVolumeChange = (newVolume: number) => {
@@ -154,7 +197,7 @@ export default function SpotifyWaveformPlayer({
     if (!audio) return;
 
     if (isMuted) {
-      audio.volume = volume || 1;
+      audio.volume = volume || 0.8;
       setIsMuted(false);
     } else {
       audio.volume = 0;
@@ -165,121 +208,185 @@ export default function SpotifyWaveformPlayer({
   const seekBy = (seconds: number) => {
     const audio = audioRef.current;
     if (!audio) return;
-    audio.currentTime += seconds;
+    audio.currentTime = Math.max(0, Math.min(audio.duration, audio.currentTime + seconds));
+    setCurrentTime(audio.currentTime * 1000);
+  };
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const audio = audioRef.current;
+    if (!audio || isLoading || audioError) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const percent = (e.clientX - rect.left) / rect.width;
+    const newTime = percent * (audio.duration || durationMs / 1000);
+    audio.currentTime = newTime;
+    setCurrentTime(newTime * 1000);
   };
 
   return (
     <div
       style={{
-        backgroundColor: '#282828',
+        backgroundColor: '#141414',
         color: '#FFFFFF',
-        borderRadius: '8px',
-        padding: '16px',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        borderRadius: '12px',
+        padding: '20px',
+        fontFamily: 'DM Sans, sans-serif',
         width: '100%',
+        border: '1px solid #2A2A2A',
       }}
     >
-      <audio ref={audioRef} src={audioUrl} preload="metadata" onLoadedData={() => setIsLoading(false)} onTimeUpdate={() => {}} onPlay={() => {}} onPause={() => {}} onEnded={() => {}} />
+      <audio ref={audioRef} src={audioUrl} preload="metadata" />
 
       {/* Header */}
-      <div style={{ marginBottom: '12px' }}>
-        <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '4px' }}>
+      <div style={{ marginBottom: '16px' }}>
+        <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '4px', color: '#FFFFFF', fontFamily: 'Outfit, sans-serif' }}>
           {title || `Version ${version}`}
         </div>
-        <div style={{ display: 'flex', gap: '8px', fontSize: '11px', color: '#B3B3B3' }}>
-          <span>v{version}</span>
+        <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#A0A0A0' }}>
+          <span style={{ fontFamily: 'JetBrains Mono, monospace', backgroundColor: '#2A2A2A', padding: '2px 6px', borderRadius: '4px' }}>v{version}</span>
           {model && <span>{model}</span>}
           <span>{formatTime(durationMs)}</span>
         </div>
       </div>
 
-      {/* Waveform */}
-      <div
-        className="waveform"
-        onClick={(e) => {
-          if (isLoading) return;
-          const rect = e.currentTarget.getBoundingClientRect();
-          const percent = (e.clientX - rect.left) / rect.width;
-          const newTime = percent * durationMs;
-          if (audioRef.current) {
-            audioRef.current.currentTime = newTime / 1000;
-            setCurrentTime(newTime);
-          }
-        }}
-        style={{ cursor: isLoading ? 'default' : 'pointer', backgroundColor: '#333333', borderRadius: '4px', height: '48px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '1px', padding: '0 4px' }}
-      >
-        {isLoading ? (
-          <>
-            {Array.from({ length: 40 }).map((_, index) => (
-              <div
-                key={index}
-                style={{
-                  height: `${20 + Math.sin(index * 0.3) * 15}%`,
-                  flex: 1,
-                  minWidth: '3px',
-                  maxWidth: '4px',
-                  backgroundColor: '#555555',
-                  animation: 'pulse 1.5s ease-in-out infinite',
-                  animationDelay: `${index * 30}ms`,
-                }}
-              />
-            ))}
-          </>
-        ) : (
-          waveformBars.map((height, index) => {
-            const barPercent = (index / waveformBars.length) * 100;
-            const isPlayed = barPercent < progressPercent;
-            return (
-              <div
-                key={index}
-                style={{
-                  height: `${height}%`,
-                  flex: 1,
-                  minWidth: '3px',
-                  maxWidth: '4px',
-                  backgroundColor: isPlayed ? '#E63946' : '#4a4a4a',
-                  transition: 'background-color 100ms linear',
-                }}
-              />
-            );
-          })
-        )}
-      </div>
-
-      {/* Time display */}
-      <div style={{ fontSize: '11px', color: '#B3B3B3', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
-        <span>{formatTime(currentTime)}</span>
-        <span>{formatTime(durationMs)}</span>
-      </div>
-
-      {/* Controls */}
-      <div className="controls" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={() => seekBy(-10)} style={{ background: 'none', border: 'none', color: '#E8E8E8', fontSize: 16, cursor: 'pointer', padding: 4 }}>⏪</button>
-          <button onClick={togglePlay} style={{ background: '#E63946', border: 'none', color: '#000', fontSize: 18, cursor: 'pointer', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{isPlaying ? '⏸' : '▶'}</button>
-          <button onClick={() => seekBy(10)} style={{ background: 'none', border: 'none', color: '#E8E8E8', fontSize: 16, cursor: 'pointer', padding: 4 }}>⏩</button>
+      {/* Loading State */}
+      {isLoading && !audioError && (
+        <div style={{ textAlign: 'center', padding: '20px 0', color: '#A0A0A0', fontSize: '13px' }}>
+          <div style={{ width: '24px', height: '24px', border: '2px solid #2A2A2A', borderTopColor: '#E63946', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 8px' }} />
+          Loading audio...
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button onClick={toggleMute} style={{ background: 'none', border: 'none', color: '#E8E8E8', fontSize: 14, cursor: 'pointer', padding: 4 }}>{isMuted || volume === 0 ? '🔇' : volume < 0.5 ? '🔉' : '🔊'}</button>
-          <input type="range" min="0" max="1" step="0.01" value={isMuted ? 0 : volume} onChange={(e) => handleVolumeChange(parseFloat(e.target.value))} style={{ width: 60, height: 4, cursor: 'pointer' }} />
-        </div>
-      </div>
+      )}
 
-      {/* Download Options */}
-      <div style={{ marginTop: 12, display: 'flex', gap: 12, alignItems: 'center' }}>
-        <a
-          href={`/api/music/${_musicId}/file`}
-          download
-          style={{ color: '#1DB954', textDecoration: 'none', fontSize: 12, fontWeight: 500 }}
-        >
-          Download MP3
-        </a>
-        {version > 1 && (
-          <span style={{ color: '#666', fontSize: 11 }}>
-            • 320kbps
-          </span>
-        )}
-      </div>
+      {/* Error State */}
+      {audioError && (
+        <div style={{ textAlign: 'center', padding: '20px 0', color: '#E63946', fontSize: '13px' }}>
+          Failed to load audio
+        </div>
+      )}
+
+      {/* Waveform - always visible, plays/pauses with state */}
+      {!audioError && (
+        <>
+          <div
+            onClick={handleSeek}
+            style={{
+              cursor: isLoading ? 'wait' : 'pointer',
+              backgroundColor: '#1E1E1E',
+              borderRadius: '8px',
+              height: '56px',
+              marginBottom: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '2px',
+              padding: '0 6px',
+            }}
+          >
+            {waveformBars.map((height, index) => {
+              const barPercent = (index / waveformBars.length) * 100;
+              const isPlayed = barPercent < progressPercent;
+              return (
+                <div
+                  key={index}
+                  style={{
+                    height: `${height}%`,
+                    flex: 1,
+                    minWidth: '3px',
+                    maxWidth: '5px',
+                    backgroundColor: isPlayed ? '#E63946' : '#3A3A3A',
+                    transition: 'background-color 80ms linear',
+                    borderRadius: '2px',
+                  }}
+                />
+              );
+            })}
+          </div>
+
+          {/* Time display */}
+          <div style={{ fontSize: '12px', color: '#A0A0A0', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', fontFamily: 'JetBrains Mono, monospace' }}>
+            <span style={{ color: isPlaying ? '#E63946' : '#A0A0A0' }}>{formatTime(currentTime)}</span>
+            <span>{formatTime(durationMs)}</span>
+          </div>
+
+          {/* Controls */}
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px' }}>
+            <button
+              onClick={() => seekBy(-10)}
+              style={{ background: 'none', border: 'none', color: '#A0A0A0', fontSize: '20px', cursor: 'pointer', padding: '8px', transition: 'color 150ms' }}
+              onMouseOver={(e) => (e.currentTarget as HTMLElement).style.color = '#FFFFFF'}
+              onMouseOut={(e) => (e.currentTarget as HTMLElement).style.color = '#A0A0A0'}
+              title="Rewind 10s (←)"
+            >
+              ⏪
+            </button>
+
+            <button
+              onClick={togglePlay}
+              disabled={isLoading}
+              style={{
+                background: '#E63946',
+                border: 'none',
+                color: '#FFFFFF',
+                fontSize: '20px',
+                cursor: isLoading ? 'wait' : 'pointer',
+                borderRadius: '50%',
+                width: '48px',
+                height: '48px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 150ms',
+                boxShadow: '0 4px 12px rgba(230, 57, 70, 0.3)',
+              }}
+              onMouseOver={(e) => { if (!isLoading) (e.currentTarget as HTMLElement).style.backgroundColor = '#FF4757'; }}
+              onMouseOut={(e) => { if (!isLoading) (e.currentTarget as HTMLElement).style.backgroundColor = '#E63946'; }}
+              title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
+            >
+              {isLoading ? (
+                <div style={{ width: '20px', height: '20px', border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+              ) : isPlaying ? '⏸' : '▶'}
+            </button>
+
+            <button
+              onClick={() => seekBy(10)}
+              style={{ background: 'none', border: 'none', color: '#A0A0A0', fontSize: '20px', cursor: 'pointer', padding: '8px', transition: 'color 150ms' }}
+              onMouseOver={(e) => (e.currentTarget as HTMLElement).style.color = '#FFFFFF'}
+              onMouseOut={(e) => (e.currentTarget as HTMLElement).style.color = '#A0A0A0'}
+              title="Forward 10s (→)"
+            >
+              ⏩
+            </button>
+          </div>
+
+          {/* Volume */}
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginTop: '16px' }}>
+            <button
+              onClick={toggleMute}
+              style={{ background: 'none', border: 'none', color: '#A0A0A0', fontSize: '16px', cursor: 'pointer', padding: '4px', transition: 'color 150ms' }}
+              onMouseOver={(e) => (e.currentTarget as HTMLElement).style.color = '#FFFFFF'}
+              onMouseOut={(e) => (e.currentTarget as HTMLElement).style.color = '#A0A0A0'}
+              title="Mute (M)"
+            >
+              {isMuted || volume === 0 ? '🔇' : volume < 0.5 ? '🔉' : '🔊'}
+            </button>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={isMuted ? 0 : volume}
+              onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+              style={{ width: '100px', height: '4px', cursor: 'pointer', accentColor: '#E63946' }}
+            />
+            <span style={{ fontSize: '11px', color: '#666666', fontFamily: 'JetBrains Mono, monospace' }}>
+              {Math.round((isMuted ? 0 : volume) * 100)}%
+            </span>
+          </div>
+        </>
+      )}
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }

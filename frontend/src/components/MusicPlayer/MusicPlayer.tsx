@@ -22,7 +22,6 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
       .catch(console.error);
   }, [projectId]);
 
-  // Poll for job completion
   useEffect(() => {
     if (!pollingJobId) return;
 
@@ -93,29 +92,60 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
     }
   };
 
+  const isProcessing = generating || !!pollingJobId;
+
   return (
-    <div className="space-y-6">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* Generate Section */}
       <div>
-        <h3 className="text-lg font-semibold mb-4">Generate Music</h3>
+        <h3 style={{ color: '#FFFFFF', fontSize: '18px', fontWeight: 600, fontFamily: 'Outfit, sans-serif', marginBottom: '16px' }}>
+          Generate Music
+        </h3>
 
         {selectedLyrics && (
-          <div className="bg-gray-900 p-4 rounded mb-4">
-            <div className="text-sm text-gray-400">Using lyrics:</div>
-            <div className="font-medium">{selectedLyrics.title || `Version ${selectedLyrics.version}`}</div>
+          <div style={{ backgroundColor: '#1E1E1E', padding: '16px', borderRadius: '8px', marginBottom: '16px', border: '1px solid #2A2A2A' }}>
+            <div style={{ color: '#A0A0A0', fontSize: '12px', marginBottom: '4px' }}>Using lyrics:</div>
+            <div style={{ color: '#FFFFFF', fontSize: '14px', fontWeight: 500 }}>
+              {selectedLyrics.title || `Version ${selectedLyrics.version}`}
+            </div>
           </div>
         )}
 
-        <div className="space-y-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Model Selection */}
           <div>
-            <label className="block text-sm text-gray-400 mb-2">Model</label>
-            <div className="flex gap-2">
+            <label style={{ display: 'block', color: '#A0A0A0', fontSize: '12px', marginBottom: '8px', fontWeight: 500 }}>
+              Model
+            </label>
+            <div style={{ display: 'flex', gap: '8px' }}>
               {['music-2.6', 'music-cover'].map(m => (
                 <button
                   key={m}
                   onClick={() => setModel(m)}
-                  className={`px-3 py-1 rounded text-sm ${
-                    model === m ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'
-                  }`}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: '1px solid',
+                    borderColor: model === m ? '#E63946' : '#2A2A2A',
+                    backgroundColor: model === m ? '#E63946' : '#1E1E1E',
+                    color: model === m ? '#FFFFFF' : '#A0A0A0',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    transition: 'all 150ms ease',
+                  }}
+                  onMouseOver={(e) => {
+                    if (model !== m) {
+                      e.currentTarget.style.borderColor = '#E63946';
+                      e.currentTarget.style.color = '#FFFFFF';
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (model !== m) {
+                      e.currentTarget.style.borderColor = '#2A2A2A';
+                      e.currentTarget.style.color = '#A0A0A0';
+                    }
+                  }}
                 >
                   {m}
                 </button>
@@ -123,44 +153,75 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
             </div>
           </div>
 
-          {error && <div className="text-red-400 text-sm">{error}</div>}
+          {error && (
+            <div style={{ color: '#E63946', fontSize: '13px', padding: '8px 12px', backgroundColor: 'rgba(230, 57, 70, 0.1)', borderRadius: '6px' }}>
+              {error}
+            </div>
+          )}
 
           {pollingJobId && (
-            <div className="bg-blue-900/50 p-3 rounded text-sm">
-              <div className="flex items-center gap-2">
-                <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
-                <span>Generating... (job: {pollingJobId.slice(0, 8)}...)</span>
-              </div>
+            <div style={{ color: '#A0A0A0', fontSize: '13px', padding: '12px 16px', backgroundColor: 'rgba(230, 57, 70, 0.1)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '16px', height: '16px', border: '2px solid #E63946', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+              <span>Generating... (job: {pollingJobId.slice(0, 8)}...)</span>
+              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
           )}
 
           <button
             onClick={generateMusic}
-            disabled={generating || !selectedLyrics || !!pollingJobId}
-            className="bg-blue-600 px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+            disabled={isProcessing || !selectedLyrics}
+            style={{
+              backgroundColor: isProcessing || !selectedLyrics ? '#666666' : '#E63946',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '14px 24px',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: isProcessing || !selectedLyrics ? 'not-allowed' : 'pointer',
+              transition: 'all 150ms ease',
+              alignSelf: 'flex-start',
+            }}
+            onMouseOver={(e) => { if (!isProcessing && selectedLyrics) e.currentTarget.style.backgroundColor = '#FF4757'; }}
+            onMouseOut={(e) => { if (!isProcessing && selectedLyrics) e.currentTarget.style.backgroundColor = '#E63946'; }}
           >
-            {pollingJobId ? 'Generating...' : generating ? 'Starting...' : 'Generate Music'}
+            {pollingJobId ? '⏳ Generating...' : generating ? '🚀 Starting...' : '🎵 Generate Music'}
           </button>
         </div>
       </div>
 
+      {/* Music History */}
       {musicHistory.length > 0 && (
         <div>
-          <h4 className="text-md font-medium mb-2">Music Versions</h4>
-          <div className="space-y-4">
+          <h4 style={{ color: '#FFFFFF', fontSize: '14px', fontWeight: 600, marginBottom: '12px', fontFamily: 'Outfit, sans-serif' }}>
+            Music Versions
+          </h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {musicHistory.map(music => (
               <div
                 key={music.id}
-                className="bg-gray-900 p-4 rounded border border-gray-700"
+                style={{
+                  backgroundColor: '#1E1E1E',
+                  padding: '16px',
+                  borderRadius: '10px',
+                  border: '1px solid #2A2A2A',
+                  transition: 'all 150ms ease',
+                }}
+                onMouseOver={(e) => (e.currentTarget as HTMLElement).style.borderColor = '#E63946'}
+                onMouseOut={(e) => (e.currentTarget as HTMLElement).style.borderColor = '#2A2A2A'}
               >
-                <div className="flex justify-between items-center mb-3">
-                  <div>
-                    <span className="font-medium">Version {music.version}</span>
-                    <span className="text-gray-400 text-sm ml-2">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ color: '#FFFFFF', fontSize: '14px', fontWeight: 500 }}>
+                      Version {music.version}
+                    </span>
+                    <span style={{ color: '#A0A0A0', fontSize: '12px' }}>
                       {music.duration_seconds ? `${Math.round(music.duration_seconds / 1000)}s` : 'Processing...'}
                     </span>
                   </div>
-                  <span className="text-sm text-gray-500">{music.model}</span>
+                  <span style={{ color: '#666666', fontSize: '12px', fontFamily: 'JetBrains Mono, monospace' }}>
+                    {music.model}
+                  </span>
                 </div>
                 {music.original_file_path && (
                   <SpotifyWaveformPlayer
@@ -168,17 +229,24 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
                     version={music.version}
                     durationMs={(music.duration_seconds || 0) * 1000}
                     audioUrl={`/api/music/${music.id}/file`}
-                                        model={music.model}
+                    model={music.model}
                   />
                 )}
-                <div className="mt-2 flex gap-2">
+                <div style={{ marginTop: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
                   <a
                     href={`/api/music/${music.id}/file`}
                     download
-                    className="text-blue-400 text-sm hover:text-blue-300"
+                    style={{ color: '#E63946', textDecoration: 'none', fontSize: '13px', fontWeight: 500 }}
+                    onMouseOver={(e) => (e.currentTarget as HTMLElement).style.color = '#FF4757'}
+                    onMouseOut={(e) => (e.currentTarget as HTMLElement).style.color = '#E63946'}
                   >
-                    Download MP3
+                    ⬇ Download MP3
                   </a>
+                  {music.version > 1 && (
+                    <span style={{ color: '#00D26A', fontSize: '11px' }}>
+                      ✓ 320kbps available
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
