@@ -117,14 +117,20 @@ font-family: 'JetBrains Mono', monospace;
 
 ### SpotifyWaveformPlayer
 
-- Update accent color: #1DB954 → #E63946 (RedInside red)
-- Use brand red for play button, progress, links
+- Full Spotify-style player with real playback functionality
+- Fake waveform bars (seeded by musicId) - visible immediately, red progress
+- Real-time progress tracking via requestAnimationFrame
+- Play/pause, rewind 10s, forward 10s controls
+- Volume slider with mute toggle
+- Loading and error states
+- Keyboard shortcuts (Space=play/pause, ←→=seek, ↑↓=volume, M=mute)
+- Click waveform to seek
 
 ### Global
 
 - Scrollbar: dark themed
-- Focus states: green outline
-- Selection: green background
+- Focus states: red outline (#E63946)
+- Selection: red background
 
 ---
 
@@ -162,6 +168,8 @@ All components use inline styles (not Tailwind) per project convention. Google F
 | Studio Page | `Studio.tsx` | ✅ Dark themed |
 | WorkflowStepper | `WorkflowStepper.tsx` | ✅ Red active, green completed, dark pending |
 | LyricsEditor | `LyricsEditor.tsx` | ✅ Full redesign with history cards |
+| MusicPlayer | `MusicPlayer.tsx` | ✅ Dark themed, red buttons, loading states |
+| SpotifyWaveformPlayer | `SpotifyWaveformPlayer.tsx` | ✅ Full player with waveform, controls, keyboard shortcuts |
 | App (ProjectSelector) | `App.tsx` | ✅ RedInside branded header, styled project cards |
 
 ## Success Criteria
