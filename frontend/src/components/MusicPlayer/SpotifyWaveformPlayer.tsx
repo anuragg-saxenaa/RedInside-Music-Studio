@@ -32,6 +32,67 @@ export default function SpotifyWaveformPlayer({
   const [isMuted, setIsMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      const audio = audioRef.current;
+      if (!audio) return;
+
+      switch (e.code) {
+        case 'Space':
+          e.preventDefault();
+          if (isPlaying) {
+            audio.pause();
+          } else {
+            audio.play();
+          }
+          setIsPlaying(!isPlaying);
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          audio.currentTime = Math.max(0, audio.currentTime - 5);
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          audio.currentTime = Math.min(audio.duration, audio.currentTime + 5);
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          {
+            const newVol = Math.min(1, volume + 0.05);
+            audio.volume = newVol;
+            setVolume(newVol);
+            if (newVol > 0) setIsMuted(false);
+          }
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          {
+            const newVol = Math.max(0, volume - 0.05);
+            audio.volume = newVol;
+            setVolume(newVol);
+            setIsMuted(newVol === 0);
+          }
+          break;
+        case 'KeyM':
+          e.preventDefault();
+          if (isMuted) {
+            audio.volume = volume || 1;
+            setIsMuted(false);
+          } else {
+            audio.volume = 0;
+            setIsMuted(true);
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isPlaying, volume, isMuted]);
+
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
