@@ -167,15 +167,15 @@ export default function ArtworkGenerator({ projectId, onSelectArtwork }: Artwork
             {images.map(img => (
               img.imageUrls.map((url, i) => (
                 <div key={`${img.id}-${i}`} style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#1E1E1E' }}>
-                  <img src={url} alt={`Artwork ${i + 1}`} style={{ width: '100%', height: 'auto', display: 'block' }} />
-                  <div style={{ position: 'absolute', bottom: '8px', left: '8px', right: '60px', display: 'flex', gap: '4px' }}>
+                  <img src={url} alt={`Artwork ${i + 1}`} style={{ width: '100%', height: '180px', objectFit: 'cover', display: 'block' }} />
+                  <div style={{ position: 'absolute', bottom: '8px', left: '8px', right: '8px', display: 'flex', gap: '8px', justifyContent: 'space-between' }}>
                     <button
-                      onClick={() => onSelectArtwork?.(url)}
-                      style={{ backgroundColor: '#E63946', border: 'none', borderRadius: '4px', padding: '4px 8px', color: '#FFFFFF', fontSize: '11px', cursor: 'pointer' }}
+                      onClick={() => { console.log('Set theme clicked:', url); onSelectArtwork?.(url); }}
+                      style={{ backgroundColor: '#E63946', border: 'none', borderRadius: '6px', padding: '8px 12px', color: '#FFFFFF', fontSize: '12px', cursor: 'pointer', flex: 1 }}
                     >
                       Set Theme
                     </button>
-                    <a href={url} download style={{ backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: '4px', padding: '4px 8px', color: '#FFFFFF', textDecoration: 'none', fontSize: '11px' }}>↓</a>
+                    <a href={url} download style={{ backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: '6px', padding: '8px 12px', color: '#FFFFFF', textDecoration: 'none', fontSize: '12px', flexShrink: 0 }}>↓</a>
                   </div>
                 </div>
               ))
