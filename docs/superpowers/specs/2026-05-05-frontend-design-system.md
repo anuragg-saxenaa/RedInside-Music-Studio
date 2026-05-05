@@ -211,3 +211,81 @@ All components use inline styles (not Tailwind) per project convention. Google F
 8. ✅ Persistent player bar like Spotify/Apple Music
 9. ✅ Quick 320kbps conversion from Music step
 10. ✅ Centralized state for sync across tabs
+
+---
+
+## MiniMax API Full Utilization
+
+### Music Generation Parameters
+- **Genre**: hip-hop, electronic, rock, indie, classical, etc.
+- **Mood**: energetic, melancholic, chill, aggressive, etc.
+- **Vocal Style**: auto-tune, raw, soft, aggressive, etc.
+- **Instruments**: drums, bass, piano, guitar, synth, etc.
+- **BPM**: 60-200 tempo setting
+- **Key**: C major, A minor, etc.
+
+### Cover Mode
+- Reference audio URL input
+- Style prompt for transformation
+- Seed for reproducible results
+- Model: `music-cover-free`
+
+### Image Generation (Artwork)
+- **Model**: `image-01` or `image-01-live`
+- **Aspect Ratios**: 1:1, 16:9, 4:3, 3:2, 2:3, 3:4, 9:16, 21:9
+- **Count**: 1-9 images per request
+- **Prompt**: Up to 1500 characters
+- **Subject Reference**: Character-based image-to-image
+- **Seed**: Reproducible results
+
+### Voice Design
+- Create custom voices from text descriptions
+- Preview text up to 500 characters
+- Custom voice ID for identification
+- Trial audio generation
+- Voice list and deletion
+
+### Voice Cloning
+- Upload reference audio (mp3, m4a, wav)
+- Duration: 10 seconds minimum to 5 minutes maximum
+- Size: Maximum 20 MB
+- Auto-delete after 7 days unused
+
+### FFmpeg Export Options
+- **Format**: MP3, WAV, PCM
+- **Bitrate**: 128/192/256/320 kbps (MP3 only)
+- **Channels**: Mono (1) / Stereo (2)
+- **Sample Rate**: 22.05/44.1/48/96 kHz
+
+## Project Management
+- Delete projects with confirmation
+- Rename projects inline
+- Context menu (⋮) on project cards
+
+## New Workflow Tabs
+
+### Artwork Tab
+- Image generation with aspect ratio selection
+- Count selector (1-9 images)
+- Generated artwork grid with download
+- Prompt input with character count
+
+### Voice Tab
+- Voice Design Studio
+- Example voice prompts
+- Preview text input
+- Generated voices list with Voice ID
+
+## Implementation Notes
+
+### Backend Routes Added
+- `POST /api/image/generate` - Image generation
+- `POST /api/voice/design` - Voice design creation
+- `GET /api/voices` - List available voices
+- `DELETE /api/voice/:voiceId` - Delete a voice
+- `POST /api/voice/clone` - Voice cloning
+
+### Components Added
+- `ArtworkGenerator.tsx` - Image generation UI
+- `VoiceDesign.tsx` - Voice design UI
+- `CompactPlayer.tsx` - Compact player for persistent bar

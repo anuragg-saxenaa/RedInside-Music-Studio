@@ -1,5 +1,6 @@
 // backend/src/utils/minimax.client.js
 import axios from 'axios';
+import fs from 'fs';
 import logger from './logger.js';
 
 class MinimaxClient {
@@ -109,6 +110,49 @@ class MinimaxClient {
       throw new Error('fileId must be a non-empty string');
     }
     return this.request(`/v1/files/retrieve?file_id=${encodeURIComponent(fileId)}`, 'GET');
+  }
+
+  // Image Generation
+  async generateImage({ model, prompt, aspectRatio, width, height, responseFormat, seed, n, promptOptimizer, subjectReference }) {
+    const payload = { model, prompt };
+    if (aspectRatio) payload.aspect_ratio = aspectRatio;
+    if (width && height) { payload.width = width; payload.height = height; }
+    if (responseFormat) payload.response_format = responseFormat;
+    if (seed) payload.seed = seed;
+    if (n) payload.n = n;
+    if (promptOptimizer) payload.prompt_optimizer = promptOptimizer;
+    if (subjectReference) payload.subject_reference = subjectReference;
+    return this.request('/v1/image_generation', 'POST', payload);
+  }
+
+  // Voice Design
+  async createVoiceDesign({ prompt, previewText, voiceId }) {
+    const payload = { prompt, preview_text: previewText };
+    if (voiceId) payload.voice_id = voiceId;
+    return this.request('/v1/voice_design', 'POST', payload);
+  }
+
+  async getVoiceList() {
+    return this.request('/v1/voice/list', 'GET');
+  }
+
+  async deleteVoice(voiceId) {
+    return this.request(`/v1/voice/delete?voice_id=${voiceId}`, 'DELETE');
+  }
+
+  // Voice Clone Upload
+  async uploadVoiceClone(filePath) {
+    const FormData = require('form-data');
+    const formData = new FormData();
+    formData.append('file', fs.createReadStream(filePath));
+    formData.append('purpose', 'voice_clone');
+
+    const response = await fetch(`${this.baseURL}/v1/files/upload`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${this.apiKey}` },
+      body: formData,
+    });
+    return response.json();
   }
 }
 

@@ -92,7 +92,10 @@ function App() {
   );
 }
 
-function ProjectSelector({ onCreate, onLoad }: { onCreate: (name: string) => void; onLoad: (id: string) => void }) {
+function ProjectSelector({ onCreate, onLoad }: {
+  onCreate: (name: string) => void;
+  onLoad: (id: string) => void;
+}) {
   const [name, setName] = useState('');
   const [projects, setProjects] = useState<Project[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -103,6 +106,22 @@ function ProjectSelector({ onCreate, onLoad }: { onCreate: (name: string) => voi
       .then(setProjects)
       .catch(console.error);
   }, []);
+
+  const deleteProject = async (id: string) => {
+    if (!confirm('Delete this project permanently?')) return;
+    await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+    setProjects(projects.filter(p => p.id !== id));
+  };
+
+  const renameProject = async (id: string, newName: string) => {
+    const response = await fetch(`/api/projects/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName }),
+    });
+    const updated = await response.json();
+    setProjects(projects.map(p => p.id === id ? updated : p));
+  };
 
   const filteredProjects = projects
     .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -217,6 +236,8 @@ function ProjectSelector({ onCreate, onLoad }: { onCreate: (name: string) => voi
                 key={p.id}
                 project={p}
                 onClick={() => onLoad(p.id)}
+                onDelete={deleteProject}
+                onRename={renameProject}
                 index={i}
               />
             ))}
@@ -243,6 +264,8 @@ function ProjectSelector({ onCreate, onLoad }: { onCreate: (name: string) => voi
                 key={p.id}
                 project={p}
                 onClick={() => onLoad(p.id)}
+                onDelete={deleteProject}
+                onRename={renameProject}
                 index={i + 3}
               />
             ))}
@@ -272,7 +295,14 @@ function ProjectSelector({ onCreate, onLoad }: { onCreate: (name: string) => voi
   );
 }
 
-function ProjectCard({ project, onClick, index }: { project: Project; onClick: () => void; index: number }) {
+function ProjectCard({ project, onClick, onDelete, onRename, index }: {
+  project: Project;
+  onClick: () => void;
+  onDelete: (id: string) => void;
+  onRename: (id: string, name: string) => void;
+  index: number;
+}) {
+  const [showMenu, setShowMenu] = useState(false);
   const hasLyrics = project.current_lyrics_version > 0;
   const hasMusic = project.current_music_version > 0;
 
@@ -358,9 +388,81 @@ function ProjectCard({ project, onClick, index }: { project: Project; onClick: (
           }}>
             {formatRelativeTime(project.updated_at)}
           </span>
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ color: '#E63946' }}>
-            <path d="M7 4L13 10L7 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#666666',
+                cursor: 'pointer',
+                padding: '4px 8px',
+                fontSize: '18px',
+                lineHeight: 1,
+              }}
+            >
+              ⋮
+            </button>
+            {showMenu && (
+              <div style={{
+                position: 'absolute',
+                right: 0,
+                top: '100%',
+                backgroundColor: '#1E1E1E',
+                border: '1px solid #2A2A2A',
+                borderRadius: '8px',
+                padding: '4px',
+                zIndex: 100,
+                minWidth: '120px',
+              }}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const newName = prompt('New name:', project.name);
+                    if (newName) onRename(project.id, newName);
+                    setShowMenu(false);
+                  }}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    background: 'none',
+                    border: 'none',
+                    color: '#A0A0A0',
+                    padding: '8px 16px',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    fontSize: '13px',
+                  }}
+                  onMouseOver={(e) => (e.currentTarget as HTMLElement).style.color = '#FFFFFF'}
+                  onMouseOut={(e) => (e.currentTarget as HTMLElement).style.color = '#A0A0A0'}
+                >
+                  Rename
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (confirm('Delete this project?')) onDelete(project.id);
+                    setShowMenu(false);
+                  }}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    background: 'none',
+                    border: 'none',
+                    color: '#E63946',
+                    padding: '8px 16px',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    fontSize: '13px',
+                  }}
+                  onMouseOver={(e) => (e.currentTarget as HTMLElement).style.color = '#FF4757'}
+                  onMouseOut={(e) => (e.currentTarget as HTMLElement).style.color = '#E63946'}
+                >
+                  Delete
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

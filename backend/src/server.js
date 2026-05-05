@@ -1,3 +1,5 @@
+import { registerImageRoutes } from './routes/image.routes.js';
+import { registerVoiceRoutes } from './routes/voice.routes.js';
 import express from 'express';
 import cors from 'cors';
 import config from './config/env.config.js';
@@ -60,6 +62,9 @@ MusicRoutes.forEach(route => {
 JobsRoutes.forEach(route => {
   app[route.method](route.path, route.handler);
 });
+
+registerImageRoutes(app);
+registerVoiceRoutes(app);
 
 // Error handling middleware
 app.use(errorMiddleware);

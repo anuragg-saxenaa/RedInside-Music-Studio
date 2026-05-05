@@ -2,15 +2,17 @@ import { useState, useEffect } from 'react';
 import type { Project, LyricsGeneration, MusicGeneration } from '../App';
 import LyricsEditor from '../components/LyricsEditor/LyricsEditor';
 import MusicPlayer from '../components/MusicPlayer/MusicPlayer';
+import ArtworkGenerator from '../components/ArtworkGenerator/ArtworkGenerator';
+import VoiceDesign from '../components/VoiceDesign/VoiceDesign';
 import WorkflowStepper from '../components/WorkflowControl/WorkflowStepper';
-import SpotifyWaveformPlayer from '../components/MusicPlayer/SpotifyWaveformPlayer';
+import CompactPlayer from '../components/MusicPlayer/CompactPlayer';
 
 interface StudioProps {
   project: Project;
   onBack: () => void;
 }
 
-type WorkflowStep = 'lyrics' | 'music' | 'export';
+type WorkflowStep = 'lyrics' | 'music' | 'artwork' | 'voice' | 'export';
 
 export default function Studio({ project, onBack }: StudioProps) {
   const [currentStep, setCurrentStep] = useState<WorkflowStep>('lyrics');
@@ -46,7 +48,7 @@ export default function Studio({ project, onBack }: StudioProps) {
   const handleMusicGenerated = (music: MusicGeneration) => {
     setSelectedMusic(music);
     setActivePlayerMusic(music);
-    setCurrentStep('export');
+    setCurrentStep('artwork');
   };
 
   const handleSelectForPlayer = (music: MusicGeneration) => {
@@ -58,7 +60,7 @@ export default function Studio({ project, onBack }: StudioProps) {
   };
 
   return (
-    <div style={{ backgroundColor: '#0A0A0A', minHeight: '100vh', padding: '24px', fontFamily: 'DM Sans, sans-serif', paddingBottom: activePlayerMusic ? '140px' : '24px' }}>
+    <div style={{ backgroundColor: '#0A0A0A', minHeight: '100vh', padding: '24px', fontFamily: 'DM Sans, sans-serif', paddingBottom: activePlayerMusic ? '140px' : '80px' }}>
       <div style={{ maxWidth: '900px', margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
           <button
@@ -73,8 +75,8 @@ export default function Studio({ project, onBack }: StudioProps) {
         </div>
 
         <WorkflowStepper
-          currentStep={currentStep === 'export' ? 'ffmpeg' : currentStep}
-          onStepChange={(step) => setCurrentStep(step === 'ffmpeg' ? 'export' : step as WorkflowStep)}
+          currentStep={currentStep}
+          onStepChange={setCurrentStep}
           hasLyrics={project.current_lyrics_version > 0}
           hasMusic={project.current_music_version > 0}
         />
@@ -95,6 +97,12 @@ export default function Studio({ project, onBack }: StudioProps) {
               allMusic={allMusicList}
               onConversionComplete={handleConversionComplete}
             />
+          </div>
+          <div style={{ display: currentStep === 'artwork' ? 'block' : 'none' }}>
+            <ArtworkGenerator projectId={project.id} />
+          </div>
+          <div style={{ display: currentStep === 'voice' ? 'block' : 'none' }}>
+            <VoiceDesign />
           </div>
           <div style={{ display: currentStep === 'export' ? 'block' : 'none' }}>
             <FFmpegPanel
@@ -121,7 +129,7 @@ export default function Studio({ project, onBack }: StudioProps) {
           zIndex: 1000,
         }}>
           <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-            <SpotifyWaveformPlayer
+            <CompactPlayer
               musicId={activePlayerMusic.id}
               version={activePlayerMusic.version}
               durationMs={(activePlayerMusic.duration_seconds || 0) * 1000}
@@ -148,6 +156,10 @@ function FFmpegPanel({ projectId, selectedMusic, onMusicSelect, allMusic, onConv
   const [processing, setProcessing] = useState(false);
   const [processingVersion, setProcessingVersion] = useState<number | null>(null);
   const [downloadReady, setDownloadReady] = useState<Record<string, { durationSeconds: number; bitrate: number }>>({});
+  const [exportFormat, setExportFormat] = useState<'mp3' | 'wav' | 'pcm'>('mp3');
+  const [exportBitrate, setExportBitrate] = useState<number>(320000);
+  const [exportChannels, setExportChannels] = useState<1 | 2>(2);
+  const [exportSampleRate, setExportSampleRate] = useState<number>(44100);
 
   const processAudio = async (music: MusicGeneration) => {
     setProcessing(true);
@@ -159,7 +171,13 @@ function FFmpegPanel({ projectId, selectedMusic, onMusicSelect, allMusic, onConv
         body: JSON.stringify({
           projectId: music.project_id,
           type: 'ffmpeg-process',
-          inputParams: { musicId: music.id },
+          inputParams: {
+            musicId: music.id,
+            format: exportFormat,
+            bitrate: exportBitrate,
+            channels: exportChannels,
+            sampleRate: exportSampleRate,
+          },
         }),
       });
       const job = await response.json();
@@ -212,6 +230,99 @@ function FFmpegPanel({ projectId, selectedMusic, onMusicSelect, allMusic, onConv
       <div>
         <h3 style={{ color: '#FFFFFF', fontSize: '18px', fontWeight: 600, marginBottom: '8px', fontFamily: 'Outfit, sans-serif' }}>Export for Release</h3>
         <p style={{ color: '#A0A0A0', fontSize: '14px' }}>Download your track as a premium 320kbps MP3</p>
+      </div>
+
+      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
+        {/* Format */}
+        <div>
+          <label style={{ display: 'block', color: '#A0A0A0', fontSize: '11px', marginBottom: '6px' }}>Format</label>
+          <select
+            value={exportFormat}
+            onChange={(e) => setExportFormat(e.target.value as 'mp3' | 'wav' | 'pcm')}
+            style={{
+              backgroundColor: '#1E1E1E',
+              border: '1px solid #2A2A2A',
+              borderRadius: '6px',
+              padding: '8px 12px',
+              color: '#FFFFFF',
+              fontSize: '13px',
+              cursor: 'pointer',
+            }}
+          >
+            <option value="mp3">MP3</option>
+            <option value="wav">WAV</option>
+            <option value="pcm">PCM</option>
+          </select>
+        </div>
+
+        {/* Bitrate - only show for MP3 */}
+        {exportFormat === 'mp3' && (
+          <div>
+            <label style={{ display: 'block', color: '#A0A0A0', fontSize: '11px', marginBottom: '6px' }}>Bitrate</label>
+            <select
+              value={exportBitrate}
+              onChange={(e) => setExportBitrate(parseInt(e.target.value))}
+              style={{
+                backgroundColor: '#1E1E1E',
+                border: '1px solid #2A2A2A',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                color: '#FFFFFF',
+                fontSize: '13px',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="128000">128 kbps</option>
+              <option value="192000">192 kbps</option>
+              <option value="256000">256 kbps</option>
+              <option value="320000">320 kbps</option>
+            </select>
+          </div>
+        )}
+
+        {/* Channels */}
+        <div>
+          <label style={{ display: 'block', color: '#A0A0A0', fontSize: '11px', marginBottom: '6px' }}>Channels</label>
+          <select
+            value={exportChannels}
+            onChange={(e) => setExportChannels(parseInt(e.target.value) as 1 | 2)}
+            style={{
+              backgroundColor: '#1E1E1E',
+              border: '1px solid #2A2A2A',
+              borderRadius: '6px',
+              padding: '8px 12px',
+              color: '#FFFFFF',
+              fontSize: '13px',
+              cursor: 'pointer',
+            }}
+          >
+            <option value="2">Stereo</option>
+            <option value="1">Mono</option>
+          </select>
+        </div>
+
+        {/* Sample Rate */}
+        <div>
+          <label style={{ display: 'block', color: '#A0A0A0', fontSize: '11px', marginBottom: '6px' }}>Sample Rate</label>
+          <select
+            value={exportSampleRate}
+            onChange={(e) => setExportSampleRate(parseInt(e.target.value))}
+            style={{
+              backgroundColor: '#1E1E1E',
+              border: '1px solid #2A2A2A',
+              borderRadius: '6px',
+              padding: '8px 12px',
+              color: '#FFFFFF',
+              fontSize: '13px',
+              cursor: 'pointer',
+            }}
+          >
+            <option value="22050">22.05 kHz</option>
+            <option value="44100">44.1 kHz</option>
+            <option value="48000">48 kHz</option>
+            <option value="96000">96 kHz</option>
+          </select>
+        </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

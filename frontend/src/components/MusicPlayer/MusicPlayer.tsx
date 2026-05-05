@@ -18,6 +18,27 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
   const [musicHistory, setMusicHistory] = useState<MusicGeneration[]>([]);
   const [model, setModel] = useState('music-2.6');
   const [convertingId, setConvertingId] = useState<string | null>(null);
+  const [mode, setMode] = useState<'generate' | 'cover'>('generate');
+  const [coverAudioUrl, setCoverAudioUrl] = useState<string>('');
+  const [coverPrompt, setCoverPrompt] = useState<string>('');
+  const [seed, setSeed] = useState<number>(Math.floor(Math.random() * 1000000));
+  const [genre, setGenre] = useState<string>('');
+  const [mood, setMood] = useState<string>('');
+  const [vocalStyle, setVocalStyle] = useState<string>('');
+  const [instruments, setInstruments] = useState<string>('');
+  const [bpm, setBpm] = useState<number | undefined>();
+  const [key, setKey] = useState<string>('');
+
+  const inputStyle = {
+    width: '100%',
+    backgroundColor: '#141414',
+    border: '1px solid #2A2A2A',
+    borderRadius: '6px',
+    padding: '8px 12px',
+    color: '#FFFFFF',
+    fontSize: '13px',
+    outline: 'none',
+  };
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/music`)
@@ -58,7 +79,12 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
   }, [pollingJobId]);
 
   const generateMusic = async () => {
-    if (!selectedLyrics) {
+    if (mode === 'cover' && !coverAudioUrl) {
+      setError('Please provide reference audio URL for cover mode');
+      return;
+    }
+
+    if (!selectedLyrics && mode === 'generate') {
       setError('Please select lyrics first');
       return;
     }
@@ -67,14 +93,34 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
     setError(null);
 
     try {
+      const payload = mode === 'cover' ? {
+        projectId,
+        audioUrl: coverAudioUrl,
+        prompt: coverPrompt,
+        model: 'music-cover',
+        seed,
+        ...(genre && { genre }),
+        ...(mood && { mood }),
+        ...(vocalStyle && { vocalStyle }),
+        ...(instruments && { instruments }),
+        ...(bpm && { bpm }),
+        ...(key && { key }),
+      } : {
+        projectId,
+        lyricsId: selectedLyrics?.id,
+        model,
+        ...(genre && { genre }),
+        ...(mood && { mood }),
+        ...(vocalStyle && { vocalStyle }),
+        ...(instruments && { instruments }),
+        ...(bpm && { bpm }),
+        ...(key && { key }),
+      };
+
       const response = await fetch('/api/music/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId,
-          lyricsId: selectedLyrics.id,
-          model,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -194,11 +240,203 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
             </div>
           </div>
 
+          {/* Mode Toggle */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+            <button
+              onClick={() => setMode('generate')}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '8px',
+                border: '1px solid',
+                borderColor: mode === 'generate' ? '#E63946' : '#2A2A2A',
+                backgroundColor: mode === 'generate' ? '#E63946' : '#1E1E1E',
+                color: mode === 'generate' ? '#FFFFFF' : '#A0A0A0',
+                cursor: 'pointer',
+              }}
+            >
+              Generate New
+            </button>
+            <button
+              onClick={() => setMode('cover')}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '8px',
+                border: '1px solid',
+                borderColor: mode === 'cover' ? '#E63946' : '#2A2A2A',
+                backgroundColor: mode === 'cover' ? '#E63946' : '#1E1E1E',
+                color: mode === 'cover' ? '#FFFFFF' : '#A0A0A0',
+                cursor: 'pointer',
+              }}
+            >
+              Cover Mode
+            </button>
+          </div>
+
+          {/* Cover Mode Inputs */}
+          {mode === 'cover' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+              <div>
+                <label style={{ display: 'block', color: '#A0A0A0', fontSize: '12px', marginBottom: '8px', fontWeight: 500 }}>
+                  Reference Audio URL
+                </label>
+                <input
+                  type="text"
+                  value={coverAudioUrl}
+                  onChange={(e) => setCoverAudioUrl(e.target.value)}
+                  placeholder="https://example.com/audio.mp3"
+                  style={{
+                    width: '100%',
+                    backgroundColor: '#141414',
+                    border: '1px solid #2A2A2A',
+                    borderRadius: '8px',
+                    padding: '12px 16px',
+                    color: '#FFFFFF',
+                    fontSize: '14px',
+                    outline: 'none',
+                  }}
+                  onFocus={(e) => e.currentTarget.style.borderColor = '#E63946'}
+                  onBlur={(e) => e.currentTarget.style.borderColor = '#2A2A2A'}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', color: '#A0A0A0', fontSize: '12px', marginBottom: '8px', fontWeight: 500 }}>
+                  Style Prompt
+                </label>
+                <input
+                  type="text"
+                  value={coverPrompt}
+                  onChange={(e) => setCoverPrompt(e.target.value)}
+                  placeholder="acoustic cover, intimate, soft vocals"
+                  style={{
+                    width: '100%',
+                    backgroundColor: '#141414',
+                    border: '1px solid #2A2A2A',
+                    borderRadius: '8px',
+                    padding: '12px 16px',
+                    color: '#FFFFFF',
+                    fontSize: '14px',
+                    outline: 'none',
+                  }}
+                  onFocus={(e) => e.currentTarget.style.borderColor = '#E63946'}
+                  onBlur={(e) => e.currentTarget.style.borderColor = '#2A2A2A'}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', color: '#A0A0A0', fontSize: '12px', marginBottom: '8px', fontWeight: 500 }}>
+                  Seed (for reproducible results): {seed}
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="1000000"
+                  value={seed}
+                  onChange={(e) => setSeed(parseInt(e.target.value))}
+                  style={{ width: '200px', accentColor: '#E63946' }}
+                />
+                <button
+                  onClick={() => setSeed(Math.floor(Math.random() * 1000000))}
+                  style={{
+                    marginLeft: '12px',
+                    padding: '4px 12px',
+                    backgroundColor: '#2A2A2A',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: '#A0A0A0',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                  }}
+                >
+                  Random
+                </button>
+              </div>
+            </div>
+          )}
+
           {error && (
             <div style={{ color: '#E63946', fontSize: '13px', padding: '8px 12px', backgroundColor: 'rgba(230, 57, 70, 0.1)', borderRadius: '6px' }}>
               {error}
             </div>
           )}
+
+          <details style={{ marginTop: '16px', marginBottom: '16px' }}>
+            <summary style={{ color: '#A0A0A0', cursor: 'pointer', fontSize: '13px', listStyle: 'none' }}>
+              ⚙️ Advanced Options ▼
+            </summary>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
+              <div>
+                <label style={{ display: 'block', color: '#A0A0A0', fontSize: '11px', marginBottom: '6px' }}>Genre</label>
+                <input
+                  type="text"
+                  value={genre}
+                  onChange={(e) => setGenre(e.target.value)}
+                  placeholder="hip-hop, electronic, rock..."
+                  style={inputStyle}
+                  onFocus={(e) => e.currentTarget.style.borderColor = '#E63946'}
+                  onBlur={(e) => e.currentTarget.style.borderColor = '#2A2A2A'}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', color: '#A0A0A0', fontSize: '11px', marginBottom: '6px' }}>Mood</label>
+                <input
+                  type="text"
+                  value={mood}
+                  onChange={(e) => setMood(e.target.value)}
+                  placeholder="energetic, melancholic..."
+                  style={inputStyle}
+                  onFocus={(e) => e.currentTarget.style.borderColor = '#E63946'}
+                  onBlur={(e) => e.currentTarget.style.borderColor = '#2A2A2A'}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', color: '#A0A0A0', fontSize: '11px', marginBottom: '6px' }}>Vocal Style</label>
+                <input
+                  type="text"
+                  value={vocalStyle}
+                  onChange={(e) => setVocalStyle(e.target.value)}
+                  placeholder="aggressive, soft, auto-tune..."
+                  style={inputStyle}
+                  onFocus={(e) => e.currentTarget.style.borderColor = '#E63946'}
+                  onBlur={(e) => e.currentTarget.style.borderColor = '#2A2A2A'}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', color: '#A0A0A0', fontSize: '11px', marginBottom: '6px' }}>Instruments</label>
+                <input
+                  type="text"
+                  value={instruments}
+                  onChange={(e) => setInstruments(e.target.value)}
+                  placeholder="drums, bass, piano..."
+                  style={inputStyle}
+                  onFocus={(e) => e.currentTarget.style.borderColor = '#E63946'}
+                  onBlur={(e) => e.currentTarget.style.borderColor = '#2A2A2A'}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', color: '#A0A0A0', fontSize: '11px', marginBottom: '6px' }}>BPM</label>
+                <input
+                  type="number"
+                  value={bpm || ''}
+                  onChange={(e) => setBpm(e.target.value ? parseInt(e.target.value) : undefined)}
+                  placeholder="120"
+                  style={inputStyle}
+                  onFocus={(e) => e.currentTarget.style.borderColor = '#E63946'}
+                  onBlur={(e) => e.currentTarget.style.borderColor = '#2A2A2A'}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', color: '#A0A0A0', fontSize: '11px', marginBottom: '6px' }}>Key</label>
+                <input
+                  type="text"
+                  value={key}
+                  onChange={(e) => setKey(e.target.value)}
+                  placeholder="C major, A minor..."
+                  style={inputStyle}
+                  onFocus={(e) => e.currentTarget.style.borderColor = '#E63946'}
+                  onBlur={(e) => e.currentTarget.style.borderColor = '#2A2A2A'}
+                />
+              </div>
+            </div>
+          </details>
 
           {pollingJobId && (
             <div style={{ color: '#A0A0A0', fontSize: '13px', padding: '12px 16px', backgroundColor: 'rgba(230, 57, 70, 0.1)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>

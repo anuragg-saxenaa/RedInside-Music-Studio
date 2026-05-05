@@ -145,6 +145,70 @@ export class FFmpegService {
 
     return updatedRecord;
   }
+
+  /**
+   * Process audio with full options
+   * @param {string} inputPath - Path to input audio file
+   * @param {string} outputPath - Path to output audio file
+   * @param {object} options - Processing options
+   * @param {string} options.format - Output format (mp3, wav, flac, etc.)
+   * @param {number} options.bitrate - Audio bitrate in kbps (e.g., 320)
+   * @param {number} options.channels - Number of channels (1 = mono, 2 = stereo)
+   * @param {number} options.sampleRate - Sample rate in Hz (e.g., 44100)
+   * @returns {Promise<{duration: number, bitrate: number, format: string}>}
+   */
+  processAudio(inputPath, outputPath, options = {}) {
+    const { format, bitrate, channels, sampleRate } = options;
+    return new Promise((resolve, reject) => {
+      logger.info('Processing audio with options', { inputPath, outputPath, options });
+
+      let command = ffmpeg(inputPath);
+
+      if (format) {
+        command = command.format(format);
+      }
+
+      if (bitrate) {
+        command = command.audioBitrate(bitrate);
+      }
+
+      if (channels) {
+        command = command.audioChannels(channels);
+      }
+
+      if (sampleRate) {
+        command = command.audioFrequency(sampleRate);
+      }
+
+      if (!format && !bitrate && !channels && !sampleRate) {
+        // Default to 320kbps MP3 if no options specified
+        command = command.audioBitrate(320).format('mp3');
+      }
+
+      command
+        .on('start', (commandLine) => {
+          logger.debug('FFmpeg command:', commandLine);
+        })
+        .on('progress', (progress) => {
+          if (progress.percent) {
+            logger.debug(`FFmpeg progress: ${progress.percent.toFixed(1)}%`);
+          }
+        })
+        .on('end', (stdout, stderr) => {
+          logger.info('Audio processing completed', { outputPath });
+          resolve({
+            duration: null,
+            bitrate: bitrate || 320,
+            format: format || 'mp3',
+          });
+        })
+        .on('error', (err, stdout, stderr) => {
+          logger.error('FFmpeg processing failed', { error: err.message });
+          reject(new Error(`FFmpeg processing failed: ${err.message}`));
+        })
+        .save(outputPath);
+    });
+  }
 }
 
 export default new FFmpegService();

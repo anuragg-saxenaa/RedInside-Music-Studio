@@ -1,17 +1,21 @@
 interface WorkflowStepperProps {
-  currentStep: 'lyrics' | 'music' | 'ffmpeg';
-  onStepChange: (step: 'lyrics' | 'music' | 'ffmpeg') => void;
+  currentStep: 'lyrics' | 'music' | 'artwork' | 'voice' | 'export';
+  onStepChange: (step: 'lyrics' | 'music' | 'artwork' | 'voice' | 'export') => void;
   hasLyrics: boolean;
   hasMusic: boolean;
+  hasArtwork?: boolean;
+  hasVoice?: boolean;
 }
 
 const STEPS = [
   { key: 'lyrics', label: 'Lyrics', icon: '✍️' },
   { key: 'music', label: 'Music', icon: '🎵' },
-  { key: 'ffmpeg', label: 'Process', icon: '🔧' },
+  { key: 'artwork', label: 'Artwork', icon: '🎨' },
+  { key: 'voice', label: 'Voice', icon: '🎤' },
+  { key: 'export', label: 'Export', icon: '🔧' },
 ] as const;
 
-export default function WorkflowStepper({ currentStep, onStepChange, hasLyrics, hasMusic }: WorkflowStepperProps) {
+export default function WorkflowStepper({ currentStep, onStepChange, hasLyrics, hasMusic, hasArtwork, hasVoice }: WorkflowStepperProps) {
   const getStepState = (step: typeof STEPS[number]['key']) => {
     const stepIndex = STEPS.findIndex(s => s.key === step);
     const currentIndex = STEPS.findIndex(s => s.key === currentStep);
@@ -24,7 +28,9 @@ export default function WorkflowStepper({ currentStep, onStepChange, hasLyrics, 
   const canAccessStep = (step: typeof STEPS[number]['key']) => {
     if (step === 'lyrics') return true;
     if (step === 'music') return hasLyrics;
-    if (step === 'ffmpeg') return hasMusic;
+    if (step === 'artwork') return hasMusic;
+    if (step === 'voice') return hasMusic;
+    if (step === 'export') return hasMusic;
     return false;
   };
 
