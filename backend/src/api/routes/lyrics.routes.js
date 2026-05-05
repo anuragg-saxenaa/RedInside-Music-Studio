@@ -9,6 +9,11 @@ export const LyricsRoutes = [
   },
   {
     method: 'get',
+    path: '/api/lyrics/presets',
+    handler: (req, res) => res.json(STYLE_PRESETS),
+  },
+  {
+    method: 'get',
     path: '/api/lyrics/:id',
     handler: LyricsController.getById,
   },
@@ -16,10 +21,5 @@ export const LyricsRoutes = [
     method: 'get',
     path: '/api/projects/:projectId/lyrics',
     handler: LyricsController.getByProject,
-  },
-  {
-    method: 'get',
-    path: '/api/lyrics/presets',
-    handler: (req, res) => res.json(STYLE_PRESETS),
   },
 ];
