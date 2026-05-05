@@ -19,4 +19,14 @@ export class ImageController {
       res.status(500).json({ error: err.message });
     }
   }
+
+  async listByProject(req, res) {
+    try {
+      const { projectId } = req.params;
+      const images = this.service.getByProject(projectId);
+      res.json(images);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
 }

@@ -21,6 +21,7 @@ export default function Studio({ project, onBack }: StudioProps) {
   const [activePlayerMusic, setActivePlayerMusic] = useState<MusicGeneration | null>(null);
   const [allMusicList, setAllMusicList] = useState<MusicGeneration[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (project.current_music_version > 0) {
@@ -99,7 +100,7 @@ export default function Studio({ project, onBack }: StudioProps) {
             />
           </div>
           <div style={{ display: currentStep === 'artwork' ? 'block' : 'none' }}>
-            <ArtworkGenerator projectId={project.id} />
+            <ArtworkGenerator projectId={project.id} onSelectArtwork={setArtworkUrl} />
           </div>
           <div style={{ display: currentStep === 'voice' ? 'block' : 'none' }}>
             <VoiceDesign />
@@ -136,6 +137,7 @@ export default function Studio({ project, onBack }: StudioProps) {
               audioUrl={`/api/music/${activePlayerMusic.id}/file`}
               title={activePlayerMusic.title || `Version ${activePlayerMusic.version}`}
               model={activePlayerMusic.model}
+              artworkUrl={artworkUrl || undefined}
             />
           </div>
         </div>

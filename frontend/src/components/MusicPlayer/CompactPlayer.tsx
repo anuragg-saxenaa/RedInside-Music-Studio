@@ -7,6 +7,7 @@ interface CompactPlayerProps {
   audioUrl: string;
   title?: string;
   model?: string;
+  artworkUrl?: string;
 }
 
 const formatTime = (ms: number): string => {
@@ -23,6 +24,7 @@ export default function CompactPlayer({
   audioUrl,
   title,
   model,
+  artworkUrl,
 }: CompactPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -109,6 +111,38 @@ export default function CompactPlayer({
       gap: '16px',
     }}>
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
+
+      {/* Artwork Thumbnail */}
+      {artworkUrl ? (
+        <img
+          src={artworkUrl}
+          alt="Artwork"
+          style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: '6px',
+            objectFit: 'cover',
+            flexShrink: 0,
+          }}
+        />
+      ) : (
+        <div style={{
+          width: '56px',
+          height: '56px',
+          borderRadius: '6px',
+          backgroundColor: '#2A2A2A',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#666666" strokeWidth="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+        </div>
+      )}
 
       {/* Track Info */}
       <div style={{ flex: '0 0 180px' }}>

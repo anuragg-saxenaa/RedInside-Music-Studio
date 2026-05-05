@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface ArtworkGeneratorProps {
   projectId: string;
+  onSelectArtwork?: (imageUrl: string) => void;
 }
 
 const ASPECT_RATIOS = [
@@ -13,12 +14,27 @@ const ASPECT_RATIOS = [
   { value: '2:3', label: '2:3 (832×1248)' },
 ];
 
-export default function ArtworkGenerator({ projectId }: ArtworkGeneratorProps) {
+export default function ArtworkGenerator({ projectId, onSelectArtwork }: ArtworkGeneratorProps) {
   const [prompt, setPrompt] = useState('');
   const [aspectRatio, setAspectRatio] = useState('1:1');
   const [generating, setGenerating] = useState(false);
   const [images, setImages] = useState<Array<{ id: number; imageUrls: string[]; prompt: string }>>([]);
   const [n, setN] = useState(1);
+
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/images`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setImages(data.map(img => ({
+            id: img.id,
+            imageUrls: typeof img.image_urls === 'string' ? JSON.parse(img.image_urls) : img.imageUrls || [],
+            prompt: img.prompt,
+          })));
+        }
+      })
+      .catch(console.error);
+  }, [projectId]);
 
   const generateArtwork = async () => {
     if (!prompt.trim()) return;
@@ -152,7 +168,15 @@ export default function ArtworkGenerator({ projectId }: ArtworkGeneratorProps) {
               img.imageUrls.map((url, i) => (
                 <div key={`${img.id}-${i}`} style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#1E1E1E' }}>
                   <img src={url} alt={`Artwork ${i + 1}`} style={{ width: '100%', height: 'auto', display: 'block' }} />
-                  <a href={url} download style={{ position: 'absolute', bottom: '8px', right: '8px', backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: '6px', padding: '6px 10px', color: '#FFFFFF', textDecoration: 'none', fontSize: '12px' }}>Download</a>
+                  <div style={{ position: 'absolute', bottom: '8px', left: '8px', right: '60px', display: 'flex', gap: '4px' }}>
+                    <button
+                      onClick={() => onSelectArtwork?.(url)}
+                      style={{ backgroundColor: '#E63946', border: 'none', borderRadius: '4px', padding: '4px 8px', color: '#FFFFFF', fontSize: '11px', cursor: 'pointer' }}
+                    >
+                      Set Theme
+                    </button>
+                    <a href={url} download style={{ backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: '4px', padding: '4px 8px', color: '#FFFFFF', textDecoration: 'none', fontSize: '11px' }}>↓</a>
+                  </div>
                 </div>
               ))
             ))}
