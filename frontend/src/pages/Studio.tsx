@@ -9,7 +9,7 @@ interface StudioProps {
   onBack: () => void;
 }
 
-type WorkflowStep = 'lyrics' | 'music' | 'ffmpeg';
+type WorkflowStep = 'lyrics' | 'music' | 'export';
 
 export default function Studio({ project, onBack }: StudioProps) {
   const [currentStep, setCurrentStep] = useState<WorkflowStep>('lyrics');
@@ -17,7 +17,7 @@ export default function Studio({ project, onBack }: StudioProps) {
   const [selectedMusic, setSelectedMusic] = useState<MusicGeneration | null>(null);
 
   useEffect(() => {
-    if (currentStep === 'ffmpeg' && !selectedMusic && project.current_music_version > 0) {
+    if (currentStep === 'export' && !selectedMusic && project.current_music_version > 0) {
       fetch(`/api/projects/${project.id}/music`)
         .then(res => res.json())
         .then(musicList => {
@@ -36,7 +36,7 @@ export default function Studio({ project, onBack }: StudioProps) {
 
   const handleMusicGenerated = (music: MusicGeneration) => {
     setSelectedMusic(music);
-    setCurrentStep('ffmpeg');
+    setCurrentStep('export');
   };
 
   return (
@@ -55,8 +55,8 @@ export default function Studio({ project, onBack }: StudioProps) {
         </div>
 
         <WorkflowStepper
-          currentStep={currentStep}
-          onStepChange={setCurrentStep}
+          currentStep={currentStep === 'export' ? 'ffmpeg' : currentStep}
+          onStepChange={(step) => setCurrentStep(step as WorkflowStep)}
           hasLyrics={project.current_lyrics_version > 0}
           hasMusic={project.current_music_version > 0}
         />
@@ -75,7 +75,7 @@ export default function Studio({ project, onBack }: StudioProps) {
               onMusicGenerated={handleMusicGenerated}
             />
           )}
-          {currentStep === 'ffmpeg' && (
+          {currentStep === 'export' && (
             <FFmpegPanel
               projectId={project.id}
               selectedMusic={selectedMusic}
@@ -98,7 +98,7 @@ function FFmpegPanel({ projectId, selectedMusic, onMusicSelect }: FFmpegPanelPro
   const [allMusic, setAllMusic] = useState<MusicGeneration[]>([]);
   const [processing, setProcessing] = useState(false);
   const [processingVersion, setProcessingVersion] = useState<number | null>(null);
-  const [results, setResults] = useState<Record<string, { durationSeconds: number; bitrate: number }>>({});
+  const [downloadReady, setDownloadReady] = useState<Record<string, { durationSeconds: number; bitrate: number }>>({});
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/music`)
@@ -125,7 +125,7 @@ function FFmpegPanel({ projectId, selectedMusic, onMusicSelect }: FFmpegPanelPro
         const res = await fetch(`/api/jobs/${job.id}`);
         const updatedJob = await res.json();
         if (updatedJob.status === 'completed') {
-          setResults(prev => ({
+          setDownloadReady(prev => ({
             ...prev,
             [music.id]: updatedJob.result
           }));
@@ -148,33 +148,36 @@ function FFmpegPanel({ projectId, selectedMusic, onMusicSelect }: FFmpegPanelPro
   };
 
   const isProcessed = (music: MusicGeneration) => {
-    return music.processed_file_path || results[music.id];
+    return music.processed_file_path || downloadReady[music.id];
   };
 
-  const getBitrate = (music: MusicGeneration) => {
-    if (results[music.id]) {
-      return Math.round(results[music.id].bitrate / 1000);
+  const getProcessedBitrate = (music: MusicGeneration) => {
+    if (downloadReady[music.id]) {
+      return Math.round(downloadReady[music.id].bitrate / 1000);
     }
-    return music.bitrate ? Math.round(music.bitrate / 1000) : null;
+    return null;
   };
+
+  // Sort by version descending (newest first)
+  const sortedMusic = [...allMusic].sort((a, b) => b.version - a.version);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div>
-        <h3 style={{ color: '#FFFFFF', fontSize: '18px', fontWeight: 600, marginBottom: '8px', fontFamily: 'Outfit, sans-serif' }}>Export Audio</h3>
-        <p style={{ color: '#A0A0A0', fontSize: '14px' }}>Upgrade your tracks to premium 320kbps MP3</p>
+        <h3 style={{ color: '#FFFFFF', fontSize: '18px', fontWeight: 600, marginBottom: '8px', fontFamily: 'Outfit, sans-serif' }}>Export for Release</h3>
+        <p style={{ color: '#A0A0A0', fontSize: '14px' }}>Download your track as a premium 320kbps MP3</p>
       </div>
 
-      {/* Music Version Selector */}
+      {/* Track Selection */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <label style={{ color: '#A0A0A0', fontSize: '12px', fontWeight: 500 }}>Select track to export:</label>
+        <label style={{ color: '#A0A0A0', fontSize: '12px', fontWeight: 500 }}>Choose a version to export:</label>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {allMusic.map(music => {
+          {sortedMusic.map(music => {
             const processed = isProcessed(music);
-            const bitrate = getBitrate(music);
-            const currentBitrate = music.bitrate ? Math.round(music.bitrate / 1000) : null;
+            const processedBitrate = getProcessedBitrate(music);
             const isSelected = selectedMusic?.id === music.id;
             const isCurrentlyProcessing = processingVersion === music.version;
+            const currentBitrate = music.bitrate ? Math.round(music.bitrate / 1000) : null;
 
             return (
               <div
@@ -227,7 +230,7 @@ function FFmpegPanel({ projectId, selectedMusic, onMusicSelect }: FFmpegPanelPro
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
                         <span style={{ color: '#FFFFFF', fontSize: '15px', fontWeight: 600, fontFamily: 'Outfit, sans-serif' }}>
-                          Version {music.version}
+                          {music.title || `Version ${music.version}`}
                         </span>
                         <span style={{
                           backgroundColor: '#2A2A2A',
@@ -237,50 +240,53 @@ function FFmpegPanel({ projectId, selectedMusic, onMusicSelect }: FFmpegPanelPro
                           borderRadius: '4px',
                           fontFamily: 'JetBrains Mono, monospace',
                         }}>
-                          {music.model}
+                          v{music.version}
                         </span>
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {/* Current bitrate */}
-                        <span style={{
-                          fontSize: '12px',
-                          color: currentBitrate ? '#FFB800' : '#666666',
-                        }}>
-                          {currentBitrate ? `${currentBitrate}kbps` : 'Unknown'}
+                        <span style={{ color: '#666666', fontSize: '12px' }}>
+                          {currentBitrate ? `${currentBitrate}kbps source` : 'Unknown source'}
                         </span>
-
                         {currentBitrate && (
-                          <span style={{ color: '#666666', fontSize: '12px' }}>→</span>
+                          <>
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ color: '#666666' }}>
+                              <path d="M2 7H12M8 3L12 7L8 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                            <span style={{ color: '#00D26A', fontSize: '12px', fontWeight: 600 }}>
+                              {processed ? `${processedBitrate}kbps MP3 ✓` : '320kbps MP3'}
+                            </span>
+                          </>
                         )}
-
-                        {/* Target bitrate */}
-                        <span style={{
-                          fontSize: '12px',
-                          color: processed ? '#00D26A' : '#E63946',
-                          fontWeight: processed ? 600 : 400,
-                        }}>
-                          {processed ? '320kbps ✓' : '320kbps'}
-                        </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Action button */}
+                  {/* Action */}
                   {processed ? (
-                    <span style={{
-                      color: '#00D26A',
-                      fontSize: '13px',
-                      fontWeight: 500,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                    }}>
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M3 8L6.5 11.5L13 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <a
+                      href={`/api/music/${music.id}/file`}
+                      download
+                      style={{
+                        backgroundColor: '#00D26A',
+                        color: '#000000',
+                        textDecoration: 'none',
+                        borderRadius: '8px',
+                        padding: '10px 20px',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <path d="M7 2V9M4 6L7 9L10 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M2 11H12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                       </svg>
-                      Ready
-                    </span>
+                      Download
+                    </a>
                   ) : isCurrentlyProcessing ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <div style={{
@@ -314,15 +320,15 @@ function FFmpegPanel({ projectId, selectedMusic, onMusicSelect }: FFmpegPanelPro
                       onMouseOver={(e) => { if (!processing) (e.currentTarget as HTMLElement).style.backgroundColor = '#FF4757'; }}
                       onMouseOut={(e) => { if (!processing) (e.currentTarget as HTMLElement).style.backgroundColor = '#E63946'; }}
                     >
-                      Convert
+                      Export 320kbps
                     </button>
                   )}
                 </div>
 
-                {/* Processing progress bar */}
+                {/* Processing bar */}
                 {isCurrentlyProcessing && (
                   <div style={{
-                    marginTop: '12px',
+                    marginTop: '16px',
                     height: '3px',
                     backgroundColor: '#2A2A2A',
                     borderRadius: '2px',
@@ -333,7 +339,7 @@ function FFmpegPanel({ projectId, selectedMusic, onMusicSelect }: FFmpegPanelPro
                       width: '60%',
                       backgroundColor: '#E63946',
                       borderRadius: '2px',
-                      animation: 'processing 2s ease-in-out infinite',
+                      animation: 'processing 1.5s ease-in-out infinite',
                     }} />
                   </div>
                 )}
@@ -343,27 +349,28 @@ function FFmpegPanel({ projectId, selectedMusic, onMusicSelect }: FFmpegPanelPro
         </div>
       </div>
 
-      {/* Instructions */}
+      {/* Info */}
       <div style={{
         backgroundColor: '#0A0A0A',
         borderRadius: '10px',
         padding: '16px 20px',
         border: '1px solid #2A2A2A',
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: '12px',
       }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ color: '#E63946', flexShrink: 0, marginTop: '2px' }}>
-            <circle cx="10" cy="10" r="8.5" stroke="currentColor" strokeWidth="1.5"/>
-            <path d="M10 6V10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            <circle cx="10" cy="13.5" r="0.75" fill="currentColor"/>
-          </svg>
-          <div>
-            <p style={{ color: '#FFFFFF', fontSize: '13px', fontWeight: 500, marginBottom: '4px' }}>
-              Why 320kbps?
-            </p>
-            <p style={{ color: '#666666', fontSize: '12px', lineHeight: 1.5 }}>
-              320kbps is the highest MP3 bitrate. It preserves audio quality for streaming and sharing. Select a track above to convert it.
-            </p>
-          </div>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ color: '#E63946', flexShrink: 0, marginTop: '2px' }}>
+          <circle cx="10" cy="10" r="8.5" stroke="currentColor" strokeWidth="1.5"/>
+          <path d="M10 6V10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          <circle cx="10" cy="13.5" r="0.75" fill="currentColor"/>
+        </svg>
+        <div>
+          <p style={{ color: '#FFFFFF', fontSize: '13px', fontWeight: 500, marginBottom: '4px' }}>
+            What is 320kbps MP3?
+          </p>
+          <p style={{ color: '#666666', fontSize: '12px', lineHeight: 1.5 }}>
+            320kbps is the maximum MP3 quality. Use this file for streaming platforms, sharing, or distribution. Higher quality than Spotify (256kbps) or YouTube (128kbps).
+          </p>
         </div>
       </div>
 
