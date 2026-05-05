@@ -32,6 +32,7 @@ export interface MusicGeneration {
   processed_file_path?: string;
   duration_seconds?: number;
   bitrate?: number;
+  title?: string;
   created_at: string;
 }
 

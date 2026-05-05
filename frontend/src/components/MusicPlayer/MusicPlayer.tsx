@@ -53,10 +53,21 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
     const poll = async () => {
       try {
         const res = await fetch(`/api/jobs/${pollingJobId}`);
+        if (!res.ok) {
+          console.error('Poll failed:', res.status);
+          setTimeout(poll, 3000);
+          return;
+        }
         const job = await res.json();
 
         if (job.status === 'completed' && job.result?.musicId) {
           const musicRes = await fetch(`/api/music/${job.result.musicId}`);
+          if (!musicRes.ok) {
+            console.error('Failed to fetch music:', musicRes.status);
+            setPollingJobId(null);
+            setGenerating(false);
+            return;
+          }
           const music = await musicRes.json();
           setMusicHistory(prev => [music, ...prev]);
           onMusicGenerated(music);

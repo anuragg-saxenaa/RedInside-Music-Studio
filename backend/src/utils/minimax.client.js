@@ -147,12 +147,15 @@ class MinimaxClient {
     formData.append('file', fs.createReadStream(filePath));
     formData.append('purpose', 'voice_clone');
 
-    const response = await fetch(`${this.baseURL}/v1/files/upload`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${this.apiKey}` },
-      body: formData,
+    const response = await axios.post(`${this.baseURL}/v1/files/upload`, formData, {
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type': 'multipart/form-data',
+      },
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
     });
-    return response.json();
+    return response.data;
   }
 }
 
