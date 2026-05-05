@@ -170,7 +170,7 @@ All components use inline styles (not Tailwind) per project convention. Google F
 | LyricsEditor | `LyricsEditor.tsx` | ✅ Full redesign with history cards |
 | MusicPlayer | `MusicPlayer.tsx` | ✅ Dark themed, red buttons, loading states |
 | SpotifyWaveformPlayer | `SpotifyWaveformPlayer.tsx` | ✅ Full player with waveform, controls, keyboard shortcuts |
-| App (ProjectSelector) | `App.tsx` | ✅ RedInside branded header, styled project cards |
+| App (ProjectSelector) | `App.tsx` | ✅ Search, Recent/Older sections, progress indicators, relative timestamps |
 
 ## Success Criteria
 
