@@ -2,6 +2,7 @@ import { MusicService } from './music.service.js';
 import { JobModel } from '../../queue/jobs.service.js';
 import { addMusicJob } from '../../queue/workers/music.worker.js';
 import logger from '../../utils/logger.js';
+import storage from '../../utils/storage.util.js';
 
 const musicService = new MusicService();
 
@@ -73,6 +74,35 @@ export const MusicController = {
       const { projectId } = req.params;
       const music = await musicService.getProjectMusic(projectId);
       res.json(music);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async getFile(req, res, next) {
+    try {
+      const { id } = req.params;
+      const music = await musicService.getMusic(id);
+
+      if (!music) {
+        return res.status(404).json({ error: 'Music not found' });
+      }
+
+      if (!music.original_file_path) {
+        return res.status(404).json({ error: 'File not available yet' });
+      }
+
+      // Prefer processed file (320kbps) if available
+      const filePath = music.processed_file_path || music.original_file_path;
+      const fileBuffer = storage.readFile(filePath);
+
+      res.set({
+        'Content-Type': 'audio/mpeg',
+        'Content-Disposition': `attachment; filename="music-v${music.version}.mp3"`,
+        'Content-Length': fileBuffer.length,
+      });
+
+      res.send(fileBuffer);
     } catch (error) {
       next(error);
     }

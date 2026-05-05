@@ -13,6 +13,11 @@ export const MusicRoutes = [
   },
   {
     method: 'get',
+    path: '/api/music/:id/file',
+    handler: MusicController.getFile,
+  },
+  {
+    method: 'get',
     path: '/api/projects/:projectId/music',
     handler: MusicController.getByProject,
   },

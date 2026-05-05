@@ -146,20 +146,38 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
       {musicHistory.length > 0 && (
         <div>
           <h4 className="text-md font-medium mb-2">Music Versions</h4>
-          <div className="space-y-2">
+          <div className="space-y-4">
             {musicHistory.map(music => (
               <div
                 key={music.id}
-                className="bg-gray-900 p-3 rounded border border-gray-700"
+                className="bg-gray-900 p-4 rounded border border-gray-700"
               >
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center mb-3">
                   <div>
                     <span className="font-medium">Version {music.version}</span>
                     <span className="text-gray-400 text-sm ml-2">
-                      {music.duration_seconds ? `${Math.round(music.duration_seconds)}s` : 'Processing...'}
+                      {music.duration_seconds ? `${Math.round(music.duration_seconds / 1000)}s` : 'Processing...'}
                     </span>
                   </div>
                   <span className="text-sm text-gray-500">{music.model}</span>
+                </div>
+                {music.original_file_path && (
+                  <audio
+                    controls
+                    className="w-full mt-2"
+                    src={`/api/music/${music.id}/file`}
+                  >
+                    Your browser does not support the audio element.
+                  </audio>
+                )}
+                <div className="mt-2 flex gap-2">
+                  <a
+                    href={`/api/music/${music.id}/file`}
+                    download
+                    className="text-blue-400 text-sm hover:text-blue-300"
+                  >
+                    Download MP3
+                  </a>
                 </div>
               </div>
             ))}

@@ -1,4 +1,5 @@
 import { JobModel } from '../../queue/jobs.service.js';
+import { addFfmpegJob } from '../../queue/workers/ffmpeg.worker.js';
 
 export const JobsController = {
   async create(req, res, next) {
@@ -20,6 +21,21 @@ export const JobsController = {
       }
 
       const job = JobModel.create({ projectId, type, inputParams });
+
+      // Add to appropriate queue
+      if (type === 'ffmpeg-process' && inputParams?.musicId) {
+        const { MusicModel } = await import('../../database/models/music.model.js');
+        const music = MusicModel.findById(inputParams.musicId);
+        if (music) {
+          await addFfmpegJob({
+            projectId,
+            musicId: music.id,
+            originalFilePath: music.original_file_path,
+            jobId: job.id,
+          });
+        }
+      }
+
       res.status(201).json(job);
     } catch (error) {
       next(error);

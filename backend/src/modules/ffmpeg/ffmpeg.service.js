@@ -88,8 +88,9 @@ export class FFmpegService {
    */
   async processMusicFile(projectId, musicId, inputPath) {
     try {
-      const version = path.basename(inputPath, path.extname(inputPath)).split('-').pop() || '1';
-      const outputPath = storage.getMusicFilePath(projectId, parseInt(version), 'processed');
+      const versionMatch = path.basename(inputPath, path.extname(inputPath)).match(/^v(\d+)/);
+      const version = versionMatch ? parseInt(versionMatch[1]) : 1;
+      const outputPath = storage.getMusicFilePath(projectId, version, 'processed');
 
       // Convert to 320kbps
       await this.convertTo320kbps(inputPath, outputPath);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Project, LyricsGeneration, MusicGeneration } from '../App';
 import LyricsEditor from '../components/LyricsEditor/LyricsEditor';
 import MusicPlayer from '../components/MusicPlayer/MusicPlayer';
@@ -15,6 +15,20 @@ export default function Studio({ project, onBack }: StudioProps) {
   const [currentStep, setCurrentStep] = useState<WorkflowStep>('lyrics');
   const [selectedLyrics, setSelectedLyrics] = useState<LyricsGeneration | null>(null);
   const [selectedMusic, setSelectedMusic] = useState<MusicGeneration | null>(null);
+
+  // Fetch latest music when entering ffmpeg step if no music selected
+  useEffect(() => {
+    if (currentStep === 'ffmpeg' && !selectedMusic && project.current_music_version > 0) {
+      fetch(`/api/projects/${project.id}/music`)
+        .then(res => res.json())
+        .then(musicList => {
+          if (musicList.length > 0) {
+            setSelectedMusic(musicList[0]);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [currentStep, project.id, selectedMusic, project.current_music_version]);
 
   const handleLyricsGenerated = (lyrics: LyricsGeneration) => {
     setSelectedLyrics(lyrics);
@@ -69,7 +83,7 @@ export default function Studio({ project, onBack }: StudioProps) {
 
 function FFmpegPanel({ music }: { music: MusicGeneration }) {
   const [processing, setProcessing] = useState(false);
-  const [result, setResult] = useState<{ duration: number; bitrate: number } | null>(null);
+  const [result, setResult] = useState<any>(null);
 
   const processAudio = async () => {
     setProcessing(true);
@@ -112,7 +126,7 @@ function FFmpegPanel({ music }: { music: MusicGeneration }) {
       {result ? (
         <div className="bg-green-900/50 p-4 rounded">
           <p className="text-green-400">Processing complete!</p>
-          <p>Duration: {result.duration}s | Bitrate: {result.bitrate}kbps</p>
+          <p>Duration: {result.durationSeconds?.toFixed(1)}s | Bitrate: {Math.round(result.bitrate / 1000)}kbps</p>
         </div>
       ) : (
         <button
