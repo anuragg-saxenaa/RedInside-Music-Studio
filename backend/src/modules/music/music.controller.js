@@ -9,7 +9,7 @@ const musicService = new MusicService();
 export const MusicController = {
   async generate(req, res, next) {
     try {
-      const { projectId, lyricsId, prompt, model, isInstrumental, audioSettings } = req.body;
+      const { projectId, lyricsId, audioUrl, prompt, model, isInstrumental, audioSettings } = req.body;
 
       if (!projectId) {
         return res.status(400).json({
@@ -17,9 +17,9 @@ export const MusicController = {
         });
       }
 
-      if (!lyricsId && !isInstrumental) {
+      if (!lyricsId && !isInstrumental && !audioUrl) {
         return res.status(400).json({
-          error: 'lyricsId is required for non-instrumental music',
+          error: 'lyricsId or audioUrl is required for non-instrumental music',
         });
       }
 
@@ -27,13 +27,14 @@ export const MusicController = {
       const job = JobModel.create({
         projectId,
         type: 'generate-music',
-        inputParams: { lyricsId, prompt, model, isInstrumental, audioSettings },
+        inputParams: { lyricsId, audioUrl, prompt, model, isInstrumental, audioSettings },
       });
 
       // Add to BullMQ queue (async processing)
       addMusicJob({
         projectId,
         lyricsId,
+        audioUrl,
         prompt,
         model,
         isInstrumental,

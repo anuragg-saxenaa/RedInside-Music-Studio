@@ -1,7 +1,7 @@
 import multer from 'multer';
 import path from 'path';
-import { UploadController } from '../modules/upload/upload.controller.js';
-import uploadService from '../modules/upload/upload.service.js';
+import { UploadController } from '../../modules/upload/upload.controller.js';
+import uploadService from '../../modules/upload/upload.service.js';
 import storage from '../../utils/storage.util.js';
 
 // Configure multer for memory storage

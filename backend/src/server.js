@@ -11,6 +11,7 @@ import { MusicRoutes } from './api/routes/music.routes.js';
 import { JobsRoutes } from './api/routes/jobs.routes.js';
 import { ProjectsController } from './api/routes/projects.routes.js';
 import { MedleyRoutes } from './api/routes/medley.routes.js';
+import { AudioRoutes } from './api/routes/audio.routes.js';
 import { LyricsController } from './modules/lyrics/lyrics.controller.js';
 
 // Import workers to initialize them
@@ -46,6 +47,8 @@ const projectRoutes = [
   { method: 'get', path: '/api/projects/:id', handler: ProjectsController.getById },
   { method: 'put', path: '/api/projects/:id', handler: ProjectsController.update },
   { method: 'delete', path: '/api/projects/:id', handler: ProjectsController.delete },
+  { method: 'get', path: '/api/projects/:id/artwork', handler: ProjectsController.getArtwork },
+  { method: 'post', path: '/api/projects/:id/artwork', handler: ProjectsController.saveArtwork },
 ];
 
 // Register routes
@@ -66,6 +69,10 @@ JobsRoutes.forEach(route => {
 });
 
 MedleyRoutes.forEach(route => {
+  app[route.method](route.path, route.handler);
+});
+
+AudioRoutes.forEach(route => {
   app[route.method](route.path, route.handler);
 });
 

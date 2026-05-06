@@ -19,6 +19,7 @@ interface TimelineViewProps {
   selectedTrackId: string | null;
   onSelectTrack: (trackId: string) => void;
   onReorderTracks: (fromIndex: number, toIndex: number) => void;
+  onUpdateTrack: (trackId: string, updates: Partial<Track>) => void;
 }
 
 export default function TimelineView({
@@ -26,10 +27,13 @@ export default function TimelineView({
   selectedTrackId,
   onSelectTrack,
   onReorderTracks,
+  onUpdateTrack,
 }: TimelineViewProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [waveforms, setWaveforms] = useState<Record<string, number[]>>({});
+  const [editingTrim, setEditingTrim] = useState<{ trackId: string; field: 'trimStart' | 'trimEnd' } | null>(null);
+  const [trimInputValue, setTrimInputValue] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Generate waveform data for a track (simplified visualization)
@@ -90,6 +94,53 @@ export default function TimelineView({
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const parseTimeInput = (value: string): number => {
+    const parts = value.split(':');
+    if (parts.length === 2) {
+      const mins = parseInt(parts[0], 10) || 0;
+      const secs = parseFloat(parts[1]) || 0;
+      return mins * 60 + secs;
+    }
+    return parseFloat(value) || 0;
+  };
+
+  const formatTimeInput = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = (seconds % 60).toFixed(2);
+    return `${mins}:${parseFloat(secs) < 10 ? '0' : ''}${secs}`;
+  };
+
+  const handleTrimEditStart = (trackId: string, field: 'trimStart' | 'trimEnd', currentValue: number) => {
+    setEditingTrim({ trackId, field });
+    setTrimInputValue(formatTimeInput(currentValue));
+  };
+
+  const handleTrimEditChange = (value: string) => {
+    setTrimInputValue(value);
+  };
+
+  const handleTrimEditEnd = () => {
+    if (editingTrim) {
+      const newValue = parseTimeInput(trimInputValue);
+      onUpdateTrack(editingTrim.trackId, { [editingTrim.field]: newValue });
+      setEditingTrim(null);
+      setTrimInputValue('');
+    }
+  };
+
+  const handleWaveformClick = (e: React.MouseEvent, track: Track) => {
+    if (!track.durationSeconds) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickPosition = (e.clientX - rect.left) / rect.width;
+    const clickTime = clickPosition * track.durationSeconds;
+
+    if (e.altKey) {
+      onUpdateTrack(track.id, { trimEnd: clickTime });
+    } else {
+      onUpdateTrack(track.id, { trimStart: clickTime });
+    }
   };
 
   return (
@@ -159,11 +210,61 @@ export default function TimelineView({
                   <span style={styles.metaChip}>Vol: {Math.round(track.volume * 100)}%</span>
                 )}
               </div>
+              {/* Inline trim controls when selected */}
+              {selectedTrackId === track.id && (
+                <div style={styles.inlineTrimControls} onClick={(e) => e.stopPropagation()}>
+                  <div style={styles.trimInputGroup}>
+                    <label style={styles.trimLabel}>Start</label>
+                    {editingTrim?.trackId === track.id && editingTrim.field === 'trimStart' ? (
+                      <input
+                        style={styles.trimInput}
+                        value={trimInputValue}
+                        onChange={(e) => handleTrimEditChange(e.target.value)}
+                        onBlur={handleTrimEditEnd}
+                        onKeyDown={(e) => e.key === 'Enter' && handleTrimEditEnd()}
+                        autoFocus
+                      />
+                    ) : (
+                      <span
+                        style={styles.trimValue}
+                        onClick={() => handleTrimEditStart(track.id, 'trimStart', track.trimStart)}
+                      >
+                        {formatTimeInput(track.trimStart)}
+                      </span>
+                    )}
+                  </div>
+                  <div style={styles.trimInputGroup}>
+                    <label style={styles.trimLabel}>End</label>
+                    {editingTrim?.trackId === track.id && editingTrim.field === 'trimEnd' ? (
+                      <input
+                        style={styles.trimInput}
+                        value={trimInputValue}
+                        onChange={(e) => handleTrimEditChange(e.target.value)}
+                        onBlur={handleTrimEditEnd}
+                        onKeyDown={(e) => e.key === 'Enter' && handleTrimEditEnd()}
+                        autoFocus
+                      />
+                    ) : (
+                      <span
+                        style={styles.trimValue}
+                        onClick={() => handleTrimEditStart(track.id, 'trimEnd', track.trimEnd || track.durationSeconds || 0)}
+                      >
+                        {formatTimeInput(track.trimEnd || track.durationSeconds || 0)}
+                      </span>
+                    )}
+                  </div>
+                  <span style={styles.trimHint}>Click waveform: blue (Start) / Alt+click (End)</span>
+                </div>
+              )}
             </div>
 
             {/* Waveform visualization */}
             <div style={styles.waveformColumn}>
-              <div style={styles.waveformContainer}>
+              <div
+                style={styles.waveformContainer}
+                onClick={(e) => handleWaveformClick(e, track)}
+                title="Click to set trim start, Alt+Click to set trim end"
+              >
                 {/* Trim start marker */}
                 {track.trimStart > 0 && (
                   <div
@@ -363,5 +464,51 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '12px',
     textAlign: 'center',
     fontSize: '13px',
+  },
+  inlineTrimControls: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    marginTop: '8px',
+    padding: '8px 12px',
+    backgroundColor: '#141414',
+    borderRadius: '6px',
+    border: '1px solid #2A2A2A',
+  },
+  trimInputGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  trimLabel: {
+    color: '#6B6B6B',
+    fontSize: '10px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  },
+  trimInput: {
+    backgroundColor: '#0A0A0A',
+    border: '1px solid #3A3A3A',
+    borderRadius: '4px',
+    color: '#FFFFFF',
+    fontSize: '12px',
+    fontFamily: 'JetBrains Mono, monospace',
+    padding: '4px 8px',
+    width: '70px',
+    outline: 'none',
+  },
+  trimValue: {
+    color: '#FFE066',
+    fontSize: '12px',
+    fontFamily: 'JetBrains Mono, monospace',
+    cursor: 'pointer',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    backgroundColor: 'rgba(255, 224, 102, 0.1)',
+  },
+  trimHint: {
+    color: '#4A4A4A',
+    fontSize: '10px',
+    fontStyle: 'italic',
   },
 };

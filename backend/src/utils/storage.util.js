@@ -60,6 +60,14 @@ class StorageUtil {
     return path.join(this.getMedleyDir(projectId), `medley-${medleyId}.mp3`);
   }
 
+  getArtworkDir(projectId) {
+    return path.join(this.getProjectDir(projectId), 'artwork');
+  }
+
+  getArtworkFilePath(projectId, filename) {
+    return path.join(this.getArtworkDir(projectId), filename);
+  }
+
   getTempDir(projectId) {
     return path.join(this.getProjectDir(projectId), 'temp');
   }
@@ -71,6 +79,7 @@ class StorageUtil {
       this.getMusicDir(projectId),
       this.getMedleyDir(projectId),
       this.getTempDir(projectId),
+      this.getArtworkDir(projectId),
     ];
 
     for (const dir of dirs) {
