@@ -7,14 +7,6 @@ interface StylePreset {
   description: string;
 }
 
-const DEFAULT_PRESETS: StylePreset[] = [
-  { key: 'hinglish-urban', name: 'Hinglish Urban', description: 'Hindi-English mix, trap/drill' },
-  { key: 'hindi-urdu-classical', name: 'Hindi-Urdu Classical', description: 'Ghazal-inspired, poetic' },
-  { key: 'punjabi-swagger', name: 'Punjabi Swagger', description: 'Bhangra, Sidhu Moose Wala style' },
-  { key: 'regional-fusion', name: 'Regional Fusion', description: 'Multi-language fusion' },
-  { key: 'custom', name: 'Custom', description: 'User-defined prompt' },
-];
-
 interface LyricsEditorProps {
   projectId: string;
   onLyricsGenerated: (lyrics: LyricsGeneration) => void;

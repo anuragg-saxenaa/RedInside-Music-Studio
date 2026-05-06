@@ -7,6 +7,7 @@ interface SpotifyWaveformPlayerProps {
   audioUrl: string;
   title?: string;
   model?: string;
+  artworkUrl?: string;
   onTimeUpdate?: (currentTime: number) => void;
 }
 
@@ -17,16 +18,6 @@ const formatTime = (ms: number): string => {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
-const generateWaveformBars = (id: string, barCount: number = 50): number[] => {
-  const seed = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const bars: number[] = [];
-  for (let i = 0; i < barCount; i++) {
-    const value = Math.sin(seed * (i + 1) * 0.1) * 0.5 + 0.5;
-    bars.push(Math.floor(value * 50) + 20);
-  }
-  return bars;
-};
-
 export default function SpotifyWaveformPlayer({
   musicId: _musicId,
   version,
@@ -34,6 +25,7 @@ export default function SpotifyWaveformPlayer({
   audioUrl,
   title,
   model,
+  artworkUrl,
   onTimeUpdate,
 }: SpotifyWaveformPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -43,11 +35,69 @@ export default function SpotifyWaveformPlayer({
   const [isLoading, setIsLoading] = useState(true);
   const [audioError, setAudioError] = useState(false);
   const [actualDuration, setActualDuration] = useState(durationMs);
+  const [waveformPeaks, setWaveformPeaks] = useState<number[]>([]);
   const audioRef = useRef<HTMLAudioElement>(null);
   const animationRef = useRef<number>();
+  const audioContextRef = useRef<AudioContext | null>(null);
 
-  const waveformBars = generateWaveformBars(_musicId, 50);
   const progressPercent = actualDuration > 0 ? (currentTime / actualDuration) * 100 : 0;
+
+  // Fetch and decode audio for real waveform peaks
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchAudio = async () => {
+      try {
+        const response = await fetch(audioUrl);
+        if (!response.ok) return;
+
+        const arrayBuffer = await response.arrayBuffer();
+        if (cancelled) return;
+
+        const audioContext = new AudioContext();
+        audioContextRef.current = audioContext;
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+        if (cancelled) {
+          audioContext.close();
+          return;
+        }
+
+        // Downsample to peaks for waveform display
+        const channelData = audioBuffer.getChannelData(0);
+        const samplesPerPeak = Math.max(1, Math.floor(channelData.length / 50));
+        const peakCount = Math.floor(channelData.length / samplesPerPeak);
+        const peakData: number[] = [];
+
+        for (let i = 0; i < peakCount; i++) {
+          const start = i * samplesPerPeak;
+          const end = Math.min(start + samplesPerPeak, channelData.length);
+          let max = 0;
+          for (let j = start; j < end; j++) {
+            const abs = Math.abs(channelData[j]);
+            if (abs > max) max = abs;
+          }
+          peakData.push(max);
+        }
+
+        // Normalize peaks
+        const maxPeak = Math.max(...peakData, 0.01);
+        const normalizedPeaks = peakData.map(p => p / maxPeak);
+
+        setWaveformPeaks(normalizedPeaks);
+        audioContext.close();
+      } catch (err) {
+        console.error('Failed to decode audio for waveform:', err);
+      }
+    };
+
+    fetchAudio();
+
+    return () => {
+      cancelled = true;
+      audioContextRef.current?.close();
+    };
+  }, [audioUrl]);
 
   // Real time update loop using requestAnimationFrame
   const updateTime = useCallback(() => {
@@ -242,14 +292,48 @@ export default function SpotifyWaveformPlayer({
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
 
       {/* Header */}
-      <div style={{ marginBottom: '16px' }}>
-        <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '4px', color: '#FFFFFF', fontFamily: 'Outfit, sans-serif' }}>
-          {title || `Version ${version}`}
-        </div>
-        <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#A0A0A0' }}>
-          <span style={{ fontFamily: 'JetBrains Mono, monospace', backgroundColor: '#2A2A2A', padding: '2px 6px', borderRadius: '4px' }}>v{version}</span>
-          {model && <span>{model}</span>}
-          <span>{formatTime(durationMs)}</span>
+      <div style={{ marginBottom: '16px', display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+        {/* Artwork */}
+        {artworkUrl ? (
+          <img
+            src={artworkUrl}
+            alt="Artwork"
+            style={{
+              width: '80px',
+              height: '80px',
+              borderRadius: '8px',
+              objectFit: 'cover',
+              flexShrink: 0,
+            }}
+          />
+        ) : (
+          <div style={{
+            width: '80px',
+            height: '80px',
+            borderRadius: '8px',
+            backgroundColor: '#2A2A2A',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#666666" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </div>
+        )}
+
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '4px', color: '#FFFFFF', fontFamily: 'Outfit, sans-serif' }}>
+            {title || `Version ${version}`}
+          </div>
+          <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#A0A0A0' }}>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', backgroundColor: '#2A2A2A', padding: '2px 6px', borderRadius: '4px' }}>v{version}</span>
+            {model && <span>{model}</span>}
+            <span>{formatTime(durationMs)}</span>
+          </div>
         </div>
       </div>
 
@@ -285,14 +369,15 @@ export default function SpotifyWaveformPlayer({
               padding: '0 6px',
             }}
           >
-            {waveformBars.map((height, index) => {
-              const barPercent = (index / waveformBars.length) * 100;
+            {waveformPeaks.map((peak, index) => {
+              const barPercent = (index / waveformPeaks.length) * 100;
               const isPlayed = barPercent < progressPercent;
+              const barHeight = Math.max(4, peak * 50 + 4); // min 4px, max ~54px
               return (
                 <div
                   key={index}
                   style={{
-                    height: `${height}%`,
+                    height: `${barHeight}px`,
                     flex: 1,
                     minWidth: '3px',
                     maxWidth: '5px',

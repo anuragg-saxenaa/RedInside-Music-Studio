@@ -52,6 +52,14 @@ class StorageUtil {
     return path.join(this.getGenerationsDir(projectId), 'music');
   }
 
+  getMedleyDir(projectId) {
+    return path.join(this.getGenerationsDir(projectId), 'medley');
+  }
+
+  getMedleyFilePath(projectId, medleyId) {
+    return path.join(this.getMedleyDir(projectId), `medley-${medleyId}.mp3`);
+  }
+
   getTempDir(projectId) {
     return path.join(this.getProjectDir(projectId), 'temp');
   }
@@ -61,6 +69,7 @@ class StorageUtil {
     const dirs = [
       this.getLyricsDir(projectId),
       this.getMusicDir(projectId),
+      this.getMedleyDir(projectId),
       this.getTempDir(projectId),
     ];
 
