@@ -1,5 +1,6 @@
 import { registerImageRoutes } from './routes/image.routes.js';
 import { registerVoiceRoutes } from './routes/voice.routes.js';
+import { registerUploadRoutes } from './api/routes/upload.routes.js';
 import express from 'express';
 import cors from 'cors';
 import config from './config/env.config.js';
@@ -9,6 +10,7 @@ import { LyricsRoutes } from './api/routes/lyrics.routes.js';
 import { MusicRoutes } from './api/routes/music.routes.js';
 import { JobsRoutes } from './api/routes/jobs.routes.js';
 import { ProjectsController } from './api/routes/projects.routes.js';
+import { MedleyRoutes } from './api/routes/medley.routes.js';
 import { LyricsController } from './modules/lyrics/lyrics.controller.js';
 
 // Import workers to initialize them
@@ -63,8 +65,13 @@ JobsRoutes.forEach(route => {
   app[route.method](route.path, route.handler);
 });
 
+MedleyRoutes.forEach(route => {
+  app[route.method](route.path, route.handler);
+});
+
 registerImageRoutes(app);
 registerVoiceRoutes(app);
+registerUploadRoutes(app);
 
 // Error handling middleware
 app.use(errorMiddleware);

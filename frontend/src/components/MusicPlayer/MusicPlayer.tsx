@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { LyricsGeneration, MusicGeneration } from '../../App';
 import SpotifyWaveformPlayer from './SpotifyWaveformPlayer';
+import AudioUpload from '../AudioEditor/AudioUpload';
 
 interface MusicPlayerProps {
   projectId: string;
@@ -288,25 +289,13 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
               <div>
                 <label style={{ display: 'block', color: '#A0A0A0', fontSize: '12px', marginBottom: '8px', fontWeight: 500 }}>
-                  Reference Audio URL
+                  Reference Audio
                 </label>
-                <input
-                  type="text"
-                  value={coverAudioUrl}
-                  onChange={(e) => setCoverAudioUrl(e.target.value)}
-                  placeholder="https://example.com/audio.mp3"
-                  style={{
-                    width: '100%',
-                    backgroundColor: '#141414',
-                    border: '1px solid #2A2A2A',
-                    borderRadius: '8px',
-                    padding: '12px 16px',
-                    color: '#FFFFFF',
-                    fontSize: '14px',
-                    outline: 'none',
-                  }}
-                  onFocus={(e) => e.currentTarget.style.borderColor = '#E63946'}
-                  onBlur={(e) => e.currentTarget.style.borderColor = '#2A2A2A'}
+                <AudioUpload
+                  projectId={projectId}
+                  onUploaded={(track) => setCoverAudioUrl(`/api/upload/${track.id}/file`)}
+                  acceptTypes={['.mp3', '.wav', '.flac', '.ogg', '.m4a']}
+                  maxSizeMB={50}
                 />
               </div>
               <div>
@@ -520,6 +509,7 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
                     durationMs={(music.duration_seconds || 0) * 1000}
                     audioUrl={`/api/music/${music.id}/file`}
                     model={music.model}
+                    artworkUrl={`/api/projects/${music.project_id}/artwork`}
                   />
                 )}
 
