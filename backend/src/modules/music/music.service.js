@@ -102,6 +102,9 @@ export class MusicService {
       // Get next version number
       const version = MusicModel.getNextVersion(projectId);
 
+      // Create project directories if they don't exist
+      storage.createProjectDirs(projectId);
+
       // Save original file
       const originalFilePath = storage.getMusicFilePath(projectId, version, 'original');
       storage.saveAudioFile(audioBuffer, originalFilePath);
