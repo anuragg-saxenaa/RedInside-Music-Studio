@@ -19,6 +19,7 @@ interface GridViewProps {
   selectedTrackId: string | null;
   onSelectTrack: (trackId: string) => void;
   onReorderTracks: (fromIndex: number, toIndex: number) => void;
+  onUpdateTrack: (trackId: string, updates: Partial<Track>) => void;
 }
 
 export default function GridView({
@@ -26,9 +27,12 @@ export default function GridView({
   selectedTrackId,
   onSelectTrack,
   onReorderTracks,
+  onUpdateTrack,
 }: GridViewProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [editingTrim, setEditingTrim] = useState<{ trackId: string; field: 'trimStart' | 'trimEnd' } | null>(null);
+  const [trimInputValue, setTrimInputValue] = useState('');
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
@@ -52,6 +56,40 @@ export default function GridView({
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const formatTimeInput = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = (seconds % 60).toFixed(2);
+    return `${mins}:${parseFloat(secs) < 10 ? '0' : ''}${secs}`;
+  };
+
+  const parseTimeInput = (value: string): number => {
+    const parts = value.split(':');
+    if (parts.length === 2) {
+      const mins = parseInt(parts[0], 10) || 0;
+      const secs = parseFloat(parts[1]) || 0;
+      return mins * 60 + secs;
+    }
+    return parseFloat(value) || 0;
+  };
+
+  const handleTrimEditStart = (trackId: string, field: 'trimStart' | 'trimEnd', currentValue: number) => {
+    setEditingTrim({ trackId, field });
+    setTrimInputValue(formatTimeInput(currentValue));
+  };
+
+  const handleTrimEditChange = (value: string) => {
+    setTrimInputValue(value);
+  };
+
+  const handleTrimEditEnd = () => {
+    if (editingTrim) {
+      const newValue = parseTimeInput(trimInputValue);
+      onUpdateTrack(editingTrim.trackId, { [editingTrim.field]: newValue });
+      setEditingTrim(null);
+      setTrimInputValue('');
+    }
   };
 
   // Generate a simple waveform thumbnail SVG
@@ -154,6 +192,52 @@ export default function GridView({
                   <span style={styles.effectBadge}>Fade Out</span>
                 )}
               </div>
+
+              {/* Inline trim controls when selected */}
+              {selectedTrackId === track.id && (
+                <div style={styles.inlineTrimControls}>
+                  <div style={styles.trimInputGroup}>
+                    <label style={styles.trimLabel}>Start</label>
+                    {editingTrim?.trackId === track.id && editingTrim.field === 'trimStart' ? (
+                      <input
+                        style={styles.trimInput}
+                        value={trimInputValue}
+                        onChange={(e) => handleTrimEditChange(e.target.value)}
+                        onBlur={handleTrimEditEnd}
+                        onKeyDown={(e) => e.key === 'Enter' && handleTrimEditEnd()}
+                        autoFocus
+                      />
+                    ) : (
+                      <span
+                        style={styles.trimValue}
+                        onClick={() => handleTrimEditStart(track.id, 'trimStart', track.trimStart)}
+                      >
+                        {formatTimeInput(track.trimStart)}
+                      </span>
+                    )}
+                  </div>
+                  <div style={styles.trimInputGroup}>
+                    <label style={styles.trimLabel}>End</label>
+                    {editingTrim?.trackId === track.id && editingTrim.field === 'trimEnd' ? (
+                      <input
+                        style={styles.trimInput}
+                        value={trimInputValue}
+                        onChange={(e) => handleTrimEditChange(e.target.value)}
+                        onBlur={handleTrimEditEnd}
+                        onKeyDown={(e) => e.key === 'Enter' && handleTrimEditEnd()}
+                        autoFocus
+                      />
+                    ) : (
+                      <span
+                        style={styles.trimValue}
+                        onClick={() => handleTrimEditStart(track.id, 'trimEnd', track.trimEnd || track.durationSeconds || 0)}
+                      >
+                        {formatTimeInput(track.trimEnd || track.durationSeconds || 0)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -298,5 +382,45 @@ const styles: Record<string, React.CSSProperties> = {
   emptySubtext: {
     fontSize: '13px',
     color: '#4A4A4A',
+  },
+  inlineTrimControls: {
+    display: 'flex',
+    gap: '16px',
+    marginTop: '12px',
+    padding: '12px',
+    backgroundColor: '#141414',
+    borderRadius: '6px',
+    border: '1px solid #2A2A2A',
+  },
+  trimInputGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  trimLabel: {
+    color: '#6B6B6B',
+    fontSize: '10px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  },
+  trimInput: {
+    backgroundColor: '#0A0A0A',
+    border: '1px solid #3A3A3A',
+    borderRadius: '4px',
+    color: '#FFFFFF',
+    fontSize: '12px',
+    fontFamily: 'JetBrains Mono, monospace',
+    padding: '4px 8px',
+    width: '70px',
+    outline: 'none',
+  },
+  trimValue: {
+    color: '#FFE066',
+    fontSize: '12px',
+    fontFamily: 'JetBrains Mono, monospace',
+    cursor: 'pointer',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    backgroundColor: 'rgba(255, 224, 102, 0.1)',
   },
 };
