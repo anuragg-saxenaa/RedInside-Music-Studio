@@ -56,8 +56,16 @@ class StorageUtil {
     return path.join(this.getGenerationsDir(projectId), 'medley');
   }
 
+  getVideoDir(projectId) {
+    return path.join(this.getGenerationsDir(projectId), 'video');
+  }
+
   getMedleyFilePath(projectId, medleyId) {
     return path.join(this.getMedleyDir(projectId), `medley-${medleyId}.mp3`);
+  }
+
+  getVideoFilePath(projectId, version) {
+    return path.join(this.getVideoDir(projectId), `v${version}.mp4`);
   }
 
   getTempDir(projectId) {
@@ -70,6 +78,7 @@ class StorageUtil {
       this.getLyricsDir(projectId),
       this.getMusicDir(projectId),
       this.getMedleyDir(projectId),
+      this.getVideoDir(projectId),
       this.getTempDir(projectId),
     ];
 
