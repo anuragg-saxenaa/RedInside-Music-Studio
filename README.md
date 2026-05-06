@@ -107,6 +107,7 @@ npm test             # Run tests
 cd frontend
 npm run dev          # Vite dev server
 npm run build        # Production build
+
 ```
 
 ## License
