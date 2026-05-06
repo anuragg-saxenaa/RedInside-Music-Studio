@@ -448,21 +448,21 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
 
           <button
             onClick={generateMusic}
-            disabled={isProcessing || !selectedLyrics}
+            disabled={isProcessing || (mode === 'generate' && !selectedLyrics) || (mode === 'cover' && !coverAudioUrl)}
             style={{
-              backgroundColor: isProcessing || !selectedLyrics ? '#666666' : '#E63946',
+              backgroundColor: isProcessing || (mode === 'generate' && !selectedLyrics) || (mode === 'cover' && !coverAudioUrl) ? '#666666' : '#E63946',
               color: '#FFFFFF',
               border: 'none',
               borderRadius: '8px',
               padding: '14px 24px',
               fontSize: '14px',
               fontWeight: 600,
-              cursor: isProcessing || !selectedLyrics ? 'not-allowed' : 'pointer',
+              cursor: isProcessing || (mode === 'generate' && !selectedLyrics) || (mode === 'cover' && !coverAudioUrl) ? 'not-allowed' : 'pointer',
               transition: 'all 150ms ease',
               alignSelf: 'flex-start',
             }}
-            onMouseOver={(e) => { if (!isProcessing && selectedLyrics) e.currentTarget.style.backgroundColor = '#FF4757'; }}
-            onMouseOut={(e) => { if (!isProcessing && selectedLyrics) e.currentTarget.style.backgroundColor = '#E63946'; }}
+            onMouseOver={(e) => { if (!isProcessing && ((mode === 'generate' && selectedLyrics) || (mode === 'cover' && coverAudioUrl))) e.currentTarget.style.backgroundColor = '#FF4757'; }}
+            onMouseOut={(e) => { if (!isProcessing && ((mode === 'generate' && selectedLyrics) || (mode === 'cover' && coverAudioUrl))) e.currentTarget.style.backgroundColor = '#E63946'; }}
           >
             {pollingJobId ? '⏳ Generating...' : generating ? '🚀 Starting...' : '🎵 Generate Music'}
           </button>
