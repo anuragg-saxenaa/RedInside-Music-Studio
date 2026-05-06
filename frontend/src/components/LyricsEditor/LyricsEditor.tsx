@@ -20,6 +20,12 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
   const [lyricsHistory, setLyricsHistory] = useState<LyricsGeneration[]>([]);
   const [presets, setPresets] = useState<Record<string, StylePreset>>({});
   const [selectedLyrics, setSelectedLyrics] = useState<LyricsGeneration | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editingLyrics, setEditingLyrics] = useState<LyricsGeneration | null>(null);
+  const [editPrompt, setEditPrompt] = useState('');
+  const [editPreset, setEditPreset] = useState('hinglish-urban');
+  const [editing, setEditing] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/lyrics/presets')
@@ -72,6 +78,54 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
     } finally {
       setGenerating(false);
     }
+  };
+
+  const editLyrics = async () => {
+    if (!editPrompt.trim()) {
+      setEditError('Edit instruction is required');
+      return;
+    }
+
+    if (!editingLyrics) {
+      setEditError('No lyrics selected for editing');
+      return;
+    }
+
+    setEditing(true);
+    setEditError(null);
+
+    try {
+      const response = await fetch(`/api/lyrics/edit/${editingLyrics.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: editPrompt,
+          stylePreset: editPreset,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to edit lyrics');
+      }
+
+      const lyrics = await response.json();
+      setLyricsHistory(prev => [lyrics, ...prev]);
+      setEditMode(false);
+      setEditingLyrics(null);
+      setEditPrompt('');
+      onLyricsGenerated(lyrics);
+    } catch (err: any) {
+      setEditError(err.message);
+    } finally {
+      setEditing(false);
+    }
+  };
+
+  const startEdit = (lyrics: LyricsGeneration) => {
+    setEditingLyrics(lyrics);
+    setEditPreset(lyrics.style_preset || 'hinglish-urban');
+    setEditMode(true);
   };
 
   return (
@@ -181,7 +235,7 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
       </div>
 
       {/* History Section */}
-      {lyricsHistory.length > 0 && (
+      {lyricsHistory.length > 0 && !editMode && (
         <div>
           <h4 style={{ color: '#FFFFFF', fontSize: '14px', fontWeight: 600, marginBottom: '12px', fontFamily: 'Outfit, sans-serif' }}>
             Previous Versions
@@ -231,6 +285,159 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
                 </p>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Mode Section */}
+      {editMode && editingLyrics && (
+        <div>
+          <h4 style={{ color: '#FFFFFF', fontSize: '14px', fontWeight: 600, marginBottom: '12px', fontFamily: 'Outfit, sans-serif' }}>
+            Edit Lyrics (v{editingLyrics.version})
+          </h4>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Original Lyrics Reference */}
+            <div style={{
+              backgroundColor: '#1E1E1E',
+              borderRadius: '8px',
+              padding: '12px',
+              border: '1px solid #2A2A2A',
+            }}>
+              <div style={{ color: '#666666', fontSize: '12px', marginBottom: '8px' }}>
+                Editing: {editingLyrics.title || `v${editingLyrics.version}`}
+              </div>
+              <pre style={{
+                color: '#888888',
+                fontSize: '13px',
+                lineHeight: 1.6,
+                fontFamily: 'DM Sans, sans-serif',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                margin: 0,
+                maxHeight: '120px',
+                overflow: 'hidden',
+              }}>
+                {editingLyrics.content}
+              </pre>
+            </div>
+
+            {/* Style Preset */}
+            <div>
+              <label style={{ display: 'block', color: '#A0A0A0', fontSize: '12px', marginBottom: '8px', fontWeight: 500 }}>
+                Style Preset
+              </label>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {Object.values(presets).map(preset => (
+                  <button
+                    key={preset.key}
+                    onClick={() => setEditPreset(preset.key)}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      border: '1px solid',
+                      borderColor: editPreset === preset.key ? '#E63946' : '#2A2A2A',
+                      backgroundColor: editPreset === preset.key ? '#E63946' : '#1E1E1E',
+                      color: editPreset === preset.key ? '#FFFFFF' : '#A0A0A0',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      transition: 'all 150ms ease',
+                    }}
+                    onMouseOver={(e) => {
+                      if (editPreset !== preset.key) {
+                        e.currentTarget.style.borderColor = '#E63946';
+                        e.currentTarget.style.color = '#FFFFFF';
+                      }
+                    }}
+                    onMouseOut={(e) => {
+                      if (editPreset !== preset.key) {
+                        e.currentTarget.style.borderColor = '#2A2A2A';
+                        e.currentTarget.style.color = '#A0A0A0';
+                      }
+                    }}
+                  >
+                    {preset.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Edit Instruction */}
+            <div>
+              <label style={{ display: 'block', color: '#A0A0A0', fontSize: '12px', marginBottom: '8px', fontWeight: 500 }}>
+                Edit Instruction
+              </label>
+              <textarea
+                value={editPrompt}
+                onChange={e => setEditPrompt(e.target.value)}
+                placeholder="e.g., Make the hook more catchy, add more Hindi words..."
+                style={{
+                  width: '100%',
+                  backgroundColor: '#0A0A0A',
+                  border: '1px solid #2A2A2A',
+                  borderRadius: '8px',
+                  padding: '12px 16px',
+                  color: '#FFFFFF',
+                  fontSize: '14px',
+                  fontFamily: 'DM Sans, sans-serif',
+                  resize: 'none',
+                  height: '80px',
+                  outline: 'none',
+                }}
+                onFocus={(e) => e.currentTarget.style.borderColor = '#E63946'}
+                onBlur={(e) => e.currentTarget.style.borderColor = '#2A2A2A'}
+              />
+            </div>
+
+            {editError && (
+              <div style={{ color: '#E63946', fontSize: '13px', padding: '8px 12px', backgroundColor: 'rgba(230, 57, 70, 0.1)', borderRadius: '6px' }}>
+                {editError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={editLyrics}
+                disabled={editing}
+                style={{
+                  backgroundColor: editing ? '#666666' : '#E63946',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '14px 24px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: editing ? 'not-allowed' : 'pointer',
+                  transition: 'all 150ms ease',
+                }}
+                onMouseOver={(e) => { if (!editing) e.currentTarget.style.backgroundColor = '#FF4757'; }}
+                onMouseOut={(e) => { if (!editing) e.currentTarget.style.backgroundColor = '#E63946'; }}
+              >
+                {editing ? 'Editing...' : 'Save Edit'}
+              </button>
+              <button
+                onClick={() => {
+                  setEditMode(false);
+                  setEditingLyrics(null);
+                  setEditPrompt('');
+                }}
+                style={{
+                  backgroundColor: '#2A2A2A',
+                  color: '#A0A0A0',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '14px 24px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+                onMouseOver={(e) => (e.currentTarget as HTMLElement).style.backgroundColor = '#3A3A3A'}
+                onMouseOut={(e) => (e.currentTarget as HTMLElement).style.backgroundColor = '#2A2A2A'}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -328,6 +535,23 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
 
             {/* Modal Actions */}
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => startEdit(selectedLyrics)}
+                style={{
+                  backgroundColor: '#2A2A2A',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '12px 20px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+                onMouseOver={(e) => (e.currentTarget as HTMLElement).style.backgroundColor = '#3A3A3A'}
+                onMouseOut={(e) => (e.currentTarget as HTMLElement).style.backgroundColor = '#2A2A2A'}
+              >
+                Edit
+              </button>
               <button
                 onClick={() => setSelectedLyrics(null)}
                 style={{

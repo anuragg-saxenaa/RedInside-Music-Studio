@@ -22,4 +22,19 @@ export const LyricsRoutes = [
     path: '/api/projects/:projectId/lyrics',
     handler: LyricsController.getByProject,
   },
+  {
+    method: 'post',
+    path: '/api/lyrics/edit/:id',
+    handler: LyricsController.edit,
+  },
+  {
+    method: 'get',
+    path: '/api/lyrics/:id/versions',
+    handler: LyricsController.getVersions,
+  },
+  {
+    method: 'get',
+    path: '/api/lyrics/:id/diff/:version',
+    handler: LyricsController.getDiff,
+  },
 ];

@@ -117,4 +117,118 @@ export class LyricsService {
   async getProjectLyrics(projectId) {
     return LyricsModel.findByProject(projectId);
   }
+
+  async editLyrics(lyricsId, edits) {
+    try {
+      const { prompt: editInstruction, stylePreset } = edits;
+
+      // Load existing lyrics
+      const existingLyrics = LyricsModel.findById(lyricsId);
+      if (!existingLyrics) {
+        throw new Error(`Lyrics not found: ${lyricsId}`);
+      }
+
+      // Validate edit instruction
+      if (!editInstruction || typeof editInstruction !== 'string') {
+        throw new Error('Edit instruction (prompt) is required and must be a string');
+      }
+      if (editInstruction.length > 1000) {
+        throw new Error('Edit instruction exceeds maximum length of 1000 characters');
+      }
+
+      // Build full prompt with style preset
+      const stylePresetToUse = stylePreset || existingLyrics.style_preset || 'hinglish-urban';
+      const fullPrompt = buildPrompt(stylePresetToUse, editInstruction);
+
+      logger.info('Editing lyrics', { lyricsId, version: existingLyrics.version, stylePreset: stylePresetToUse });
+
+      // Call MiniMax API with edit mode
+      const response = await this.client.generateLyrics({
+        mode: 'edit',
+        prompt: fullPrompt,
+        lyrics_id: lyricsId,
+      });
+
+      // Validate response
+      if (!response || !response.lyrics || !response.song_title) {
+        throw new Error('Invalid response from MiniMax API: missing required fields');
+      }
+
+      // Parse response
+      const { song_title, lyrics, style_tags } = response;
+
+      // Parse structure tags from lyrics
+      const structureTags = this.parseStructureTags(lyrics);
+
+      // Get next version number
+      const version = LyricsModel.getNextVersion(existingLyrics.project_id);
+
+      // Save to database
+      const lyricsRecord = LyricsModel.create({
+        projectId: existingLyrics.project_id,
+        version,
+        prompt: fullPrompt,
+        mode: 'edit',
+        stylePreset: stylePresetToUse,
+        content: lyrics,
+        title: song_title,
+        styleTags: style_tags,
+        structureTags,
+      });
+
+      // Save to file
+      storage.saveLyrics(existingLyrics.project_id, version, {
+        id: lyricsRecord.id,
+        title: song_title,
+        lyrics,
+        styleTags: style_tags,
+        structureTags,
+        prompt: fullPrompt,
+        createdAt: lyricsRecord.created_at,
+      });
+
+      // Increment project version
+      ProjectModel.incrementVersion(existingLyrics.project_id, 'lyrics');
+
+      logger.info('Lyrics edited successfully', { lyricsId: lyricsRecord.id, version, originalLyricsId: lyricsId });
+
+      return lyricsRecord;
+    } catch (error) {
+      logger.error('Failed to edit lyrics', { lyricsId, error: error.message });
+      throw new Error(`Lyrics edit failed: ${error.message}`);
+    }
+  }
+
+  async getLyricsVersions(lyricsId) {
+    const lyrics = LyricsModel.findById(lyricsId);
+    if (!lyrics) {
+      throw new Error(`Lyrics not found: ${lyricsId}`);
+    }
+    return LyricsModel.findByProject(lyrics.project_id);
+  }
+
+  async getLyricsDiff(lyricsId, version) {
+    const lyrics = LyricsModel.findById(lyricsId);
+    if (!lyrics) {
+      throw new Error(`Lyrics not found: ${lyricsId}`);
+    }
+
+    // Find the target version
+    const versions = LyricsModel.findByProject(lyrics.project_id);
+    const targetVersion = versions.find(v => v.version === parseInt(version, 10));
+
+    if (!targetVersion) {
+      throw new Error(`Version ${version} not found for lyrics ${lyricsId}`);
+    }
+
+    return {
+      current: lyrics,
+      target: targetVersion,
+      diff: {
+        title: lyrics.title !== targetVersion.title,
+        content: lyrics.content !== targetVersion.content,
+        stylePreset: lyrics.style_preset !== targetVersion.style_preset,
+      },
+    };
+  }
 }
