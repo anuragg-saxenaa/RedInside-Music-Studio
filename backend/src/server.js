@@ -2,6 +2,7 @@ import { registerImageRoutes } from './routes/image.routes.js';
 import { registerVoiceRoutes } from './routes/voice.routes.js';
 import { registerUploadRoutes } from './api/routes/upload.routes.js';
 import { VideoRoutes } from './api/routes/video.routes.js';
+import { HistoryRoutes } from './api/routes/history.routes.js';
 import express from 'express';
 import cors from 'cors';
 import config from './config/env.config.js';
@@ -72,6 +73,10 @@ MedleyRoutes.forEach(route => {
 });
 
 VideoRoutes.forEach(route => {
+  app[route.method](route.path, route.handler);
+});
+
+HistoryRoutes.forEach(route => {
   app[route.method](route.path, route.handler);
 });
 
