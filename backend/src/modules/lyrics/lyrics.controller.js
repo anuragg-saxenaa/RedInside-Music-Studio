@@ -65,4 +65,48 @@ export const LyricsController = {
   async getPresets(req, res) {
     res.json(STYLE_PRESETS);
   },
+
+  async edit(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { prompt, stylePreset } = req.body;
+
+      if (!prompt || typeof prompt !== 'string') {
+        return res.status(400).json({ error: 'prompt (edit instruction) is required and must be a string' });
+      }
+
+      const result = await lyricsService.editLyrics(id, {
+        prompt,
+        stylePreset,
+      });
+
+      res.json(result);
+    } catch (error) {
+      logger.error('Lyrics edit error:', {
+        message: error.message,
+        lyricsId: req.params.id
+      });
+      next(error);
+    }
+  },
+
+  async getVersions(req, res, next) {
+    try {
+      const { id } = req.params;
+      const versions = await lyricsService.getLyricsVersions(id);
+      res.json(versions);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async getDiff(req, res, next) {
+    try {
+      const { id, version } = req.params;
+      const diff = await lyricsService.getLyricsDiff(id, version);
+      res.json(diff);
+    } catch (error) {
+      next(error);
+    }
+  },
 };
