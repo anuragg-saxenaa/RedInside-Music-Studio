@@ -91,6 +91,10 @@ export class LyricsService {
       return lyricsRecord;
     } catch (error) {
       logger.error('Failed to generate lyrics', { projectId: params.projectId, error: error.message });
+      // Preserve MinimaxError structure for frontend
+      if (error.name === 'MinimaxError') {
+        throw error;
+      }
       throw new Error(`Lyrics generation failed: ${error.message}`);
     }
   }
@@ -195,6 +199,10 @@ export class LyricsService {
       return lyricsRecord;
     } catch (error) {
       logger.error('Failed to edit lyrics', { lyricsId, error: error.message });
+      // Preserve MinimaxError structure for frontend
+      if (error.name === 'MinimaxError') {
+        throw error;
+      }
       throw new Error(`Lyrics edit failed: ${error.message}`);
     }
   }

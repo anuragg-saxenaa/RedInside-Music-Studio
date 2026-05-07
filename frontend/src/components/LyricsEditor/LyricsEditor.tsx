@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { LyricsGeneration } from '../../App';
+import ErrorDisplay from '../ErrorDisplay/ErrorDisplay';
+import { parseApiError } from '../../utils/errors';
 
 interface StylePreset {
   key: string;
@@ -16,7 +18,7 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
   const [prompt, setPrompt] = useState('');
   const [stylePreset, setStylePreset] = useState('hinglish-urban');
   const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [lyricsHistory, setLyricsHistory] = useState<LyricsGeneration[]>([]);
   const [presets, setPresets] = useState<Record<string, StylePreset>>({});
   const [selectedLyrics, setSelectedLyrics] = useState<LyricsGeneration | null>(null);
@@ -25,7 +27,7 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
   const [editPrompt, setEditPrompt] = useState('');
   const [editPreset, setEditPreset] = useState('hinglish-urban');
   const [editing, setEditing] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
+  const [editError, setEditError] = useState<unknown>(null);
 
   useEffect(() => {
     fetch('/api/lyrics/presets')
@@ -47,7 +49,7 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
 
   const generateLyrics = async () => {
     if (!prompt.trim()) {
-      setError('Prompt is required');
+      setError(new Error('Prompt is required'));
       return;
     }
 
@@ -67,14 +69,14 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
 
       if (!response.ok) {
         const err = await response.json();
-        throw new Error(err.error || 'Failed to generate lyrics');
+        throw Object.assign(new Error(err.error || 'Failed to generate lyrics'), parseApiError(err));
       }
 
       const lyrics = await response.json();
       setLyricsHistory(prev => [lyrics, ...prev]);
       onLyricsGenerated(lyrics);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err);
     } finally {
       setGenerating(false);
     }
@@ -82,12 +84,12 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
 
   const editLyrics = async () => {
     if (!editPrompt.trim()) {
-      setEditError('Edit instruction is required');
+      setEditError(new Error('Edit instruction is required'));
       return;
     }
 
     if (!editingLyrics) {
-      setEditError('No lyrics selected for editing');
+      setEditError(new Error('No lyrics selected for editing'));
       return;
     }
 
@@ -106,7 +108,7 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
 
       if (!response.ok) {
         const err = await response.json();
-        throw new Error(err.error || 'Failed to edit lyrics');
+        throw Object.assign(new Error(err.error || 'Failed to edit lyrics'), parseApiError(err));
       }
 
       const lyrics = await response.json();
@@ -115,8 +117,8 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
       setEditingLyrics(null);
       setEditPrompt('');
       onLyricsGenerated(lyrics);
-    } catch (err: any) {
-      setEditError(err.message);
+    } catch (err) {
+      setEditError(err);
     } finally {
       setEditing(false);
     }
@@ -206,9 +208,11 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
           </div>
 
           {error && (
-            <div style={{ color: '#E63946', fontSize: '13px', padding: '8px 12px', backgroundColor: 'rgba(230, 57, 70, 0.1)', borderRadius: '6px' }}>
-              {error}
-            </div>
+            <ErrorDisplay
+              error={error}
+              onDismiss={() => setError(null)}
+              onRetry={generateLyrics}
+            />
           )}
 
           <button
@@ -391,9 +395,11 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
             </div>
 
             {editError && (
-              <div style={{ color: '#E63946', fontSize: '13px', padding: '8px 12px', backgroundColor: 'rgba(230, 57, 70, 0.1)', borderRadius: '6px' }}>
-                {editError}
-              </div>
+              <ErrorDisplay
+                error={editError}
+                onDismiss={() => setEditError(null)}
+                onRetry={editLyrics}
+              />
             )}
 
             <div style={{ display: 'flex', gap: '12px' }}>

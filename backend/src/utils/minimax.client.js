@@ -3,6 +3,7 @@ import axios from 'axios';
 import fs from 'fs';
 import FormData from 'form-data';
 import logger from './logger.js';
+import { MinimaxError } from './minimax-error.js';
 
 class MinimaxClient {
   constructor(apiKey, baseURL = 'https://api.minimax.io') {
@@ -57,22 +58,8 @@ class MinimaxClient {
     const status = error.response?.data?.base_resp?.status_code;
     const message = error.response?.data?.base_resp?.status_msg || error.message;
 
-    const errorMap = {
-      0: 'Success',
-      1002: 'Rate limit exceeded',
-      1004: 'Authentication failed',
-      1008: 'Insufficient balance',
-      1026: 'Content flagged as sensitive',
-      2013: 'Invalid parameters',
-      2049: 'Invalid API key',
-    };
-
-    const errorMessage = errorMap[status] || message;
-    const err = new Error(errorMessage);
-    err.statusCode = status;
-    err.originalError = error;
-
-    return err;
+    // Return structured MinimaxError preserving status code for frontend
+    return new MinimaxError(status, message);
   }
 
   // Lyrics Generation API

@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import type { LyricsGeneration, MusicGeneration } from '../../App';
 import SpotifyWaveformPlayer from './SpotifyWaveformPlayer';
 import AudioUpload from '../AudioEditor/AudioUpload';
+import ErrorDisplay from '../ErrorDisplay/ErrorDisplay';
+import { parseApiError } from '../../utils/errors';
 
 interface MusicPlayerProps {
   projectId: string;
@@ -15,7 +17,7 @@ interface MusicPlayerProps {
 export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerated, onSelectForPlayer,  onConversionComplete }: MusicPlayerProps) {
   const [generating, setGenerating] = useState(false);
   const [pollingJobId, setPollingJobId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [musicHistory, setMusicHistory] = useState<MusicGeneration[]>([]);
   const [model, setModel] = useState('music-2.6');
   const [convertingId, setConvertingId] = useState<string | null>(null);
@@ -78,7 +80,7 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
           setPollingJobId(null);
           setGenerating(false);
         } else if (job.status === 'failed') {
-          setError(job.error_message || 'Music generation failed');
+          setError(Object.assign(new Error(job.error_message || 'Music generation failed'), parseApiError(job)));
           setPollingJobId(null);
           setGenerating(false);
         } else {
@@ -143,7 +145,7 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
 
       if (!response.ok) {
         const err = await response.json();
-        throw new Error(err.error || 'Failed to generate music');
+        throw Object.assign(new Error(err.error || 'Failed to generate music'), parseApiError(err));
       }
 
       const music = await response.json();
@@ -154,8 +156,8 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
         onMusicGenerated(music);
         setGenerating(false);
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err);
       setGenerating(false);
     }
   };
@@ -390,9 +392,11 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
           )}
 
           {error && (
-            <div style={{ color: '#E63946', fontSize: '13px', padding: '8px 12px', backgroundColor: 'rgba(230, 57, 70, 0.1)', borderRadius: '6px' }}>
-              {error}
-            </div>
+            <ErrorDisplay
+              error={error}
+              onDismiss={() => setError(null)}
+              onRetry={generateMusic}
+            />
           )}
 
           <details style={{ marginTop: '16px', marginBottom: '16px' }}>

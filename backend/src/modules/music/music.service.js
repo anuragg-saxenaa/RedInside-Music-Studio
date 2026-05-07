@@ -166,6 +166,10 @@ export class MusicService {
       return musicRecord;
     } catch (error) {
       logger.error('Failed to generate music', { projectId: params.projectId, error: error.message });
+      // Preserve MinimaxError structure for frontend
+      if (error.name === 'MinimaxError') {
+        throw error;
+      }
       throw new Error(`Music generation failed: ${error.message}`);
     }
   }
