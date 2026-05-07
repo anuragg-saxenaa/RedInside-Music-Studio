@@ -401,14 +401,15 @@ export default function SpotifyWaveformPlayer({
             <input
               type="range"
               min={0}
-              max={actualDuration || 100}
+              max={actualDuration}
               value={currentTime}
               onChange={(e) => {
                 const audio = audioRef.current;
                 if (!audio) return;
-                const newTime = parseFloat(e.target.value) / 1000;
-                audio.currentTime = newTime;
-                setCurrentTime(parseFloat(e.target.value));
+                const newTimeMs = parseFloat(e.target.value);
+                const newTimeSec = newTimeMs / 1000;
+                audio.currentTime = newTimeSec;
+                setCurrentTime(newTimeMs);
               }}
               style={{
                 width: '100%',
