@@ -45,7 +45,7 @@ export class ImageService {
 
         // Download the image
         const response = await fetch(imageUrls[0]);
-        const buffer = await response.buffer();
+        const buffer = Buffer.from(await response.arrayBuffer());
         fs.writeFileSync(artworkPath, buffer);
         savedArtworkPath = artworkPath;
         console.log('Artwork saved to:', artworkPath);

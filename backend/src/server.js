@@ -50,6 +50,8 @@ const projectRoutes = [
   { method: 'get', path: '/api/projects/:id', handler: ProjectsController.getById },
   { method: 'put', path: '/api/projects/:id', handler: ProjectsController.update },
   { method: 'delete', path: '/api/projects/:id', handler: ProjectsController.delete },
+  { method: 'get', path: '/api/projects/:id/artwork', handler: ProjectsController.getArtwork },
+  { method: 'post', path: '/api/projects/:id/artwork', handler: ProjectsController.saveArtwork },
 ];
 
 // Register routes
