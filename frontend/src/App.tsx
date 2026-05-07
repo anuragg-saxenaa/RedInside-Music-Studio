@@ -1,43 +1,24 @@
 import { useState, useEffect } from 'react';
 import Studio from './pages/Studio';
+import History from './pages/History';
+import type { Project, LyricsGeneration, MusicGeneration } from './types';
 
-export interface Project {
-  id: string;
-  name: string;
-  description?: string;
-  workflow_mode: 'auto' | 'manual' | 'hybrid';
-  current_lyrics_version: number;
-  current_music_version: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface LyricsGeneration {
-  id: string;
-  project_id: string;
-  version: number;
-  content: string;
-  title?: string;
-  style_preset?: string;
-  created_at: string;
-}
-
-export interface MusicGeneration {
-  id: string;
-  project_id: string;
-  lyrics_id?: string;
-  version: number;
-  model: string;
-  original_file_path?: string;
-  processed_file_path?: string;
-  duration_seconds?: number;
-  bitrate?: number;
-  title?: string;
-  created_at: string;
-}
+// Re-export for backwards compatibility
+export type { Project, LyricsGeneration, MusicGeneration };
 
 function App() {
   const [project, setProject] = useState<Project | null>(null);
+  const [currentView, setCurrentView] = useState<'studio' | 'history'>(() => {
+    return window.location.hash === '#/history' ? 'history' : 'studio';
+  });
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      setCurrentView(window.location.hash === '#/history' ? 'history' : 'studio');
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   const createProject = async (name: string) => {
     const response = await fetch('/api/projects', {
@@ -111,6 +92,9 @@ function App() {
         top: 0,
         zIndex: 100,
         backdropFilter: 'blur(20px)',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
       }}>
         <h1 style={{
           color: '#E63946',
@@ -128,9 +112,14 @@ function App() {
           </svg>
           RedInside <span style={{ color: '#FFFFFF' }}>Music Studio</span>
         </h1>
+        <nav style={{ display: 'flex', gap: '16px' }}>
+          <a href="#/history" style={{ color: currentView === 'history' ? '#E63946' : '#A0A0A0', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>History</a>
+        </nav>
       </header>
       <main style={{ maxWidth: '900px', margin: '0 auto', padding: '48px 24px', position: 'relative', zIndex: 1 }}>
-        {!project ? (
+        {currentView === 'history' ? (
+          <History />
+        ) : !project ? (
           <ProjectSelector onCreate={createProject} onLoad={loadProject} />
         ) : (
           <Studio project={project} onBack={() => setProject(null)} />

@@ -5,7 +5,7 @@
 export interface ApiError {
   statusCode?: number | string;
   error: string;
-  severity?: 'error' | 'warning' | 'success';
+  severity?: 'error' | 'warning' | 'info';
   retryable?: boolean;
   retryAfter?: number;
   recoverable?: boolean;
@@ -74,7 +74,7 @@ export function parseApiError(error: unknown): ApiError {
       return {
         statusCode: err.statusCode as number | string | undefined,
         error: err.error as string,
-        severity: err.severity as 'error' | 'warning' | 'success' | undefined,
+        severity: err.severity as 'error' | 'warning' | 'info' | undefined,
         retryable: err.retryable as boolean | undefined,
         retryAfter: err.retryAfter as number | undefined,
         recoverable: err.recoverable as boolean | undefined,

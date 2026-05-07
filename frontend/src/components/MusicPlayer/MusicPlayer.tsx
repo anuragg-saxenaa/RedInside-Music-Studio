@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { LyricsGeneration, MusicGeneration } from '../../App';
+import type { LyricsGeneration, MusicGeneration } from '../../types';
 import SpotifyWaveformPlayer from './SpotifyWaveformPlayer';
 import AudioUpload from '../AudioEditor/AudioUpload';
 import ErrorDisplay from '../ErrorDisplay/ErrorDisplay';
@@ -391,13 +391,13 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
             </div>
           )}
 
-          {error && (
+          {error ? (
             <ErrorDisplay
               error={error}
               onDismiss={() => setError(null)}
               onRetry={generateMusic}
             />
-          )}
+          ) : null}
 
           <details style={{ marginTop: '16px', marginBottom: '16px' }}>
             <summary style={{ color: '#A0A0A0', cursor: 'pointer', fontSize: '13px', listStyle: 'none' }}>

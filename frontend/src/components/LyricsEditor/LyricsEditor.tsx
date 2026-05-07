@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { LyricsGeneration } from '../../App';
+import type { LyricsGeneration } from '../../types';
 import ErrorDisplay from '../ErrorDisplay/ErrorDisplay';
 import { parseApiError } from '../../utils/errors';
 
@@ -207,13 +207,13 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
             />
           </div>
 
-          {error && (
+          {error ? (
             <ErrorDisplay
               error={error}
               onDismiss={() => setError(null)}
               onRetry={generateLyrics}
             />
-          )}
+          ) : null}
 
           <button
             onClick={generateLyrics}
@@ -394,13 +394,13 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
               />
             </div>
 
-            {editError && (
+            {editError ? (
               <ErrorDisplay
                 error={editError}
                 onDismiss={() => setEditError(null)}
                 onRetry={editLyrics}
               />
-            )}
+            ) : null}
 
             <div style={{ display: 'flex', gap: '12px' }}>
               <button

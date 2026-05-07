@@ -1,27 +1,10 @@
 import { useState, useEffect } from 'react';
-import type { MusicGeneration } from '../../App';
+import type { MusicGeneration, VideoGeneration } from '../../types';
 
 interface VideoPreviewProps {
   projectId: string;
   selectedMusic: MusicGeneration | null;
   onVideoGenerated?: (video: VideoGeneration) => void;
-}
-
-interface VideoGeneration {
-  id: string;
-  project_id: string;
-  music_id?: string;
-  version: number;
-  model: string;
-  prompt?: string;
-  duration?: number;
-  resolution?: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  file_id?: string;
-  file_path?: string;
-  error_message?: string;
-  created_at: string;
-  completed_at?: string;
 }
 
 export default function VideoPreview({ projectId, selectedMusic, onVideoGenerated }: VideoPreviewProps) {
@@ -131,17 +114,6 @@ export default function VideoPreview({ projectId, selectedMusic, onVideoGenerate
   };
 
   const isProcessing = generating || !!pollingJobId;
-
-  const inputStyle = {
-    width: '100%',
-    backgroundColor: '#141414',
-    border: '1px solid #2A2A2A',
-    borderRadius: '6px',
-    padding: '8px 12px',
-    color: '#FFFFFF',
-    fontSize: '13px',
-    outline: 'none',
-  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>

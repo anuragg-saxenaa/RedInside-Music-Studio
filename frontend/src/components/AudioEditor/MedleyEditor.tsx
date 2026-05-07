@@ -236,6 +236,7 @@ export default function MedleyEditor({
               selectedTrackId={selectedTrackId}
               onSelectTrack={handleSelectTrack}
               onReorderTracks={handleReorderTracks}
+              onUpdateTrack={handleUpdateTrack}
             />
           ) : (
             <GridView
@@ -243,6 +244,7 @@ export default function MedleyEditor({
               selectedTrackId={selectedTrackId}
               onSelectTrack={handleSelectTrack}
               onReorderTracks={handleReorderTracks}
+              onUpdateTrack={handleUpdateTrack}
             />
           )}
         </div>

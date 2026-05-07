@@ -1,5 +1,4 @@
-import React from 'react';
-import { getErrorDisplay, isRetryable, parseApiError } from '../../utils/errors';
+import { getErrorDisplay, isRetryable } from '../../utils/errors';
 
 interface ErrorDisplayProps {
   error: unknown;

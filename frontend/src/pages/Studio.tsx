@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { Project, LyricsGeneration, MusicGeneration } from '../App';
+import type { Project, LyricsGeneration, MusicGeneration } from '../types';
 import LyricsEditor from '../components/LyricsEditor/LyricsEditor';
 import MusicPlayer from '../components/MusicPlayer/MusicPlayer';
 import ArtworkGenerator from '../components/ArtworkGenerator/ArtworkGenerator';
