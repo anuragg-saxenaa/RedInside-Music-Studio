@@ -56,14 +56,61 @@ function App() {
   };
 
   return (
-    <div style={{ backgroundColor: '#0A0A0A', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
+    <div style={{ backgroundColor: '#0A0A0A', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif', position: 'relative', overflow: 'hidden' }}>
+      {/* Geometric background pattern */}
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 0,
+        pointerEvents: 'none',
+        background: `
+          radial-gradient(ellipse 80% 50% at 20% 40%, rgba(230, 57, 70, 0.08) 0%, transparent 50%),
+          radial-gradient(ellipse 60% 40% at 80% 60%, rgba(230, 57, 70, 0.05) 0%, transparent 50%),
+          linear-gradient(180deg, #0A0A0A 0%, #0D0D0D 100%)
+        `,
+      }}>
+        {/* Diagonal lines pattern */}
+        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.03 }}>
+          <pattern id="diagonal-lines" patternUnits="userSpaceOnUse" width="60" height="60" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="60" stroke="#E63946" strokeWidth="1"/>
+          </pattern>
+          <rect width="100%" height="100%" fill="url(#diagonal-lines)"/>
+        </svg>
+        {/* Red glow orbs */}
+        <div style={{
+          position: 'absolute',
+          top: '10%',
+          left: '-5%',
+          width: '400px',
+          height: '400px',
+          background: 'radial-gradient(circle, rgba(230, 57, 70, 0.15) 0%, transparent 70%)',
+          filter: 'blur(60px)',
+        }}/>
+        <div style={{
+          position: 'absolute',
+          bottom: '20%',
+          right: '-10%',
+          width: '500px',
+          height: '500px',
+          background: 'radial-gradient(circle, rgba(230, 57, 70, 0.1) 0%, transparent 70%)',
+          filter: 'blur(80px)',
+        }}/>
+        {/* Grid dots pattern */}
+        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.02 }}>
+          <pattern id="grid-dots" patternUnits="userSpaceOnUse" width="30" height="30">
+            <circle cx="15" cy="15" r="1" fill="#E63946"/>
+          </pattern>
+          <rect width="100%" height="100%" fill="url(#grid-dots)"/>
+        </svg>
+      </div>
       <header style={{
-        backgroundColor: '#0A0A0A',
-        borderBottom: '1px solid #1A1A1A',
+        backgroundColor: 'rgba(10, 10, 10, 0.9)',
+        borderBottom: '1px solid rgba(230, 57, 70, 0.3)',
         padding: '20px 32px',
         position: 'sticky',
         top: 0,
         zIndex: 100,
+        backdropFilter: 'blur(20px)',
       }}>
         <h1 style={{
           color: '#E63946',
@@ -82,7 +129,7 @@ function App() {
           RedInside <span style={{ color: '#FFFFFF' }}>Music Studio</span>
         </h1>
       </header>
-      <main style={{ maxWidth: '900px', margin: '0 auto', padding: '48px 24px' }}>
+      <main style={{ maxWidth: '900px', margin: '0 auto', padding: '48px 24px', position: 'relative', zIndex: 1 }}>
         {!project ? (
           <ProjectSelector onCreate={createProject} onLoad={loadProject} />
         ) : (
