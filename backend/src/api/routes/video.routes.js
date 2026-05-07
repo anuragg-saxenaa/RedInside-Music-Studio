@@ -1,4 +1,4 @@
-import { VideoController } from '../modules/video/video.controller.js';
+import { VideoController } from '../../modules/video/video.controller.js';
 
 export const VideoRoutes = [
   {

@@ -3,7 +3,7 @@
  * Express routes for viral toolkit endpoints
  */
 
-import { ViralController } from '../modules/viral/viral.controller.js';
+import { ViralController } from '../../modules/viral/viral.controller.js';
 
 export const ViralRoutes = [
   {

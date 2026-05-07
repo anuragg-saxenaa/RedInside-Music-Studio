@@ -3,6 +3,8 @@ import { JobModel } from '../../queue/jobs.service.js';
 import { addMusicJob } from '../../queue/workers/music.worker.js';
 import logger from '../../utils/logger.js';
 import storage from '../../utils/storage.util.js';
+import fs from 'fs';
+import path from 'path';
 
 const musicService = new MusicService();
 
@@ -98,8 +100,7 @@ export const MusicController = {
         return res.status(404).json({ error: 'File not available yet' });
       }
 
-      // Check if file actually exists
-      const fs = await import('fs');
+      // Check if file actually exists BEFORE trying to read
       if (!fs.existsSync(filePath)) {
         logger.error('Audio file not found on disk', { filePath, musicId: id });
         return res.status(404).json({
