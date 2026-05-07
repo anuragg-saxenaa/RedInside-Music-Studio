@@ -446,8 +446,31 @@ export default function SpotifyWaveformPlayer({
                 background: `linear-gradient(to right, #E63946 ${progressPercent}%, rgba(255, 255, 255, 0.12) ${progressPercent}%)`,
                 borderRadius: '3px',
                 outline: 'none',
+                WebkitAppearance: 'none',
               }}
+              className="seek-slider"
             />
+            <style>{`
+              .seek-slider::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                width: 14px;
+                height: 14px;
+                background: #E63946;
+                border-radius: 50%;
+                cursor: pointer;
+                box-shadow: 0 0 8px rgba(230, 57, 70, 0.6);
+                border: 2px solid #fff;
+              }
+              .seek-slider::-moz-range-thumb {
+                width: 14px;
+                height: 14px;
+                background: #E63946;
+                border-radius: 50%;
+                cursor: pointer;
+                box-shadow: 0 0 8px rgba(230, 57, 70, 0.6);
+                border: 2px solid #fff;
+              }
+            `}</style>
           </div>
 
           {/* Controls */}
