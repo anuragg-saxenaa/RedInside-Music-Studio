@@ -564,7 +564,7 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
                       Version {music.version}
                     </span>
                     <span style={{ color: '#A0A0A0', fontSize: '12px' }}>
-                      {music.duration_seconds ? `${Math.round(music.duration_seconds / 1000)}s` : 'Processing...'}
+                      {music.duration_seconds ? `${Math.round(music.duration_seconds)}s` : 'Processing...'}
                     </span>
                   </div>
                   <span style={{ color: '#666666', fontSize: '12px', fontFamily: 'JetBrains Mono, monospace' }}>
