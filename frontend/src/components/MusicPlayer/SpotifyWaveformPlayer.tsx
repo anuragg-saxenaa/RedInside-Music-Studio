@@ -280,44 +280,69 @@ export default function SpotifyWaveformPlayer({
   return (
     <div
       style={{
-        backgroundColor: '#141414',
+        background: 'linear-gradient(135deg, #1A1A1A 0%, #141414 50%, #0D0D0D 100%)',
         color: '#FFFFFF',
-        borderRadius: '12px',
-        padding: '20px',
+        borderRadius: '16px',
+        padding: '24px',
         fontFamily: 'DM Sans, sans-serif',
         width: '100%',
-        border: '1px solid #2A2A2A',
+        border: '1px solid rgba(230, 57, 70, 0.2)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
+      {/* Background glow effect */}
+      <div style={{
+        position: 'absolute',
+        top: '-50%',
+        left: '-50%',
+        width: '200%',
+        height: '200%',
+        background: 'radial-gradient(circle at 30% 50%, rgba(230, 57, 70, 0.08) 0%, transparent 50%)',
+        pointerEvents: 'none',
+      }}/>
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
 
       {/* Header */}
-      <div style={{ marginBottom: '16px', display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-        {/* Artwork */}
+      <div style={{ marginBottom: '20px', display: 'flex', gap: '16px', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
+        {/* Artwork with glow */}
         {artworkUrl ? (
-          <img
-            src={artworkUrl}
-            alt="Artwork"
-            style={{
-              width: '80px',
-              height: '80px',
-              borderRadius: '8px',
-              objectFit: 'cover',
-              flexShrink: 0,
-            }}
-          />
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <img
+              src={artworkUrl}
+              alt="Artwork"
+              style={{
+                width: '80px',
+                height: '80px',
+                borderRadius: '12px',
+                objectFit: 'cover',
+                flexShrink: 0,
+                boxShadow: '0 4px 20px rgba(230, 57, 70, 0.3)',
+              }}
+            />
+            <div style={{
+              position: 'absolute',
+              inset: '-2px',
+              borderRadius: '14px',
+              border: '2px solid rgba(230, 57, 70, 0.5)',
+              boxShadow: '0 0 15px rgba(230, 57, 70, 0.3)',
+            }}/>
+          </div>
         ) : (
           <div style={{
             width: '80px',
             height: '80px',
-            borderRadius: '8px',
-            backgroundColor: '#2A2A2A',
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, #2A2A2A 0%, #1E1E1E 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
+            border: '1px solid rgba(230, 57, 70, 0.3)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
           }}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#666666" strokeWidth="2">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#E63946" strokeWidth="1.5" opacity="0.6">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
               <circle cx="8.5" cy="8.5" r="1.5"/>
               <polyline points="21 15 16 10 5 21"/>
@@ -326,13 +351,15 @@ export default function SpotifyWaveformPlayer({
         )}
 
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '4px', color: '#FFFFFF', fontFamily: 'Outfit, sans-serif' }}>
+          <div style={{ fontSize: '18px', fontWeight: 700, marginBottom: '6px', color: '#FFFFFF', fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.3px' }}>
             {title || `Version ${version}`}
           </div>
-          <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#A0A0A0' }}>
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', backgroundColor: '#2A2A2A', padding: '2px 6px', borderRadius: '4px' }}>v{version}</span>
-            {model && <span>{model}</span>}
-            <span>{formatTime(durationMs)}</span>
+          <div style={{ display: 'flex', gap: '10px', fontSize: '11px', color: '#A0A0A0' }}>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', backgroundColor: 'rgba(230, 57, 70, 0.15)', color: '#E63946', padding: '3px 8px', borderRadius: '4px', fontWeight: 600 }}>
+              v{version}
+            </span>
+            {model && <span style={{ padding: '3px 8px', backgroundColor: '#2A2A2A', borderRadius: '4px' }}>{model}</span>}
+            <span style={{ padding: '3px 8px', backgroundColor: '#2A2A2A', borderRadius: '4px', fontFamily: 'JetBrains Mono, monospace' }}>{formatTime(durationMs)}</span>
           </div>
         </div>
       </div>
@@ -397,7 +424,7 @@ export default function SpotifyWaveformPlayer({
           </div>
 
           {/* Seek Slider */}
-          <div style={{ marginBottom: '16px' }}>
+          <div style={{ marginBottom: '16px', padding: '0 4px' }}>
             <input
               type="range"
               min={0}
@@ -416,72 +443,175 @@ export default function SpotifyWaveformPlayer({
                 height: '6px',
                 cursor: 'pointer',
                 accentColor: '#E63946',
-                background: `linear-gradient(to right, #E63946 ${progressPercent}%, #3A3A3A ${progressPercent}%)`,
+                background: `linear-gradient(to right, #E63946 ${progressPercent}%, rgba(255, 255, 255, 0.12) ${progressPercent}%)`,
                 borderRadius: '3px',
+                outline: 'none',
               }}
             />
           </div>
 
           {/* Controls */}
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '24px' }}>
             <button
               onClick={() => seekBy(-10)}
-              style={{ background: 'none', border: 'none', color: '#A0A0A0', fontSize: '20px', cursor: 'pointer', padding: '8px', transition: 'color 150ms' }}
-              onMouseOver={(e) => (e.currentTarget as HTMLElement).style.color = '#FFFFFF'}
-              onMouseOut={(e) => (e.currentTarget as HTMLElement).style.color = '#A0A0A0'}
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                color: '#A0A0A0',
+                fontSize: '18px',
+                cursor: 'pointer',
+                padding: '12px',
+                borderRadius: '12px',
+                transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+                backdropFilter: 'blur(10px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              onMouseOver={(e) => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255, 255, 255, 0.12)';
+                (e.currentTarget as HTMLElement).style.color = '#FFFFFF';
+                (e.currentTarget as HTMLElement).style.transform = 'scale(1.05)';
+              }}
+              onMouseOut={(e) => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                (e.currentTarget as HTMLElement).style.color = '#A0A0A0';
+                (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
+              }}
               title="Rewind 10s (←)"
             >
-              ⏪
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 19 2 12 11 5 11 19"/>
+                <polygon points="22 19 13 12 22 5 22 19"/>
+              </svg>
             </button>
 
             <button
               onClick={togglePlay}
               disabled={isLoading}
               style={{
-                background: '#E63946',
+                background: 'linear-gradient(135deg, #E63946 0%, #D62839 100%)',
                 border: 'none',
                 color: '#FFFFFF',
-                fontSize: '20px',
+                fontSize: '18px',
                 cursor: isLoading ? 'wait' : 'pointer',
                 borderRadius: '50%',
-                width: '48px',
-                height: '48px',
+                width: '56px',
+                height: '56px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                transition: 'all 150ms',
-                boxShadow: '0 4px 12px rgba(230, 57, 70, 0.3)',
+                transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: '0 4px 20px rgba(230, 57, 70, 0.4), 0 0 0 0 rgba(230, 57, 70, 0.3)',
+                position: 'relative',
+                overflow: 'hidden',
               }}
-              onMouseOver={(e) => { if (!isLoading) (e.currentTarget as HTMLElement).style.backgroundColor = '#FF4757'; }}
-              onMouseOut={(e) => { if (!isLoading) (e.currentTarget as HTMLElement).style.backgroundColor = '#E63946'; }}
+              onMouseOver={(e) => {
+                if (!isLoading) {
+                  (e.currentTarget as HTMLElement).style.transform = 'scale(1.08)';
+                  (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 28px rgba(230, 57, 70, 0.5), 0 0 0 4px rgba(230, 57, 70, 0.15)';
+                }
+              }}
+              onMouseOut={(e) => {
+                if (!isLoading) {
+                  (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
+                  (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 20px rgba(230, 57, 70, 0.4), 0 0 0 0 rgba(230, 57, 70, 0.3)';
+                }
+              }}
               title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
             >
               {isLoading ? (
-                <div style={{ width: '20px', height: '20px', border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-              ) : isPlaying ? '⏸' : '▶'}
+                <div style={{ width: '22px', height: '22px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+              ) : isPlaying ? (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="4" width="4" height="16" rx="1"/>
+                  <rect x="14" y="4" width="4" height="16" rx="1"/>
+                </svg>
+              ) : (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: '2px' }}>
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+              )}
             </button>
 
             <button
               onClick={() => seekBy(10)}
-              style={{ background: 'none', border: 'none', color: '#A0A0A0', fontSize: '20px', cursor: 'pointer', padding: '8px', transition: 'color 150ms' }}
-              onMouseOver={(e) => (e.currentTarget as HTMLElement).style.color = '#FFFFFF'}
-              onMouseOut={(e) => (e.currentTarget as HTMLElement).style.color = '#A0A0A0'}
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                color: '#A0A0A0',
+                fontSize: '18px',
+                cursor: 'pointer',
+                padding: '12px',
+                borderRadius: '12px',
+                transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+                backdropFilter: 'blur(10px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              onMouseOver={(e) => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255, 255, 255, 0.12)';
+                (e.currentTarget as HTMLElement).style.color = '#FFFFFF';
+                (e.currentTarget as HTMLElement).style.transform = 'scale(1.05)';
+              }}
+              onMouseOut={(e) => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                (e.currentTarget as HTMLElement).style.color = '#A0A0A0';
+                (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
+              }}
               title="Forward 10s (→)"
             >
-              ⏩
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="13 19 22 12 13 5 13 19"/>
+                <polygon points="2 19 11 12 2 5 2 19"/>
+              </svg>
             </button>
           </div>
 
           {/* Volume */}
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginTop: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '20px', padding: '16px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '12px', backdropFilter: 'blur(10px)' }}>
             <button
               onClick={toggleMute}
-              style={{ background: 'none', border: 'none', color: '#A0A0A0', fontSize: '16px', cursor: 'pointer', padding: '4px', transition: 'color 150ms' }}
-              onMouseOver={(e) => (e.currentTarget as HTMLElement).style.color = '#FFFFFF'}
-              onMouseOut={(e) => (e.currentTarget as HTMLElement).style.color = '#A0A0A0'}
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                color: '#A0A0A0',
+                fontSize: '14px',
+                cursor: 'pointer',
+                padding: '10px',
+                borderRadius: '10px',
+                transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              onMouseOver={(e) => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255, 255, 255, 0.12)';
+                (e.currentTarget as HTMLElement).style.color = '#FFFFFF';
+              }}
+              onMouseOut={(e) => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                (e.currentTarget as HTMLElement).style.color = '#A0A0A0';
+              }}
               title="Mute (M)"
             >
-              {isMuted || volume === 0 ? '🔇' : volume < 0.5 ? '🔉' : '🔊'}
+              {isMuted || volume === 0 ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                  <line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>
+                </svg>
+              ) : volume < 0.5 ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                </svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                </svg>
+              )}
             </button>
             <input
               type="range"
@@ -490,9 +620,16 @@ export default function SpotifyWaveformPlayer({
               step="0.01"
               value={isMuted ? 0 : volume}
               onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-              style={{ width: '100px', height: '4px', cursor: 'pointer', accentColor: '#E63946' }}
+              style={{
+                width: '120px',
+                height: '4px',
+                cursor: 'pointer',
+                accentColor: '#E63946',
+                background: `linear-gradient(to right, #E63946 ${(isMuted ? 0 : volume) * 100}%, rgba(255, 255, 255, 0.15) ${(isMuted ? 0 : volume) * 100}%)`,
+                borderRadius: '2px',
+              }}
             />
-            <span style={{ fontSize: '11px', color: '#666666', fontFamily: 'JetBrains Mono, monospace' }}>
+            <span style={{ fontSize: '11px', color: '#666666', fontFamily: 'JetBrains Mono, monospace', minWidth: '36px', textAlign: 'right' }}>
               {Math.round((isMuted ? 0 : volume) * 100)}%
             </span>
           </div>
