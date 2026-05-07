@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS music_generations (
 CREATE TABLE IF NOT EXISTS jobs (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL,
-  type TEXT CHECK(type IN ('generate-lyrics', 'generate-music', 'ffmpeg-process')) NOT NULL,
+  type TEXT CHECK(type IN ('generate-lyrics', 'generate-music', 'generate-video', 'ffmpeg-process')) NOT NULL,
   status TEXT CHECK(status IN ('queued', 'active', 'completed', 'failed')) DEFAULT 'queued',
   progress INTEGER DEFAULT 0,
   input_params TEXT,

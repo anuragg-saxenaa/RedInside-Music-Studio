@@ -19,10 +19,7 @@ interface TimelineViewProps {
   selectedTrackId: string | null;
   onSelectTrack: (trackId: string) => void;
   onReorderTracks: (fromIndex: number, toIndex: number) => void;
-<<<<<<< HEAD
   onUpdateTrack: (trackId: string, updates: Partial<Track>) => void;
-=======
->>>>>>> phase-1-production-studio
 }
 
 export default function TimelineView({
@@ -30,19 +27,13 @@ export default function TimelineView({
   selectedTrackId,
   onSelectTrack,
   onReorderTracks,
-<<<<<<< HEAD
   onUpdateTrack,
-=======
->>>>>>> phase-1-production-studio
 }: TimelineViewProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [waveforms, setWaveforms] = useState<Record<string, number[]>>({});
-<<<<<<< HEAD
   const [editingTrim, setEditingTrim] = useState<{ trackId: string; field: 'trimStart' | 'trimEnd' } | null>(null);
   const [trimInputValue, setTrimInputValue] = useState('');
-=======
->>>>>>> phase-1-production-studio
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Generate waveform data for a track (simplified visualization)
@@ -105,7 +96,6 @@ export default function TimelineView({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-<<<<<<< HEAD
   const parseTimeInput = (value: string): number => {
     const parts = value.split(':');
     if (parts.length === 2) {
@@ -153,8 +143,6 @@ export default function TimelineView({
     }
   };
 
-=======
->>>>>>> phase-1-production-studio
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -222,7 +210,6 @@ export default function TimelineView({
                   <span style={styles.metaChip}>Vol: {Math.round(track.volume * 100)}%</span>
                 )}
               </div>
-<<<<<<< HEAD
               {/* Inline trim controls when selected */}
               {selectedTrackId === track.id && (
                 <div style={styles.inlineTrimControls} onClick={(e) => e.stopPropagation()}>
@@ -269,21 +256,15 @@ export default function TimelineView({
                   <span style={styles.trimHint}>Click waveform: blue (Start) / Alt+click (End)</span>
                 </div>
               )}
-=======
->>>>>>> phase-1-production-studio
             </div>
 
             {/* Waveform visualization */}
             <div style={styles.waveformColumn}>
-<<<<<<< HEAD
               <div
                 style={styles.waveformContainer}
                 onClick={(e) => handleWaveformClick(e, track)}
                 title="Click to set trim start, Alt+Click to set trim end"
               >
-=======
-              <div style={styles.waveformContainer}>
->>>>>>> phase-1-production-studio
                 {/* Trim start marker */}
                 {track.trimStart > 0 && (
                   <div
@@ -484,7 +465,6 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: 'center',
     fontSize: '13px',
   },
-<<<<<<< HEAD
   inlineTrimControls: {
     display: 'flex',
     alignItems: 'center',
@@ -531,6 +511,4 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '10px',
     fontStyle: 'italic',
   },
-=======
->>>>>>> phase-1-production-studio
 };

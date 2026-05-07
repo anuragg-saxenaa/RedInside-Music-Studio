@@ -1,6 +1,8 @@
 import { registerImageRoutes } from './routes/image.routes.js';
 import { registerVoiceRoutes } from './routes/voice.routes.js';
 import { registerUploadRoutes } from './api/routes/upload.routes.js';
+import { VideoRoutes } from './api/routes/video.routes.js';
+import { HistoryRoutes } from './api/routes/history.routes.js';
 import express from 'express';
 import cors from 'cors';
 import config from './config/env.config.js';
@@ -18,6 +20,7 @@ import { LyricsController } from './modules/lyrics/lyrics.controller.js';
 import './queue/workers/lyrics.worker.js';
 import './queue/workers/music.worker.js';
 import './queue/workers/ffmpeg.worker.js';
+import './queue/workers/video.worker.js';
 
 const app = express();
 
@@ -47,8 +50,6 @@ const projectRoutes = [
   { method: 'get', path: '/api/projects/:id', handler: ProjectsController.getById },
   { method: 'put', path: '/api/projects/:id', handler: ProjectsController.update },
   { method: 'delete', path: '/api/projects/:id', handler: ProjectsController.delete },
-  { method: 'get', path: '/api/projects/:id/artwork', handler: ProjectsController.getArtwork },
-  { method: 'post', path: '/api/projects/:id/artwork', handler: ProjectsController.saveArtwork },
 ];
 
 // Register routes
@@ -73,6 +74,14 @@ MedleyRoutes.forEach(route => {
 });
 
 AudioRoutes.forEach(route => {
+  app[route.method](route.path, route.handler);
+});
+
+VideoRoutes.forEach(route => {
+  app[route.method](route.path, route.handler);
+});
+
+HistoryRoutes.forEach(route => {
   app[route.method](route.path, route.handler);
 });
 

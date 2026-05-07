@@ -56,16 +56,24 @@ class StorageUtil {
     return path.join(this.getGenerationsDir(projectId), 'medley');
   }
 
+  getVideoDir(projectId) {
+    return path.join(this.getGenerationsDir(projectId), 'video');
+  }
+
   getMedleyFilePath(projectId, medleyId) {
     return path.join(this.getMedleyDir(projectId), `medley-${medleyId}.mp3`);
   }
 
-getArtworkDir(projectId) {
+  getArtworkDir(projectId) {
     return path.join(this.getProjectDir(projectId), 'artwork');
   }
 
   getArtworkFilePath(projectId, filename) {
     return path.join(this.getArtworkDir(projectId), filename);
+  }
+
+  getVideoFilePath(projectId, version) {
+    return path.join(this.getVideoDir(projectId), `v${version}.mp4`);
   }
 
   getTempDir(projectId) {
@@ -78,6 +86,7 @@ getArtworkDir(projectId) {
       this.getLyricsDir(projectId),
       this.getMusicDir(projectId),
       this.getMedleyDir(projectId),
+      this.getVideoDir(projectId),
       this.getTempDir(projectId),
       this.getArtworkDir(projectId),
     ];
