@@ -9,7 +9,7 @@ const musicService = new MusicService();
 export const MusicController = {
   async generate(req, res, next) {
     try {
-      const { projectId, lyricsId, audioUrl, prompt, model, isInstrumental, audioSettings } = req.body;
+      const { projectId, lyricsId, audioUrl, prompt, model, isInstrumental, audioSettings, voice, language } = req.body;
 
       if (!projectId) {
         return res.status(400).json({
@@ -39,6 +39,8 @@ export const MusicController = {
         model,
         isInstrumental,
         audioSettings,
+        voice,
+        language,
         jobId: job.id,
       });
 

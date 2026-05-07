@@ -15,7 +15,7 @@ export class MusicService {
   async generateMusic(params) {
     try {
       const { projectId, lyricsId, audioUrl: referenceAudioUrl, filePath, prompt, model = 'music-2.6',
-        isInstrumental = false, audioSettings } = params;
+        isInstrumental = false, audioSettings, voice, language } = params;
 
       // Validate projectId
       if (!projectId || typeof projectId !== 'string') {
@@ -47,6 +47,8 @@ export class MusicService {
         model,
         audio_setting: audioSettings || {},
         output_format: 'url',
+        ...(voice && { voice }),
+        ...(language && { language }),
       };
 
       if (isInstrumental) {

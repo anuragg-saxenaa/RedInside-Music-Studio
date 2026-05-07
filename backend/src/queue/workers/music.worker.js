@@ -11,7 +11,7 @@ const connection = getRedisConnection();
 export const musicWorker = new Worker(
   'music-generation',
   async (job) => {
-    const { projectId, lyricsId, audioUrl, prompt, model, isInstrumental, audioSettings, jobId } = job.data;
+    const { projectId, lyricsId, audioUrl, prompt, model, isInstrumental, audioSettings, voice, language, jobId } = job.data;
 
     logger.info('Processing music job', { jobId: job.id, projectId });
 
@@ -41,6 +41,8 @@ export const musicWorker = new Worker(
         model,
         isInstrumental,
         audioSettings,
+        voice,
+        language,
       });
 
       // Update job as completed
@@ -73,7 +75,7 @@ musicWorker.on('failed', (job, err) => {
 
 // Helper function to add music job
 export async function addMusicJob(data) {
-  const { projectId, lyricsId, audioUrl, prompt, model, isInstrumental, audioSettings, jobId } = data;
+  const { projectId, lyricsId, audioUrl, prompt, model, isInstrumental, audioSettings, voice, language, jobId } = data;
 
   const job = await queues.music.add('generate-music', {
     projectId,
@@ -82,6 +84,11 @@ export async function addMusicJob(data) {
     prompt,
     model,
     isInstrumental,
+    audioSettings,
+    voice,
+    language,
+    jobId,
+  });
     audioSettings,
     jobId,
   });

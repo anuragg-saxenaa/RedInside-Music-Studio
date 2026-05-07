@@ -29,6 +29,8 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
   const [instruments, setInstruments] = useState<string>('');
   const [bpm, setBpm] = useState<number | undefined>();
   const [key, setKey] = useState<string>('');
+  const [voice, setVoice] = useState<string>('');
+  const [language, setLanguage] = useState<string>('english');
 
   const inputStyle = {
     width: '100%',
@@ -121,6 +123,8 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
         projectId,
         lyricsId: selectedLyrics?.id,
         model,
+        voice,
+        language,
         ...(genre && { genre }),
         ...(mood && { mood }),
         ...(vocalStyle && { vocalStyle }),
@@ -434,6 +438,34 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
                   onFocus={(e) => e.currentTarget.style.borderColor = '#E63946'}
                   onBlur={(e) => e.currentTarget.style.borderColor = '#2A2A2A'}
                 />
+              </div>
+              <div>
+                <label style={{ display: 'block', color: '#A0A0A0', fontSize: '11px', marginBottom: '6px' }}>Voice</label>
+                <select
+                  value={voice}
+                  onChange={(e) => setVoice(e.target.value)}
+                  style={{ ...inputStyle, cursor: 'pointer' }}
+                >
+                  <option value="">Auto-detect</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', color: '#A0A0A0', fontSize: '11px', marginBottom: '6px' }}>Language</label>
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  style={{ ...inputStyle, cursor: 'pointer' }}
+                >
+                  <option value="english">English</option>
+                  <option value="chinese">Chinese</option>
+                  <option value="japanese">Japanese</option>
+                  <option value="korean">Korean</option>
+                  <option value="spanish">Spanish</option>
+                  <option value="french">French</option>
+                  <option value="hindi">Hindi</option>
+                </select>
               </div>
             </div>
           </details>
