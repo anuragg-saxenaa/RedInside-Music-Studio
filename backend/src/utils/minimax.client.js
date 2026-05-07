@@ -1,6 +1,7 @@
 // backend/src/utils/minimax.client.js
 import axios from 'axios';
 import fs from 'fs';
+import FormData from 'form-data';
 import logger from './logger.js';
 
 class MinimaxClient {
@@ -125,6 +126,14 @@ class MinimaxClient {
     return this.request('/v1/image_generation', 'POST', payload);
   }
 
+  // Music Cover Preprocess
+  async musicCoverPreprocess({ audioUrl, audioBase64 }) {
+    const payload = { model: 'music-cover' };
+    if (audioUrl) payload.audio_url = audioUrl;
+    if (audioBase64) payload.audio_base64 = audioBase64;
+    return this.request('/v1/music_cover_preprocess', 'POST', payload);
+  }
+
   // Voice Design
   async createVoiceDesign({ prompt, previewText, voiceId }) {
     const payload = { prompt, preview_text: previewText };
@@ -142,7 +151,6 @@ class MinimaxClient {
 
   // Voice Clone Upload
   async uploadVoiceClone(filePath) {
-    const FormData = require('form-data');
     const formData = new FormData();
     formData.append('file', fs.createReadStream(filePath));
     formData.append('purpose', 'voice_clone');
@@ -150,7 +158,24 @@ class MinimaxClient {
     const response = await axios.post(`${this.baseURL}/v1/files/upload`, formData, {
       headers: {
         'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'multipart/form-data',
+        ...formData.getHeaders(),
+      },
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
+    });
+    return response.data;
+  }
+
+  // Generic file upload for music cover
+  async uploadFile(filePath) {
+    const formData = new FormData();
+    formData.append('file', fs.createReadStream(filePath));
+    formData.append('purpose', 'music_cover');
+
+    const response = await axios.post(`${this.baseURL}/v1/files/upload`, formData, {
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        ...formData.getHeaders(),
       },
       maxBodyLength: Infinity,
       maxContentLength: Infinity,

@@ -1,6 +1,10 @@
 import * as MinimaxClientModule from '../../utils/minimax.client.js';
 import config from '../../config/env.config.js';
 import db from '../../database/connection.js';
+import storage from '../../utils/storage.util.js';
+import fs from 'fs';
+import path from 'path';
+
 const MinimaxClient = MinimaxClientModule.default;
 
 export class ImageService {
@@ -27,6 +31,28 @@ export class ImageService {
 
     const imageUrls = result.data?.image_urls || [];
     const id = Date.now();
+
+    // Ensure artwork directory exists
+    storage.createProjectDirs(projectId);
+
+    // Download and save first image as artwork
+    let savedArtworkPath = null;
+    if (imageUrls.length > 0) {
+      try {
+        const artworkDir = storage.getArtworkDir(projectId);
+        const ext = '.png'; // Default to png
+        const artworkPath = path.join(artworkDir, 'artwork' + ext);
+
+        // Download the image
+        const response = await fetch(imageUrls[0]);
+        const buffer = await response.buffer();
+        fs.writeFileSync(artworkPath, buffer);
+        savedArtworkPath = artworkPath;
+        console.log('Artwork saved to:', artworkPath);
+      } catch (err) {
+        console.error('Failed to save artwork locally:', err);
+      }
+    }
 
     // Store in database
     const stmt = db.prepare(`

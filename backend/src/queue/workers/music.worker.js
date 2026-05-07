@@ -2,6 +2,7 @@ import { Worker } from 'bullmq';
 import { queues, getRedisConnection } from '../queue.config.js';
 import { JobModel } from '../jobs.service.js';
 import { MusicService } from '../../modules/music/music.service.js';
+import uploadService from '../../modules/upload/upload.service.js';
 import logger from '../../utils/logger.js';
 
 const musicService = new MusicService();
@@ -10,7 +11,7 @@ const connection = getRedisConnection();
 export const musicWorker = new Worker(
   'music-generation',
   async (job) => {
-    const { projectId, lyricsId, prompt, model, isInstrumental, audioSettings, jobId } = job.data;
+    const { projectId, lyricsId, audioUrl, prompt, model, isInstrumental, audioSettings, jobId } = job.data;
 
     logger.info('Processing music job', { jobId: job.id, projectId });
 
@@ -18,10 +19,24 @@ export const musicWorker = new Worker(
       // Update job status to active
       JobModel.updateStatus(jobId, 'active');
 
+      // For cover mode, resolve audioUrl to filePath
+      let filePath = null;
+      if (audioUrl && model === 'music-cover') {
+        // audioUrl format: /api/upload/{trackId}/file
+        const match = audioUrl.match(/\/api\/upload\/([^/]+)\/file/);
+        if (match) {
+          const trackId = match[1];
+          filePath = uploadService.getAudioFilePath(projectId, trackId, 'mp3');
+          logger.info('Resolved audioUrl to filePath', { audioUrl, filePath });
+        }
+      }
+
       // Generate music
       const result = await musicService.generateMusic({
         projectId,
         lyricsId,
+        audioUrl,
+        filePath,
         prompt,
         model,
         isInstrumental,
@@ -58,11 +73,12 @@ musicWorker.on('failed', (job, err) => {
 
 // Helper function to add music job
 export async function addMusicJob(data) {
-  const { projectId, lyricsId, prompt, model, isInstrumental, audioSettings, jobId } = data;
+  const { projectId, lyricsId, audioUrl, prompt, model, isInstrumental, audioSettings, jobId } = data;
 
   const job = await queues.music.add('generate-music', {
     projectId,
     lyricsId,
+    audioUrl,
     prompt,
     model,
     isInstrumental,

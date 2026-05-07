@@ -170,7 +170,24 @@ export default function ArtworkGenerator({ projectId, onSelectArtwork }: Artwork
                   <img src={url} alt={`Artwork ${i + 1}`} style={{ width: '100%', height: 'auto', display: 'block', aspectRatio: '1/1', objectFit: 'cover' }} />
                   <div style={{ padding: '12px', display: 'flex', gap: '8px' }}>
                     <button
-                      onClick={() => { console.log('Set theme clicked:', url); onSelectArtwork?.(url); }}
+                      onClick={async () => {
+                        console.log('Set theme clicked:', url);
+                        // Save image locally for the project
+                        try {
+                          const response = await fetch(`/api/projects/${projectId}/artwork`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ imageUrl: url }),
+                          });
+                          if (response.ok) {
+                            onSelectArtwork?.(`/api/projects/${projectId}/artwork`);
+                          } else {
+                            console.error('Failed to save artwork locally');
+                          }
+                        } catch (err) {
+                          console.error('Failed to save artwork:', err);
+                        }
+                      }}
                       style={{ backgroundColor: '#E63946', border: 'none', borderRadius: '6px', padding: '10px 16px', color: '#FFFFFF', fontSize: '13px', cursor: 'pointer', flex: 1, fontWeight: 600 }}
                     >
                       Set Theme

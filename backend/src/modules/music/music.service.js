@@ -14,7 +14,7 @@ export class MusicService {
 
   async generateMusic(params) {
     try {
-      const { projectId, lyricsId, prompt, model = 'music-2.6',
+      const { projectId, lyricsId, audioUrl: referenceAudioUrl, filePath, prompt, model = 'music-2.6',
         isInstrumental = false, audioSettings } = params;
 
       // Validate projectId
@@ -22,7 +22,7 @@ export class MusicService {
         throw new Error('Project ID is required and must be a string');
       }
 
-      // Validate lyricsId (optional for instrumental)
+      // Validate lyricsId (optional for instrumental or cover mode)
       let lyricsContent = null;
       if (lyricsId) {
         const lyrics = LyricsModel.findById(lyricsId);
@@ -30,8 +30,8 @@ export class MusicService {
           throw new Error(`Lyrics not found: ${lyricsId}`);
         }
         lyricsContent = lyrics.content;
-      } else if (!isInstrumental) {
-        throw new Error('Lyrics ID is required for non-instrumental music');
+      } else if (!isInstrumental && !referenceAudioUrl && !filePath) {
+        throw new Error('Lyrics ID or audio URL/file is required for non-instrumental music');
       }
 
       // Validate model
@@ -51,6 +51,32 @@ export class MusicService {
 
       if (isInstrumental) {
         requestParams.is_instrumental = true;
+        if (prompt) {
+          requestParams.prompt = prompt;
+        }
+      } else if (model === 'music-cover') {
+        // Cover mode: two-step process
+        // Step 1: Preprocess audio to get cover_feature_id
+        let coverFeatureId = null;
+        if (filePath) {
+          // Read file and convert to base64
+          const fileBuffer = fs.readFileSync(filePath);
+          const audioBase64 = fileBuffer.toString('base64');
+          logger.info('Calling preprocess with base64 audio', { fileSize: fileBuffer.length });
+          const preprocessResult = await this.client.musicCoverPreprocess({ audioBase64 });
+          coverFeatureId = preprocessResult.data?.cover_feature_id;
+          logger.info('Cover preprocess result', { coverFeatureId, preprocessResult });
+        } else if (referenceAudioUrl) {
+          const preprocessResult = await this.client.musicCoverPreprocess({ audioUrl: referenceAudioUrl });
+          coverFeatureId = preprocessResult.data?.cover_feature_id;
+        }
+
+        if (!coverFeatureId) {
+          throw new Error('Failed to preprocess audio for cover mode');
+        }
+
+        // Step 2: Use cover_feature_id as audio_url for music generation
+        requestParams.audio_url = coverFeatureId;
         if (prompt) {
           requestParams.prompt = prompt;
         }
