@@ -31,6 +31,7 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
   const [key, setKey] = useState<string>('');
   const [voice, setVoice] = useState<string>('');
   const [language, setLanguage] = useState<string>('english');
+  const [customPrompt, setCustomPrompt] = useState<string>('');
 
   const inputStyle = {
     width: '100%',
@@ -123,6 +124,7 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
         projectId,
         lyricsId: selectedLyrics?.id,
         model,
+        prompt: customPrompt || undefined,
         voice,
         language,
         ...(genre && { genre }),
@@ -253,6 +255,37 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
                   {m}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Custom Prompt */}
+          <div>
+            <label style={{ display: 'block', color: '#A0A0A0', fontSize: '12px', marginBottom: '8px', fontWeight: 500 }}>
+              Custom Prompt
+            </label>
+            <textarea
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+              placeholder="Slow lo-fi trance track, minimal and clean studio mix. Soft ambient pads, light acoustic guitar texture, very subtle beat, no heavy drums. Focus on atmosphere and space..."
+              maxLength={1500}
+              style={{
+                width: '100%',
+                height: '80px',
+                backgroundColor: '#141414',
+                border: '1px solid #2A2A2A',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                color: '#FFFFFF',
+                fontSize: '13px',
+                fontFamily: 'DM Sans, sans-serif',
+                resize: 'vertical',
+                outline: 'none',
+              }}
+              onFocus={(e) => e.currentTarget.style.borderColor = '#E63946'}
+              onBlur={(e) => e.currentTarget.style.borderColor = '#2A2A2A'}
+            />
+            <div style={{ color: '#666666', fontSize: '11px', marginTop: '4px', textAlign: 'right' }}>
+              {customPrompt.length}/1500
             </div>
           </div>
 
