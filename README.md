@@ -94,6 +94,7 @@ redinside-music-studio/
 | POST | /api/jobs | Create job |
 | GET | /api/jobs/:id | Get job status |
 
+
 ## Commands
 
 ```bash
