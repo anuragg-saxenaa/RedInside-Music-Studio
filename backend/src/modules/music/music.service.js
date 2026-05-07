@@ -45,7 +45,11 @@ export class MusicService {
       // Build request to MiniMax with URL format
       const requestParams = {
         model,
-        audio_setting: audioSettings || {},
+        audio_setting: {
+          sample_rate: 44100,
+          bitrate: 256000,
+          format: 'wav',
+        },
         output_format: 'url',
         ...(voice && { voice }),
         ...(language && { language }),
@@ -86,10 +90,11 @@ export class MusicService {
         if (!lyricsContent) {
           throw new Error('Lyrics content is empty');
         }
-        requestParams.lyrics = lyricsContent;
+        // Prompt comes before lyrics in API
         if (prompt) {
           requestParams.prompt = prompt;
         }
+        requestParams.lyrics = lyricsContent;
       }
 
       logger.info('MiniMax request', {
