@@ -89,9 +89,6 @@ export async function addMusicJob(data) {
     language,
     jobId,
   });
-    audioSettings,
-    jobId,
-  });
 
   logger.info('Music job added', { jobId: job.id, projectId });
 

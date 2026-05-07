@@ -6,13 +6,14 @@ import ArtworkGenerator from '../components/ArtworkGenerator/ArtworkGenerator';
 import VoiceDesign from '../components/VoiceDesign/VoiceDesign';
 import WorkflowStepper from '../components/WorkflowControl/WorkflowStepper';
 import CompactPlayer from '../components/MusicPlayer/CompactPlayer';
+import AudioEditorPanel from '../components/AudioEditor/AudioEditorPanel';
 
 interface StudioProps {
   project: Project;
   onBack: () => void;
 }
 
-type WorkflowStep = 'lyrics' | 'music' | 'artwork' | 'voice' | 'export';
+type WorkflowStep = 'lyrics' | 'music' | 'artwork' | 'voice' | 'export' | 'edit';
 
 export default function Studio({ project, onBack }: StudioProps) {
   const [currentStep, setCurrentStep] = useState<WorkflowStep>('lyrics');
@@ -22,6 +23,7 @@ export default function Studio({ project, onBack }: StudioProps) {
   const [allMusicList, setAllMusicList] = useState<MusicGeneration[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
+  const [editingMusic, setEditingMusic] = useState<MusicGeneration | null>(null);
 
   useEffect(() => {
     if (project.current_music_version > 0) {
@@ -112,7 +114,29 @@ export default function Studio({ project, onBack }: StudioProps) {
               onMusicSelect={setSelectedMusic}
               allMusic={allMusicList}
               onConversionComplete={handleConversionComplete}
+              onEditMusic={(music) => {
+                setEditingMusic(music);
+                setCurrentStep('edit');
+              }}
             />
+          </div>
+          <div style={{ display: currentStep === 'edit' ? 'block' : 'none' }}>
+            {editingMusic ? (
+              <AudioEditorPanel
+                projectId={project.id}
+                audioUrl={`/api/music/${editingMusic.id}/file`}
+                trackId={editingMusic.id}
+                onExport={(result) => {
+                  console.log('Exported:', result);
+                  setEditingMusic(null);
+                  setCurrentStep('export');
+                }}
+              />
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#666666' }}>
+                Select a music version to edit from the Export section
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -152,9 +176,10 @@ interface FFmpegPanelProps {
   onMusicSelect: (music: MusicGeneration) => void;
   allMusic: MusicGeneration[];
   onConversionComplete?: () => void;
+  onEditMusic: (music: MusicGeneration) => void;
 }
 
-function FFmpegPanel({ selectedMusic, onMusicSelect, allMusic, onConversionComplete }: FFmpegPanelProps) {
+function FFmpegPanel({ selectedMusic, onMusicSelect, allMusic, onConversionComplete, onEditMusic }: FFmpegPanelProps) {
   const [processing, setProcessing] = useState(false);
   const [processingVersion, setProcessingVersion] = useState<number | null>(null);
   const [downloadReady, setDownloadReady] = useState<Record<string, { durationSeconds: number; bitrate: number }>>({});
@@ -385,20 +410,47 @@ function FFmpegPanel({ selectedMusic, onMusicSelect, allMusic, onConversionCompl
                     </div>
 
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-                        <span style={{ color: '#FFFFFF', fontSize: '15px', fontWeight: 600, fontFamily: 'Outfit, sans-serif' }}>
-                          {music.title || `Version ${music.version}`}
-                        </span>
-                        <span style={{
-                          backgroundColor: '#2A2A2A',
-                          color: '#A0A0A0',
-                          fontSize: '11px',
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          fontFamily: 'JetBrains Mono, monospace',
-                        }}>
-                          v{music.version}
-                        </span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ color: '#FFFFFF', fontSize: '15px', fontWeight: 600, fontFamily: 'Outfit, sans-serif' }}>
+                            {music.title || `Version ${music.version}`}
+                          </span>
+                          <span style={{
+                            backgroundColor: '#2A2A2A',
+                            color: '#A0A0A0',
+                            fontSize: '11px',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontFamily: 'JetBrains Mono, monospace',
+                          }}>
+                            v{music.version}
+                          </span>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEditMusic(music);
+                          }}
+                          style={{
+                            backgroundColor: '#2A2A2A',
+                            color: '#A0A0A0',
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                          }}
+                          onMouseOver={(e) => {
+                            (e.currentTarget as HTMLElement).style.backgroundColor = '#3A3A3A';
+                            (e.currentTarget as HTMLElement).style.color = '#FFFFFF';
+                          }}
+                          onMouseOut={(e) => {
+                            (e.currentTarget as HTMLElement).style.backgroundColor = '#2A2A2A';
+                            (e.currentTarget as HTMLElement).style.color = '#A0A0A0';
+                          }}
+                        >
+                          ✂️ Edit Audio
+                        </button>
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
