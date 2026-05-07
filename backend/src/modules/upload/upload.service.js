@@ -27,22 +27,6 @@ export class UploadService {
   }
 
   /**
-   * Get file path for a track
-   * @param {string} projectId - Project ID
-   * @param {string} trackId - Track ID
-   * @param {string} format - File format (extension)
-   * @returns {string} - File path
-   */
-  getAudioFilePath(projectId, trackId, format = 'mp3') {
-    storage.validateProjectId(projectId);
-    if (!trackId || typeof trackId !== 'string') {
-      throw new Error('trackId is required');
-    }
-    const audioDir = this.getAudioDir(projectId);
-    return path.join(audioDir, `${trackId}.${format}`);
-  }
-
-  /**
    * Validate audio format
    * @param {string} format - File extension
    * @returns {boolean}

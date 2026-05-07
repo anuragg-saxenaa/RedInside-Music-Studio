@@ -60,7 +60,7 @@ class StorageUtil {
     return path.join(this.getMedleyDir(projectId), `medley-${medleyId}.mp3`);
   }
 
-  getArtworkDir(projectId) {
+getArtworkDir(projectId) {
     return path.join(this.getProjectDir(projectId), 'artwork');
   }
 

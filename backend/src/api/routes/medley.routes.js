@@ -1,4 +1,4 @@
-import { MedleyController } from '../../modules/medley/medley.controller.js';
+import { MedleyController } from '../modules/medley/medley.controller.js';
 
 export const MedleyRoutes = [
   {

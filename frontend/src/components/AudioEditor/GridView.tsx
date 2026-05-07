@@ -19,7 +19,10 @@ interface GridViewProps {
   selectedTrackId: string | null;
   onSelectTrack: (trackId: string) => void;
   onReorderTracks: (fromIndex: number, toIndex: number) => void;
+<<<<<<< HEAD
   onUpdateTrack: (trackId: string, updates: Partial<Track>) => void;
+=======
+>>>>>>> phase-1-production-studio
 }
 
 export default function GridView({
@@ -27,12 +30,18 @@ export default function GridView({
   selectedTrackId,
   onSelectTrack,
   onReorderTracks,
+<<<<<<< HEAD
   onUpdateTrack,
 }: GridViewProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [editingTrim, setEditingTrim] = useState<{ trackId: string; field: 'trimStart' | 'trimEnd' } | null>(null);
   const [trimInputValue, setTrimInputValue] = useState('');
+=======
+}: GridViewProps) {
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+>>>>>>> phase-1-production-studio
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
@@ -58,6 +67,7 @@ export default function GridView({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+<<<<<<< HEAD
   const formatTimeInput = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = (seconds % 60).toFixed(2);
@@ -92,6 +102,8 @@ export default function GridView({
     }
   };
 
+=======
+>>>>>>> phase-1-production-studio
   // Generate a simple waveform thumbnail SVG
   const generateWaveformThumbnail = (trackId: string): string => {
     const bars = [];
@@ -192,6 +204,7 @@ export default function GridView({
                   <span style={styles.effectBadge}>Fade Out</span>
                 )}
               </div>
+<<<<<<< HEAD
 
               {/* Inline trim controls when selected */}
               {selectedTrackId === track.id && (
@@ -238,6 +251,8 @@ export default function GridView({
                   </div>
                 </div>
               )}
+=======
+>>>>>>> phase-1-production-studio
             </div>
           </div>
         ))}
@@ -383,6 +398,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '13px',
     color: '#4A4A4A',
   },
+<<<<<<< HEAD
   inlineTrimControls: {
     display: 'flex',
     gap: '16px',
@@ -423,4 +439,6 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '4px',
     backgroundColor: 'rgba(255, 224, 102, 0.1)',
   },
+=======
+>>>>>>> phase-1-production-studio
 };
