@@ -91,12 +91,24 @@ export const MusicController = {
         return res.status(404).json({ error: 'Music not found' });
       }
 
-      if (!music.original_file_path) {
+      // Prefer processed file (320kbps) if available
+      const filePath = music.processed_file_path || music.original_file_path;
+
+      if (!filePath) {
         return res.status(404).json({ error: 'File not available yet' });
       }
 
-      // Prefer processed file (320kbps) if available
-      const filePath = music.processed_file_path || music.original_file_path;
+      // Check if file actually exists
+      const fs = await import('fs');
+      if (!fs.existsSync(filePath)) {
+        logger.error('Audio file not found on disk', { filePath, musicId: id });
+        return res.status(404).json({
+          error: 'Audio file not found on disk',
+          filePath,
+          version: music.version
+        });
+      }
+
       const fileBuffer = storage.readFile(filePath);
 
       res.set({
@@ -107,6 +119,7 @@ export const MusicController = {
 
       res.send(fileBuffer);
     } catch (error) {
+      logger.error('Error serving audio file:', error);
       next(error);
     }
   },
