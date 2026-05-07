@@ -43,7 +43,7 @@ const config = {
     path: path.join(__dirname, '../../../database', path.basename(process.env.DATABASE_PATH || 'music-studio.sqlite')),
   },
   storage: {
-    path: path.join(__dirname, '../../../storage'),
+    path: process.env.STORAGE_PATH || '/Users/admin/Music/RedInside-Storage',
   },
 };
 
