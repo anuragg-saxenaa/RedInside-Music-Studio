@@ -241,6 +241,10 @@ export default function SpotifyWaveformPlayer({
 
     try {
       if (audio.paused) {
+        // Pause all other audio elements on the page
+        document.querySelectorAll('audio').forEach(a => {
+          if (a !== audio) a.pause();
+        });
         await audio.play();
         setIsPlaying(true);
       } else {

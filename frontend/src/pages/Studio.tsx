@@ -29,6 +29,16 @@ export default function Studio({ project, onBack }: StudioProps) {
     if (project.current_music_version > 0) {
       fetchMusicList();
     }
+    // Load existing artwork if available
+    fetch(`/api/projects/${project.id}/artwork`)
+      .then(res => res.ok ? res.blob() : null)
+      .then(blob => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          setArtworkUrl(url);
+        }
+      })
+      .catch(() => {});
   }, [project.id, project.current_music_version, refreshKey]);
 
   const fetchMusicList = () => {

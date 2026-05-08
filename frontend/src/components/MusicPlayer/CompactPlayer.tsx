@@ -66,6 +66,10 @@ export default function CompactPlayer({
     if (!audio) return;
     try {
       if (audio.paused) {
+        // Pause all other audio elements on the page
+        document.querySelectorAll('audio').forEach(a => {
+          if (a !== audio) a.pause();
+        });
         await audio.play();
         setIsPlaying(true);
       } else {
@@ -251,33 +255,67 @@ export default function CompactPlayer({
           {formatTime(currentTime)}
         </span>
 
-        <div
-          style={{
-            flex: 1,
-            height: '4px',
-            backgroundColor: '#2A2A2A',
-            borderRadius: '2px',
-            cursor: 'pointer',
-            position: 'relative',
-          }}
-          onClick={(e) => {
-            const audio = audioRef.current;
-            if (!audio || !audio.duration) return;
-            const rect = e.currentTarget.getBoundingClientRect();
-            const percent = (e.clientX - rect.left) / rect.width;
-            audio.currentTime = percent * audio.duration;
-            setCurrentTime(percent * audio.duration * 1000);
-          }}
-        >
+        <div style={{ flex: 1, position: 'relative' }}>
           <div style={{
             position: 'absolute',
             left: 0,
-            top: 0,
-            height: '100%',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: '100%',
+            height: '4px',
+            backgroundColor: '#2A2A2A',
+            borderRadius: '2px',
+            pointerEvents: 'none',
+          }} />
+          <div style={{
+            position: 'absolute',
+            left: 0,
+            top: '50%',
+            transform: 'translateY(-50%)',
             width: `${progressPercent}%`,
+            height: '4px',
             backgroundColor: '#E63946',
             borderRadius: '2px',
-            transition: 'width 100ms linear',
+            pointerEvents: 'none',
+          }} />
+          <input
+            type="range"
+            min="0"
+            max={durationMs || 100}
+            step="100"
+            value={currentTime}
+            onChange={(e) => {
+              const audio = audioRef.current;
+              if (!audio) return;
+              const newTime = parseInt(e.target.value);
+              audio.currentTime = newTime / 1000;
+              setCurrentTime(newTime);
+            }}
+            style={{
+              position: 'absolute',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              width: '100%',
+              height: '20px',
+              margin: 0,
+              padding: 0,
+              opacity: 0,
+              cursor: 'pointer',
+              zIndex: 2,
+            }}
+          />
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: `${progressPercent}%`,
+            transform: 'translate(-50%, -50%)',
+            width: '12px',
+            height: '12px',
+            backgroundColor: '#FFFFFF',
+            borderRadius: '50%',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+            pointerEvents: 'none',
+            transition: 'left 100ms linear',
           }} />
         </div>
 
