@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 
 interface SpotifyWaveformPlayerProps {
   musicId: string;
@@ -45,7 +45,10 @@ export default function SpotifyWaveformPlayer({
   const audioContextRef = useRef<AudioContext | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
-  const progressPercent = actualDuration > 0 ? (currentTime / actualDuration) * 100 : 0;
+  const progressPercent = useMemo(() =>
+    actualDuration > 0 ? (currentTime / actualDuration) * 100 : 0,
+    [actualDuration, currentTime]
+  );
 
   // Inject seek slider CSS once
   useEffect(() => {
