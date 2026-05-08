@@ -76,6 +76,14 @@ class StorageUtil {
     return path.join(this.getVideoDir(projectId), `v${version}.mp4`);
   }
 
+  getUploadDir(projectId) {
+    return path.join(this.getProjectDir(projectId), 'uploads');
+  }
+
+  getMastersDir(projectId) {
+    return path.join(this.getProjectDir(projectId), 'masters');
+  }
+
   getTempDir(projectId) {
     return path.join(this.getProjectDir(projectId), 'temp');
   }
@@ -89,6 +97,8 @@ class StorageUtil {
       this.getVideoDir(projectId),
       this.getTempDir(projectId),
       this.getArtworkDir(projectId),
+      this.getUploadDir(projectId),
+      this.getMastersDir(projectId),
     ];
 
     for (const dir of dirs) {

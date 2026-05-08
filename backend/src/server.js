@@ -3,6 +3,7 @@ import { registerVoiceRoutes } from './routes/voice.routes.js';
 import { registerUploadRoutes } from './api/routes/upload.routes.js';
 import { VideoRoutes } from './api/routes/video.routes.js';
 import { HistoryRoutes } from './api/routes/history.routes.js';
+import { MasteringRoutes } from './api/routes/mastering.routes.js';
 import express from 'express';
 import cors from 'cors';
 import config from './config/env.config.js';
@@ -86,6 +87,10 @@ VideoRoutes.forEach(route => {
 });
 
 HistoryRoutes.forEach(route => {
+  app[route.method](route.path, route.handler);
+});
+
+MasteringRoutes.forEach(route => {
   app[route.method](route.path, route.handler);
 });
 
