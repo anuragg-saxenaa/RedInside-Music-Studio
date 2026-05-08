@@ -36,9 +36,12 @@ export default function SpotifyWaveformPlayer({
   const [audioError, setAudioError] = useState(false);
   const [actualDuration, setActualDuration] = useState(durationMs);
   const [waveformPeaks, setWaveformPeaks] = useState<number[]>([]);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(title || '');
   const audioRef = useRef<HTMLAudioElement>(null);
   const animationRef = useRef<number>();
   const audioContextRef = useRef<AudioContext | null>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   const progressPercent = actualDuration > 0 ? (currentTime / actualDuration) * 100 : 0;
 
@@ -198,6 +201,14 @@ export default function SpotifyWaveformPlayer({
     };
   }, []);
 
+  // Focus title input when editing starts
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isEditingTitle]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -316,6 +327,34 @@ export default function SpotifyWaveformPlayer({
     setCurrentTime(newTime * 1000);
   };
 
+  const saveTitle = async () => {
+    if (editedTitle.trim() === title) {
+      setIsEditingTitle(false);
+      return;
+    }
+    try {
+      const response = await fetch(`/api/music/${_musicId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: editedTitle.trim() }),
+      });
+      if (response.ok) {
+        setIsEditingTitle(false);
+      }
+    } catch (err) {
+      console.error('Failed to save title:', err);
+    }
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      saveTitle();
+    } else if (e.key === 'Escape') {
+      setEditedTitle(title || '');
+      setIsEditingTitle(false);
+    }
+  };
+
   return (
     <div
       style={{
@@ -390,9 +429,57 @@ export default function SpotifyWaveformPlayer({
         )}
 
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '18px', fontWeight: 700, marginBottom: '6px', color: '#FFFFFF', fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.3px' }}>
-            {title || `Version ${version}`}
-          </div>
+          {isEditingTitle ? (
+            <input
+              ref={titleInputRef}
+              type="text"
+              value={editedTitle}
+              onChange={(e) => setEditedTitle(e.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={handleTitleKeyDown}
+              style={{
+                fontSize: '18px',
+                fontWeight: 700,
+                marginBottom: '6px',
+                color: '#FFFFFF',
+                fontFamily: 'Outfit, sans-serif',
+                letterSpacing: '-0.3px',
+                backgroundColor: 'rgba(230, 57, 70, 0.2)',
+                border: '1px solid #E63946',
+                borderRadius: '6px',
+                padding: '4px 8px',
+                outline: 'none',
+                width: '100%',
+                maxWidth: '300px',
+              }}
+            />
+          ) : (
+            <div
+              onClick={() => {
+                setEditedTitle(title || '');
+                setIsEditingTitle(true);
+              }}
+              style={{
+                fontSize: '18px',
+                fontWeight: 700,
+                marginBottom: '6px',
+                color: '#FFFFFF',
+                fontFamily: 'Outfit, sans-serif',
+                letterSpacing: '-0.3px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+              title="Click to edit title"
+            >
+              {title || `Version ${version}`}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#666666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.6 }}>
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </div>
+          )}
           <div style={{ display: 'flex', gap: '10px', fontSize: '11px', color: '#A0A0A0' }}>
             <span style={{ fontFamily: 'JetBrains Mono, monospace', backgroundColor: 'rgba(230, 57, 70, 0.15)', color: '#E63946', padding: '3px 8px', borderRadius: '4px', fontWeight: 600 }}>
               v{version}

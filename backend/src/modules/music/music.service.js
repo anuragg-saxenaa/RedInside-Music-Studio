@@ -183,12 +183,13 @@ export class MusicService {
   }
 
   async updateMusicMetadata(musicId, metadata) {
-    const { processedFilePath, durationSeconds, bitrate } = metadata;
+    const { processedFilePath, durationSeconds, bitrate, title } = metadata;
 
     return MusicModel.update(musicId, {
       processedFilePath,
       durationSeconds,
       bitrate,
+      title,
     });
   }
 }

@@ -21,4 +21,9 @@ export const MusicRoutes = [
     path: '/api/projects/:projectId/music',
     handler: MusicController.getByProject,
   },
+  {
+    method: 'patch',
+    path: '/api/music/:id',
+    handler: MusicController.update,
+  },
 ];

@@ -124,4 +124,21 @@ export const MusicController = {
       next(error);
     }
   },
+
+  async update(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { title } = req.body;
+
+      const music = await musicService.getMusic(id);
+      if (!music) {
+        return res.status(404).json({ error: 'Music not found' });
+      }
+
+      const updated = await musicService.updateMusicMetadata(id, { title });
+      res.json(updated);
+    } catch (error) {
+      next(error);
+    }
+  },
 };
