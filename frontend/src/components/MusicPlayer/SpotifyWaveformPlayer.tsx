@@ -338,8 +338,12 @@ export default function SpotifyWaveformPlayer({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: editedTitle.trim() }),
       });
+      console.log('Save title response:', response.status, response.ok);
       if (response.ok) {
         setIsEditingTitle(false);
+      } else {
+        const err = await response.json();
+        console.error('Failed to save title:', err);
       }
     } catch (err) {
       console.error('Failed to save title:', err);
