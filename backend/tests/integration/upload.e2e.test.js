@@ -3,11 +3,12 @@ import assert from 'node:assert';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import config from '../../src/config/env.config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = path.join(__dirname, '../fixtures');
-// Storage is at project root: ../../../storage from tests/integration
-const STORAGE_DIR = path.join(__dirname, '../../../storage');
+// Use actual storage path from config
+const STORAGE_DIR = config.storage.path;
 
 // Helper to check network availability
 async function isNetworkAvailable() {

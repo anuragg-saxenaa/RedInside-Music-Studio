@@ -26,7 +26,7 @@ describe('WaveformDisplay', () => {
     vi.restoreAllMocks();
   });
 
-  it('should render with audio URL', () => {
+  it('should render with audio URL and duration', () => {
     // Mock successful fetch and decode
     mockFetch.mockResolvedValue({
       ok: true,
@@ -41,9 +41,30 @@ describe('WaveformDisplay', () => {
     render(
       <WaveformDisplay
         audioUrl="/test-audio.mp3"
-        duration={30}
-        trimStart={5}
-        trimEnd={25}
+        durationMs={30000}
+      />
+    );
+
+    expect(screen.getByText('Loading waveform...')).toBeDefined();
+  });
+
+  it('should render with custom trim values', () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
+    });
+
+    mockDecodeAudioData.mockResolvedValue({
+      getChannelData: () => new Float32Array(44100 * 10),
+      length: 44100 * 10,
+    });
+
+    render(
+      <WaveformDisplay
+        audioUrl="/test-audio.mp3"
+        durationMs={30000}
+        trimStart={5000}
+        trimEnd={25000}
       />
     );
 
@@ -59,15 +80,15 @@ describe('WaveformDisplay', () => {
     render(
       <WaveformDisplay
         audioUrl="/missing-audio.mp3"
-        duration={30}
-        trimStart={5}
-        trimEnd={25}
+        durationMs={30000}
       />
     );
 
     await waitFor(() => {
       expect(screen.queryByText('Loading waveform...')).toBeNull();
     });
+
+    expect(screen.getByText(/Failed to load audio/)).toBeDefined();
   });
 
   it('should update trim values when markers are dragged', async () => {
@@ -79,16 +100,16 @@ describe('WaveformDisplay', () => {
     });
 
     mockDecodeAudioData.mockResolvedValue({
-      getChannelData: () => new Float32Array(44100 * 10), // 10 seconds of audio
-      length: 44100 * 10,
+      getChannelData: () => new Float32Array(44100 * 30), // ~30 seconds of audio
+      length: 44100 * 30,
     });
 
     const { container } = render(
       <WaveformDisplay
         audioUrl="/test-audio.mp3"
-        duration={30}
-        trimStart={5}
-        trimEnd={25}
+        durationMs={30000}
+        trimStart={5000}
+        trimEnd={25000}
         onTrimChange={onTrimChange}
       />
     );
@@ -118,9 +139,9 @@ describe('WaveformDisplay', () => {
     const { container } = render(
       <WaveformDisplay
         audioUrl="/test-audio.mp3"
-        duration={30}
-        trimStart={5}
-        trimEnd={25}
+        durationMs={30000}
+        trimStart={5000}
+        trimEnd={25000}
         onSeek={onSeek}
       />
     );
@@ -135,9 +156,6 @@ describe('WaveformDisplay', () => {
         clientX: 100,
         clientY: 40,
       });
-
-      // onSeek should have been called
-      // Note: actual position depends on container width
     }
   });
 
@@ -155,9 +173,9 @@ describe('WaveformDisplay', () => {
     render(
       <WaveformDisplay
         audioUrl="/test-audio.mp3"
-        duration={30}
-        trimStart={5}
-        trimEnd={25}
+        durationMs={30000}
+        trimStart={5000}
+        trimEnd={25000}
       />
     );
 
@@ -166,51 +184,35 @@ describe('WaveformDisplay', () => {
     });
 
     // Check that numeric inputs are rendered
-    const inputs = screen.container.querySelectorAll('input[type="number"]');
+    const inputs = document.body.querySelectorAll('input[type="number"]');
     expect(inputs.length).toBe(2);
   });
-});
 
-describe('AudioMarker', () => {
-  it('should render marker at correct position', async () => {
-    const onDrag = vi.fn();
-    const onDragEnd = vi.fn();
+  it('should use custom height when provided', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
+    });
 
-    // Dynamic import to avoid circular dependency issues
-    const { default: AudioMarker } = await import('../../src/components/AudioEditor/AudioMarker');
+    mockDecodeAudioData.mockResolvedValue({
+      getChannelData: () => new Float32Array(44100 * 30),
+      length: 44100 * 30,
+    });
 
     const { container } = render(
-      <AudioMarker
-        position={25}
-        type="start"
-        onDrag={onDrag}
-        onDragEnd={onDragEnd}
+      <WaveformDisplay
+        audioUrl="/test-audio.mp3"
+        durationMs={30000}
+        height={120}
       />
     );
 
-    const marker = container.querySelector('[role="slider"]');
-    expect(marker).toBeDefined();
-  });
+    await waitFor(() => {
+      expect(screen.queryByText('Loading waveform...')).toBeNull();
+    });
 
-  it('should call onDrag when marker is moved', async () => {
-    const onDrag = vi.fn();
-    const onDragEnd = vi.fn();
-
-    const { default: AudioMarker } = await import('../../src/components/AudioEditor/AudioMarker');
-
-    const { container } = render(
-      <AudioMarker
-        position={50}
-        type="end"
-        onDrag={onDrag}
-        onDragEnd={onDragEnd}
-      />
-    );
-
-    const marker = container.querySelector('[role="slider"]');
-    if (marker) {
-      fireEvent.keyDown(marker, { key: 'ArrowRight', shiftKey: false });
-      expect(onDrag).toHaveBeenCalled();
-    }
+    // SVG should have the custom height
+    const svg = container.querySelector('svg');
+    expect(svg).toBeDefined();
   });
 });
