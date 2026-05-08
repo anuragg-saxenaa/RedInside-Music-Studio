@@ -2,35 +2,38 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 export interface WaveformDisplayProps {
   audioUrl: string
-  duration: number              // total duration in seconds
-  trimStart: number             // trim start marker position
-  trimEnd: number               // trim end marker position
-  onSeek?: (time: number) => void
+  durationMs: number              // total duration in milliseconds
+  trimStart?: number             // trim start position in ms (default: 0)
+  trimEnd?: number               // trim end position in ms (default: durationMs)
   onTrimChange?: (start: number, end: number) => void
+  onSeek?: (time: number) => void
+  height?: number               // waveform height in px (default: 80)
   zoomLevel?: number            // 1 = fit all, 2 = 2x zoom, etc.
 }
 
-const formatTime = (seconds: number): string => {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
+const formatTime = (ms: number): string => {
+  const totalSeconds = Math.floor(ms / 1000);
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = Math.floor(totalSeconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
 export default function WaveformDisplay({
   audioUrl,
-  duration,
-  trimStart,
-  trimEnd,
-  onSeek,
+  durationMs,
+  trimStart: propTrimStart,
+  trimEnd: propTrimEnd,
   onTrimChange,
+  onSeek,
+  height = 80,
   zoomLevel = 1,
 }: WaveformDisplayProps) {
   const [peaks, setPeaks] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState<'start' | 'end' | 'seek' | null>(null);
-  const [localTrimStart, setLocalTrimStart] = useState(trimStart);
-  const [localTrimEnd, setLocalTrimEnd] = useState(trimEnd);
+  const [isDragging, setIsDragging] = useState<'start' | 'end' | null>(null);
+  const [localTrimStart, setLocalTrimStart] = useState(propTrimStart ?? 0);
+  const [localTrimEnd, setLocalTrimEnd] = useState(propTrimEnd ?? durationMs);
   const [playheadPosition, setPlayheadPosition] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -40,12 +43,19 @@ export default function WaveformDisplay({
 
   // Sync with prop changes
   useEffect(() => {
-    setLocalTrimStart(trimStart);
-  }, [trimStart]);
+    if (propTrimStart !== undefined) {
+      setLocalTrimStart(propTrimStart);
+    }
+  }, [propTrimStart]);
 
   useEffect(() => {
-    setLocalTrimEnd(trimEnd);
-  }, [trimEnd]);
+    if (propTrimEnd !== undefined) {
+      setLocalTrimEnd(propTrimEnd);
+    }
+  }, [propTrimEnd]);
+
+  // Convert duration to seconds for internal use
+  const duration = durationMs / 1000;
 
   // Fetch and decode audio
   useEffect(() => {
@@ -68,9 +78,12 @@ export default function WaveformDisplay({
         const audioContext = new AudioContext();
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
-        if (cancelled) return;
+        if (cancelled) {
+          audioContext.close();
+          return;
+        }
 
-        // Downsample to peaks
+        // Downsample to peaks (150 peaks across the waveform)
         const channelData = audioBuffer.getChannelData(0);
         const samplesPerPeak = Math.max(1, Math.floor(channelData.length / 150));
         const peakCount = Math.floor(channelData.length / samplesPerPeak);
@@ -112,7 +125,7 @@ export default function WaveformDisplay({
   // Playback time update loop
   const updatePlayhead = useCallback(() => {
     if (audioRef.current && isPlaying) {
-      setPlayheadPosition(audioRef.current.currentTime);
+      setPlayheadPosition(audioRef.current.currentTime * 1000);
       animationRef.current = requestAnimationFrame(updatePlayhead);
     }
   }, [isPlaying]);
@@ -140,7 +153,7 @@ export default function WaveformDisplay({
     const rect = containerRef.current.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const percent = clickX / rect.width;
-    const seekTime = percent * duration;
+    const seekTime = percent * durationMs;
 
     onSeek?.(seekTime);
     setPlayheadPosition(seekTime);
@@ -165,13 +178,13 @@ export default function WaveformDisplay({
       const rect = containerRef.current.getBoundingClientRect();
       const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
       const percent = x / rect.width;
-      const time = percent * duration;
+      const timeMs = percent * durationMs;
 
       if (isDragging === 'start') {
-        const newStart = Math.max(0, Math.min(time, localTrimEnd - 0.1));
+        const newStart = Math.max(0, Math.min(timeMs, localTrimEnd - 100));
         setLocalTrimStart(newStart);
       } else if (isDragging === 'end') {
-        const newEnd = Math.max(localTrimStart + 0.1, Math.min(time, duration));
+        const newEnd = Math.max(localTrimStart + 100, Math.min(timeMs, durationMs));
         setLocalTrimEnd(newEnd);
       }
     };
@@ -190,11 +203,11 @@ export default function WaveformDisplay({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, duration, localTrimStart, localTrimEnd, onTrimChange]);
+  }, [isDragging, durationMs, localTrimStart, localTrimEnd, onTrimChange]);
 
-  const startPercent = duration > 0 ? (localTrimStart / duration) * 100 : 0;
-  const endPercent = duration > 0 ? (localTrimEnd / duration) * 100 : 100;
-  const playheadPercent = duration > 0 ? (playheadPosition / duration) * 100 : 0;
+  const startPercent = durationMs > 0 ? (localTrimStart / durationMs) * 100 : 0;
+  const endPercent = durationMs > 0 ? (localTrimEnd / durationMs) * 100 : 100;
+  const playheadPercent = durationMs > 0 ? (playheadPosition / durationMs) * 100 : 0;
 
   const handlePlayPause = () => {
     const audio = audioRef.current;
@@ -214,11 +227,11 @@ export default function WaveformDisplay({
     if (isNaN(numValue)) return;
 
     if (type === 'start') {
-      const newStart = Math.max(0, Math.min(numValue, localTrimEnd - 0.1));
+      const newStart = Math.max(0, Math.min(numValue, localTrimEnd - 100));
       setLocalTrimStart(newStart);
       onTrimChange?.(newStart, localTrimEnd);
     } else {
-      const newEnd = Math.max(localTrimStart + 0.1, Math.min(numValue, duration));
+      const newEnd = Math.max(localTrimStart + 100, Math.min(numValue, durationMs));
       setLocalTrimEnd(newEnd);
       onTrimChange?.(localTrimStart, newEnd);
     }
@@ -255,22 +268,22 @@ export default function WaveformDisplay({
         style={styles.waveformContainer}
         onClick={handleWaveformClick}
       >
-        <svg width="100%" height="80" style={styles.waveformSvg}>
+        <svg width="100%" height={height} style={{ display: 'block' }}>
           {/* Background dim for trimmed regions */}
-          <rect x="0%" y="0" width={`${startPercent}%`} height="80" fill="rgba(0,0,0,0.4)" />
-          <rect x={`${endPercent}%`} y="0" width={`${100 - endPercent}%`} height="80" fill="rgba(0,0,0,0.4)" />
+          <rect x="0%" y="0" width={`${startPercent}%`} height={height} fill="rgba(0,0,0,0.4)" />
+          <rect x={`${endPercent}%`} y="0" width={`${100 - endPercent}%`} height={height} fill="rgba(0,0,0,0.4)" />
 
           {/* Waveform bars */}
           {peaks.map((peak, index) => {
             const barPercent = (index / peaks.length) * 100;
             const isInTrimRegion = barPercent >= startPercent && barPercent <= endPercent;
-            const barHeight = Math.max(4, peak * 70);
+            const barHeight = Math.max(4, peak * (height - 10));
 
             return (
               <rect
                 key={index}
                 x={`${barPercent}%`}
-                y={`${(80 - barHeight) / 2}px`}
+                y={`${(height - barHeight) / 2}px`}
                 width={`${100 / peaks.length * 0.8}%`}
                 height={`${barHeight}px`}
                 fill={isInTrimRegion ? '#E63946' : '#3A3A3A'}
@@ -284,13 +297,13 @@ export default function WaveformDisplay({
             x1={`${playheadPercent}%`}
             y1="0"
             x2={`${playheadPercent}%`}
-            y2="80"
+            y2={height}
             stroke="#FFFFFF"
             strokeWidth="2"
             opacity={0.8}
           />
 
-          {/* Start marker */}
+          {/* Start marker overlay */}
           <g
             style={{ cursor: 'ew-resize' }}
             onMouseDown={(e) => handleMarkerDragStart(e, 'start')}
@@ -299,17 +312,17 @@ export default function WaveformDisplay({
               x={`${startPercent}%`}
               y="0"
               width="12"
-              height="80"
+              height={height}
               fill="#E63946"
               opacity={isDragging === 'start' ? 0.8 : 0.6}
             />
             <polygon
-              points={`${startPercent}%,80 ${startPercent + 1}%,74 ${startPercent}%,68`}
+              points={`${startPercent}%,${height} ${startPercent + 1}%,${height - 6} ${startPercent}%,${height - 12}`}
               fill="#E63946"
             />
           </g>
 
-          {/* End marker */}
+          {/* End marker overlay */}
           <g
             style={{ cursor: 'ew-resize' }}
             onMouseDown={(e) => handleMarkerDragStart(e, 'end')}
@@ -318,18 +331,18 @@ export default function WaveformDisplay({
               x={`${endPercent}%`}
               y="0"
               width="12"
-              height="80"
+              height={height}
               fill="#E63946"
               opacity={isDragging === 'end' ? 0.8 : 0.6}
             />
             <polygon
-              points={`${endPercent}%,80 ${endPercent - 1}%,74 ${endPercent}%,68`}
+              points={`${endPercent}%,${height} ${endPercent - 1}%,${height - 6} ${endPercent}%,${height - 12}`}
               fill="#E63946"
             />
           </g>
         </svg>
 
-        {/* Marker handles on top */}
+        {/* Draggable marker handles on top */}
         <div
           style={{
             position: 'absolute',
@@ -340,6 +353,7 @@ export default function WaveformDisplay({
             backgroundColor: '#FFFFFF',
             cursor: 'ew-resize',
             transform: 'translateX(-50%)',
+            zIndex: 10,
           }}
           onMouseDown={(e) => handleMarkerDragStart(e, 'start')}
         />
@@ -353,6 +367,7 @@ export default function WaveformDisplay({
             backgroundColor: '#FFFFFF',
             cursor: 'ew-resize',
             transform: 'translateX(-50%)',
+            zIndex: 10,
           }}
           onMouseDown={(e) => handleMarkerDragStart(e, 'end')}
         />
@@ -377,7 +392,7 @@ export default function WaveformDisplay({
         </button>
 
         <span style={styles.timeDisplay}>
-          {formatTime(playheadPosition)} / {formatTime(duration)}
+          {formatTime(playheadPosition)} / {formatTime(durationMs)}
         </span>
 
         {/* Trim inputs */}
@@ -388,8 +403,8 @@ export default function WaveformDisplay({
               type="number"
               step="0.1"
               min="0"
-              max={localTrimEnd - 0.1}
-              value={localTrimStart.toFixed(1)}
+              max={(localTrimEnd - 100) / 1000}
+              value={(localTrimStart / 1000).toFixed(1)}
               onChange={(e) => handleInputChange('start', e.target.value)}
               style={styles.trimInput}
             />
@@ -399,9 +414,9 @@ export default function WaveformDisplay({
             <input
               type="number"
               step="0.1"
-              min={localTrimStart + 0.1}
+              min={(localTrimStart + 100) / 1000}
               max={duration}
-              value={localTrimEnd.toFixed(1)}
+              value={(localTrimEnd / 1000).toFixed(1)}
               onChange={(e) => handleInputChange('end', e.target.value)}
               style={styles.trimInput}
             />
@@ -464,11 +479,6 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     overflow: 'hidden',
     marginBottom: '12px',
-  },
-  waveformSvg: {
-    display: 'block',
-    width: '100%',
-    height: '80px',
   },
   controlsRow: {
     display: 'flex',

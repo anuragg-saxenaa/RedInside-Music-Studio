@@ -144,71 +144,67 @@ export default function AudioEditorPanel({
   };
 
   const buildOperationsArray = (): Array<{
-    op: string
-    start?: number
-    end?: number
-    tempo?: number
-    volume?: number
-    fadeIn?: number
-    fadeOut?: number
-    reverse?: boolean
+    type: string
+    startSec?: number
+    endSec?: number
+    tempoFactor?: number
+    gain?: number
+    durationSec?: number
   }> => {
     const ops: Array<{
-      op: string
-      start?: number
-      end?: number
-      tempo?: number
-      volume?: number
-      fadeIn?: number
-      fadeOut?: number
-      reverse?: boolean
+      type: string
+      startSec?: number
+      endSec?: number
+      tempoFactor?: number
+      gain?: number
+      durationSec?: number
     }> = [];
 
     // Trim operation
     if (operations.trimStart > 0 || operations.trimEnd < duration) {
       ops.push({
-        op: 'trim',
-        start: operations.trimStart,
-        end: operations.trimEnd,
+        type: 'trim',
+        startSec: operations.trimStart,
+        endSec: operations.trimEnd,
       });
     }
 
     // Speed operation
     if (operations.speed !== 1.0) {
       ops.push({
-        op: 'speed',
-        tempo: operations.speed,
+        type: 'speed',
+        tempoFactor: operations.speed,
       });
     }
 
     // Volume operation
     if (operations.volume !== 1.0) {
       ops.push({
-        op: 'volume',
-        volume: operations.volume,
+        type: 'volume',
+        gain: operations.volume,
       });
     }
 
     // Fade in
     if (operations.fadeInEnabled && operations.fadeInDuration > 0) {
       ops.push({
-        op: 'fadeIn',
-        fadeIn: operations.fadeInDuration,
+        type: 'fadeIn',
+        durationSec: operations.fadeInDuration,
       });
     }
 
     // Fade out
     if (operations.fadeOutEnabled && operations.fadeOutDuration > 0) {
       ops.push({
-        op: 'fadeOut',
-        fadeOut: operations.fadeOutDuration,
+        type: 'fadeOut',
+        durationSec: operations.fadeOutDuration,
       });
     }
 
     // Reverse
     if (operations.reverse) {
       ops.push({
-        op: 'reverse',
+        type: 'reverse',
       });
     }
 
@@ -220,12 +216,18 @@ export default function AudioEditorPanel({
     setError(null);
 
     try {
+      // Build output path for processed audio
+      const outputFormat = format === 'mp3-320' ? 'mp3' : format;
+      const outputPath = `/storage/projects/${projectId}/generations/music/processed_${Date.now()}.${outputFormat}`;
+
       const payload = {
-        projectId,
-        audioUrl,
+        inputPath: audioUrl,
         operations: buildOperationsArray(),
-        outputFormat: format === 'mp3-320' ? 'mp3' : format,
-        bitrate: format === 'mp3-320' ? '320k' : undefined,
+        outputPath,
+        options: {
+          format: outputFormat,
+          bitrate: format === 'mp3-320' ? '320k' : undefined,
+        },
       };
 
       const response = await fetch('/api/audio/process', {
