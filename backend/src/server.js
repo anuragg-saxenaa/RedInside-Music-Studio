@@ -91,7 +91,8 @@ HistoryRoutes.forEach(route => {
 });
 
 MasteringRoutes.forEach(route => {
-  app[route.method](route.path, route.handler);
+  const args = [route.path, ...(route.middlewares || []), route.handler];
+  app[route.method](...args);
 });
 
 registerImageRoutes(app);
