@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 interface UploadZoneProps {
   projectId: string;
@@ -8,12 +8,9 @@ interface UploadZoneProps {
 export default function UploadZone({ projectId, onUploadComplete }: UploadZoneProps) {
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleDrop = useCallback(async (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
-
-    const file = e.dataTransfer.files[0];
+  const handleFile = useCallback(async (file: File) => {
     if (!file) return;
 
     setUploading(true);
@@ -37,12 +34,25 @@ export default function UploadZone({ projectId, onUploadComplete }: UploadZonePr
     }
   }, [projectId, onUploadComplete]);
 
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+
+    const file = e.dataTransfer.files[0];
+    await handleFile(file);
+  }, [handleFile]);
+
+  const handleClick = () => {
+    inputRef.current?.click();
+  };
+
   return (
     <div
       data-testid="upload-zone"
       onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
       onDragLeave={() => setDragging(false)}
       onDrop={handleDrop}
+      onClick={handleClick}
       style={{
         border: `2px dashed ${dragging ? '#FFB800' : '#2A2A2A'}`,
         borderRadius: '8px',
@@ -54,12 +64,12 @@ export default function UploadZone({ projectId, onUploadComplete }: UploadZonePr
       }}
     >
       <input
+        ref={inputRef}
         type="file"
         accept=".mp3,.wav,.flac,.m4a,.ogg"
-        onChange={async (e) => {
+        onChange={(e) => {
           const file = e.target.files?.[0];
-          if (!file) return;
-          // Handle file upload...
+          if (file) handleFile(file);
         }}
         style={{ display: 'none' }}
       />
@@ -68,7 +78,7 @@ export default function UploadZone({ projectId, onUploadComplete }: UploadZonePr
       ) : (
         <>
           <div style={{ color: '#888', fontSize: '14px', marginBottom: '8px' }}>
-            Drag and drop audio file here
+            Drag and drop audio file here or click to upload
           </div>
           <div style={{ color: '#555', fontSize: '12px' }}>
             MP3, WAV, FLAC, M4A, OGG up to 50MB
