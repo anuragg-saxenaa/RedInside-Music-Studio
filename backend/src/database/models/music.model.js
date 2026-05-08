@@ -1,5 +1,6 @@
 import db from '../connection.js';
 import { nanoid } from 'nanoid';
+import fs from 'fs';
 
 export const MusicModel = {
   create(data) {
@@ -71,6 +72,11 @@ export const MusicModel = {
       }
       row.is_instrumental = Boolean(row.is_instrumental);
       return row;
+    }).filter(row => {
+      // Orphan protection: only return records where at least one file exists on disk
+      const hasOriginal = row.original_file_path && fs.existsSync(row.original_file_path);
+      const hasProcessed = row.processed_file_path && fs.existsSync(row.processed_file_path);
+      return hasOriginal || hasProcessed;
     });
   },
 
