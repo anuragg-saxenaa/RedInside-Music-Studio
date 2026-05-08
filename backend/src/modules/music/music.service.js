@@ -6,6 +6,7 @@ import storage from '../../utils/storage.util.js';
 import config from '../../config/env.config.js';
 import logger from '../../utils/logger.js';
 import axios from 'axios';
+import { AudioMasteringService } from '../mastering/mastering.service.js';
 
 export class MusicService {
   constructor() {
@@ -157,6 +158,20 @@ export class MusicService {
         bitrate: response.extra_info?.bitrate || 256000,
         format: 'mp3',
       });
+
+      // Auto-master the output to Spotify quality
+      if (musicRecord.original_file_path) {
+        const masteringService = new AudioMasteringService(storage.getMastersDir(projectId));
+        const masteredPath = musicRecord.original_file_path.replace(/\.[^.]+$/, '_spotify_master.wav');
+
+        try {
+          await masteringService.masterToSpotify(musicRecord.original_file_path, masteredPath);
+          MusicModel.update(musicRecord.id, { processedFilePath: masteredPath });
+        } catch (err) {
+          console.error('Auto-mastering failed:', err);
+          // Continue without mastering - not critical
+        }
+      }
 
       // Increment project version
       ProjectModel.incrementVersion(projectId, 'music');
