@@ -67,22 +67,32 @@ export default function ArtworkGenerator({ projectId, musicId, onSelectArtwork }
 
   const saveArtwork = async (imageUrl: string) => {
     try {
-      const body: { imageUrl: string; musicId?: string } = { imageUrl };
+      // Fetch image as blob and convert to base64 to avoid CORS issues
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      const body: { imageUrl: string; musicId?: string } = { imageUrl: base64 };
       if (musicId) {
         body.musicId = musicId;
       }
 
-      const response = await fetch(`/api/projects/${projectId}/artwork`, {
+      const saveResponse = await fetch(`/api/projects/${projectId}/artwork`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
 
-      if (response.ok) {
+      if (saveResponse.ok) {
         onSelectArtwork?.(artworkApiUrl);
       } else {
         console.error('Failed to save artwork locally');
-        const data = await response.json();
+        const data = await saveResponse.json();
         alert(data.error || 'Failed to save artwork');
       }
     } catch (err) {

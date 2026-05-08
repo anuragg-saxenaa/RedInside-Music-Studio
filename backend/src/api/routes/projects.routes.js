@@ -142,13 +142,21 @@ export const ProjectsController = {
         storage.createProjectDirs(id);
         const artworkDir = storage.getArtworkDir(id);
 
-        // Download image from URL and save as music-specific artwork
-        const response = await fetch(imageUrl);
-        if (!response.ok) {
-          return res.status(400).json({ error: 'Failed to fetch image from URL' });
+        // Handle base64 image data or URL
+        let buffer;
+        if (imageUrl.startsWith('data:')) {
+          // Base64 image data
+          const base64Data = imageUrl.replace(/^data:image\/\w+;base64,/, '');
+          buffer = Buffer.from(base64Data, 'base64');
+        } else {
+          // Download from URL
+          const response = await fetch(imageUrl);
+          if (!response.ok) {
+            return res.status(400).json({ error: 'Failed to fetch image from URL' });
+          }
+          buffer = Buffer.from(await response.arrayBuffer());
         }
 
-        const buffer = Buffer.from(await response.arrayBuffer());
         const ext = '.png';
         const artworkFilename = `music-${musicId}.png`;
         const artworkPath = path.join(artworkDir, artworkFilename);
@@ -167,12 +175,20 @@ export const ProjectsController = {
       storage.createProjectDirs(id);
       const artworkDir = storage.getArtworkDir(id);
 
-      const response = await fetch(imageUrl);
-      if (!response.ok) {
-        return res.status(400).json({ error: 'Failed to fetch image from URL' });
+      let buffer;
+      if (imageUrl.startsWith('data:')) {
+        // Base64 image data
+        const base64Data = imageUrl.replace(/^data:image\/\w+;base64,/, '');
+        buffer = Buffer.from(base64Data, 'base64');
+      } else {
+        // Download from URL
+        const response = await fetch(imageUrl);
+        if (!response.ok) {
+          return res.status(400).json({ error: 'Failed to fetch image from URL' });
+        }
+        buffer = Buffer.from(await response.arrayBuffer());
       }
 
-      const buffer = Buffer.from(await response.arrayBuffer());
       const ext = '.png';
       const artworkPath = path.join(artworkDir, 'artwork' + ext);
 
