@@ -75,11 +75,14 @@ export default function ArtworkGenerator({ projectId, musicId, onSelectArtwork }
         body: JSON.stringify({ imageUrl }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch image');
+      const responseData = await response.json();
+      console.log('fetch-image response:', response.status, responseData);
+
+      if (!response.ok || responseData.error) {
+        throw new Error(responseData.error || 'Failed to fetch image');
       }
 
-      const { imageData } = await response.json();
+      const { imageData } = responseData;
 
       const body: { imageUrl: string; musicId?: string } = { imageUrl: imageData };
       if (musicId) {
