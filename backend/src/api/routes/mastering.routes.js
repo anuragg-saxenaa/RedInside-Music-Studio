@@ -1,4 +1,4 @@
-import { MasteringController } from '../modules/mastering/mastering.controller.js';
+import { MasteringController } from '../../modules/mastering/mastering.controller.js';
 import multer from 'multer';
 
 const upload = multer({
