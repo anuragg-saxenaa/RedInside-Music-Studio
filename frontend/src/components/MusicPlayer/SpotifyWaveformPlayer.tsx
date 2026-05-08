@@ -42,6 +42,34 @@ export default function SpotifyWaveformPlayer({
 
   const progressPercent = actualDuration > 0 ? (currentTime / actualDuration) * 100 : 0;
 
+  // Inject seek slider CSS once
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .seek-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        background: #E63946;
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(230, 57, 70, 0.7);
+        border: 3px solid #fff;
+      }
+      .seek-slider::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        background: #E63946;
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(230, 57, 70, 0.7);
+        border: 3px solid #fff;
+      }
+    `;
+    document.head.appendChild(style);
+    return () => { document.head.removeChild(style); };
+  }, []);
+
   // Fetch and decode audio for real waveform peaks
   useEffect(() => {
     let cancelled = false;
@@ -450,27 +478,6 @@ export default function SpotifyWaveformPlayer({
               }}
               className="seek-slider"
             />
-            <style>{`
-              .seek-slider::-webkit-slider-thumb {
-                -webkit-appearance: none;
-                width: 14px;
-                height: 14px;
-                background: #E63946;
-                border-radius: 50%;
-                cursor: pointer;
-                box-shadow: 0 0 8px rgba(230, 57, 70, 0.6);
-                border: 2px solid #fff;
-              }
-              .seek-slider::-moz-range-thumb {
-                width: 14px;
-                height: 14px;
-                background: #E63946;
-                border-radius: 50%;
-                cursor: pointer;
-                box-shadow: 0 0 8px rgba(230, 57, 70, 0.6);
-                border: 2px solid #fff;
-              }
-            `}</style>
           </div>
 
           {/* Controls */}
