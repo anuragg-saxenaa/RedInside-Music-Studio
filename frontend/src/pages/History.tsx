@@ -38,10 +38,17 @@ export default function History() {
 
     try {
       const res = await fetch(`/api/history/${project.id}`);
-      const data = await res.json();
-      setHistory(data);
+      if (!res.ok) {
+        const error = await res.json();
+        console.error('Failed to fetch history:', error.error || error.message);
+        setHistory(null);
+      } else {
+        const data = await res.json();
+        setHistory(data);
+      }
     } catch (err) {
       console.error('Failed to fetch history:', err);
+      setHistory(null);
     } finally {
       setLoading(false);
     }
@@ -374,7 +381,7 @@ export default function History() {
           </div>
         )}
 
-        {selectedProject && !loading && history && history.lyrics.length === 0 && history.music.length === 0 && (
+        {selectedProject && !loading && (history === null || (history.lyrics.length === 0 && history.music.length === 0)) && (
           <div style={{
             textAlign: 'center',
             padding: '60px 20px',
