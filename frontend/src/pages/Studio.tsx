@@ -7,6 +7,7 @@ import VoiceDesign from '../components/VoiceDesign/VoiceDesign';
 import WorkflowStepper from '../components/WorkflowControl/WorkflowStepper';
 import CompactPlayer from '../components/MusicPlayer/CompactPlayer';
 import AudioEditorPanel from '../components/AudioEditor/AudioEditorPanel';
+import AudioMasteringPanel from '../components/Mastering/AudioMasteringPanel';
 
 interface StudioProps {
   project: Project;
@@ -138,16 +139,9 @@ export default function Studio({ project, onBack }: StudioProps) {
             <VoiceDesign />
           </div>
           <div style={{ display: currentStep === 'export' ? 'block' : 'none' }}>
-            <FFmpegPanel
+            <AudioMasteringPanel
               projectId={project.id}
-              selectedMusic={selectedMusic}
-              onMusicSelect={setSelectedMusic}
               allMusic={allMusicList}
-              onConversionComplete={handleConversionComplete}
-              onEditMusic={(music) => {
-                setEditingMusic(music);
-                setCurrentStep('edit');
-              }}
             />
           </div>
           <div style={{ display: currentStep === 'edit' ? 'block' : 'none' }}>
