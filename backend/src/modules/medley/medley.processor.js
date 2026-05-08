@@ -329,6 +329,7 @@ export class MedleyProcessor {
         let command = ffmpeg()
           .input(concatFilePath)
           .inputFormat('concat')
+          .inputOption('-safe', '0')
           .audioCodec('libmp3lame');
 
         if (bitrate) {

@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { exec } from 'child_process';
+import { fileURLToPath } from 'url';
 import { MedleyProcessor } from '../../src/modules/medley/medley.processor.js';
 
 // Skip in CI
@@ -11,6 +12,10 @@ if (process.env.CI) {
   console.log('Skipping medley processor tests in CI');
   process.exit(0);
 }
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const fixturesDir = path.join(__dirname, '../fixtures');
+const testAudioPath = path.join(fixturesDir, 'test-audio.mp3');
 
 describe('MedleyProcessor Integration Tests', () => {
   const tempDir = path.join(os.tmpdir(), `medley-test-${Date.now()}`);
@@ -22,15 +27,15 @@ describe('MedleyProcessor Integration Tests', () => {
     // Create temp directory
     await fs.promises.mkdir(tempDir, { recursive: true });
 
-    // Create a simple test audio file using FFmpeg (generate silence with beep)
+    // Create test audio files by trimming/copying from the fixture
     testAudioFile1 = path.join(tempDir, 'track1.mp3');
     testAudioFile2 = path.join(tempDir, 'track2.mp3');
     testAudioFile3 = path.join(tempDir, 'track3.mp3');
 
-    // Generate 5 second test audio files
-    await generateTestAudio(testAudioFile1, 5);
-    await generateTestAudio(testAudioFile2, 8);
-    await generateTestAudio(testAudioFile3, 3);
+    // Copy and trim fixture to create test files (5s, 8s, 3s)
+    await createTestAudio(testAudioFile1, testAudioPath, 0, 5);
+    await createTestAudio(testAudioFile2, testAudioPath, 5, 13);
+    await createTestAudio(testAudioFile3, testAudioPath, 13, 16);
   });
 
   after(async () => {
@@ -42,15 +47,14 @@ describe('MedleyProcessor Integration Tests', () => {
     }
   });
 
-  // Helper to generate test audio
-  async function generateTestAudio(outputPath, durationSec) {
+  // Helper to create test audio by trimming source
+  async function createTestAudio(outputPath, sourcePath, startSec, endSec) {
     return new Promise((resolve, reject) => {
-      // Generate silent audio with a tone (simpler approach using built-in ffmpeg tone)
-      const cmd = `ffmpeg -f lavfi -i "sine=frequency=440:duration=${durationSec}" -y ${outputPath}`;
-      exec(cmd, (error, stdout, stderr) => {
+      const cmd = `ffmpeg -i "${sourcePath}" -ss ${startSec} -t ${endSec - startSec} -y "${outputPath}"`;
+      exec(cmd, (error) => {
         if (error) {
-          // Try alternative approach - just copy a minimal audio if ffmpeg fails
-          console.log('FFmpeg generation note:', stderr);
+          reject(error);
+          return;
         }
         resolve();
       });
@@ -212,7 +216,8 @@ describe('MedleyProcessor Integration Tests', () => {
       .exportMedley(path.join(tempDir, 'export4.mp3'));
 
     assert.strictEqual(fs.existsSync(result.filePath), true);
-    assert.strictEqual(result.trackCount, 3);
+    // After add, add, remove, add: tracks = [file1, file3] = 2 tracks
+    assert.strictEqual(result.trackCount, 2);
   }, 30000);
 
   it('should throw error when exporting with no tracks', async () => {
