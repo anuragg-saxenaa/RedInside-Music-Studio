@@ -572,14 +572,19 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
                   </span>
                 </div>
                 {music.original_file_path && (
-                  <SpotifyWaveformPlayer
-                    musicId={music.id}
-                    version={music.version}
-                    durationMs={(music.duration_seconds || 0) * 1000}
-                    audioUrl={`/api/music/${music.id}/file`}
-                    model={music.model}
-                    artworkUrl={`/api/projects/${music.project_id}/artwork`}
-                  />
+                  const artworkUrl = music.artwork_url
+                    ? music.artwork_url
+                    : `/api/projects/${music.project_id}/artwork`;
+                  return (
+                    <SpotifyWaveformPlayer
+                      musicId={music.id}
+                      version={music.version}
+                      durationMs={(music.duration_seconds || 0) * 1000}
+                      audioUrl={`/api/music/${music.id}/file`}
+                      model={music.model}
+                      artworkUrl={artworkUrl}
+                    />
+                  );
                 )}
 
                 {/* Quick Export Actions */}

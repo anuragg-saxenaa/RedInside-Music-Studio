@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 
 interface ArtworkGeneratorProps {
   projectId: string;
+  musicId?: string; // If provided, artwork is per-music version
   onSelectArtwork?: (imageUrl: string) => void;
 }
 
@@ -14,12 +15,17 @@ const ASPECT_RATIOS = [
   { value: '2:3', label: '2:3 (832×1248)' },
 ];
 
-export default function ArtworkGenerator({ projectId, onSelectArtwork }: ArtworkGeneratorProps) {
+export default function ArtworkGenerator({ projectId, musicId, onSelectArtwork }: ArtworkGeneratorProps) {
   const [prompt, setPrompt] = useState('');
   const [aspectRatio, setAspectRatio] = useState('1:1');
   const [generating, setGenerating] = useState(false);
   const [images, setImages] = useState<Array<{ id: number; imageUrls: string[]; prompt: string }>>([]);
   const [n, setN] = useState(1);
+
+  // Determine artwork URL based on whether musicId is provided
+  const artworkApiUrl = musicId
+    ? `/api/projects/${projectId}/artwork/${musicId}`
+    : `/api/projects/${projectId}/artwork`;
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/images`)
@@ -56,6 +62,32 @@ export default function ArtworkGenerator({ projectId, onSelectArtwork }: Artwork
       alert('Network error - please try again');
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const saveArtwork = async (imageUrl: string) => {
+    try {
+      const body: { imageUrl: string; musicId?: string } = { imageUrl };
+      if (musicId) {
+        body.musicId = musicId;
+      }
+
+      const response = await fetch(`/api/projects/${projectId}/artwork`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (response.ok) {
+        onSelectArtwork?.(artworkApiUrl);
+      } else {
+        console.error('Failed to save artwork locally');
+        const data = await response.json();
+        alert(data.error || 'Failed to save artwork');
+      }
+    } catch (err) {
+      console.error('Failed to save artwork:', err);
+      alert('Network error - please try again');
     }
   };
 
@@ -170,23 +202,9 @@ export default function ArtworkGenerator({ projectId, onSelectArtwork }: Artwork
                   <img src={url} alt={`Artwork ${i + 1}`} style={{ width: '100%', height: 'auto', display: 'block', aspectRatio: '1/1', objectFit: 'cover' }} />
                   <div style={{ padding: '12px', display: 'flex', gap: '8px' }}>
                     <button
-                      onClick={async () => {
+                      onClick={() => {
                         console.log('Set theme clicked:', url);
-                        // Save image locally for the project
-                        try {
-                          const response = await fetch(`/api/projects/${projectId}/artwork`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ imageUrl: url }),
-                          });
-                          if (response.ok) {
-                            onSelectArtwork?.(`/api/projects/${projectId}/artwork`);
-                          } else {
-                            console.error('Failed to save artwork locally');
-                          }
-                        } catch (err) {
-                          console.error('Failed to save artwork:', err);
-                        }
+                        saveArtwork(url);
                       }}
                       style={{ backgroundColor: '#E63946', border: 'none', borderRadius: '6px', padding: '10px 16px', color: '#FFFFFF', fontSize: '13px', cursor: 'pointer', flex: 1, fontWeight: 600 }}
                     >

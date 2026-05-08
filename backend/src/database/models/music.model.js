@@ -18,8 +18,8 @@ export const MusicModel = {
         INSERT INTO music_generations (
           id, project_id, lyrics_id, version, model, prompt,
           audio_settings, is_instrumental, original_file_path,
-          processed_file_path, duration_seconds, sample_rate, bitrate, format
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          processed_file_path, duration_seconds, sample_rate, bitrate, format, artwork_url
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       stmt.run(
@@ -36,7 +36,8 @@ export const MusicModel = {
         data.durationSeconds || null,
         data.sampleRate || null,
         data.bitrate || null,
-        data.format || null
+        data.format || null,
+        data.artworkUrl || null
       );
 
       return this.findById(id);
@@ -100,6 +101,10 @@ export const MusicModel = {
       if (data.bitrate !== undefined) {
         updates.push('bitrate = ?');
         values.push(data.bitrate);
+      }
+      if (data.artworkUrl !== undefined) {
+        updates.push('artwork_url = ?');
+        values.push(data.artworkUrl);
       }
 
       // Check if there are any updates to apply

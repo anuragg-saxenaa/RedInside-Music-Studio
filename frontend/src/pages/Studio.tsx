@@ -62,7 +62,23 @@ export default function Studio({ project, onBack }: StudioProps) {
     setSelectedMusic(music);
     setActivePlayerMusic(music);
     setCurrentStep('artwork');
+    // Reset artwork when new music is generated - artwork step will load per-music artwork
+    setArtworkUrl(null);
   };
+
+  // Fetch per-music artwork when entering artwork step
+  useEffect(() => {
+    if (currentStep === 'artwork' && selectedMusic) {
+      fetch(`/api/projects/${project.id}/artwork/${selectedMusic.id}`)
+        .then(res => res.ok ? res.blob() : null)
+        .then(blob => {
+          if (blob) {
+            setArtworkUrl(URL.createObjectURL(blob));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [currentStep, selectedMusic?.id]);
 
   const handleSelectForPlayer = (music: MusicGeneration) => {
     setActivePlayerMusic(music);
@@ -112,7 +128,11 @@ export default function Studio({ project, onBack }: StudioProps) {
             />
           </div>
           <div style={{ display: currentStep === 'artwork' ? 'block' : 'none' }}>
-            <ArtworkGenerator projectId={project.id} onSelectArtwork={setArtworkUrl} />
+            <ArtworkGenerator
+              projectId={project.id}
+              musicId={selectedMusic?.id}
+              onSelectArtwork={setArtworkUrl}
+            />
           </div>
           <div style={{ display: currentStep === 'voice' ? 'block' : 'none' }}>
             <VoiceDesign />
