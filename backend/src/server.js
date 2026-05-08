@@ -53,6 +53,7 @@ const projectRoutes = [
   { method: 'get', path: '/api/projects/:id/artwork', handler: ProjectsController.getArtwork },
   { method: 'post', path: '/api/projects/:id/artwork', handler: ProjectsController.saveArtwork },
   { method: 'get', path: '/api/projects/:id/artwork/:musicId', handler: ProjectsController.getMusicArtwork },
+  { method: 'post', path: '/api/projects/:id/artwork/fetch-image', handler: ProjectsController.fetchImage },
 ];
 
 // Register routes

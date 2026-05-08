@@ -9,6 +9,7 @@ interface SpotifyWaveformPlayerProps {
   model?: string;
   artworkUrl?: string;
   onTimeUpdate?: (currentTime: number) => void;
+  onTitleSave?: (title: string) => void;
 }
 
 const formatTime = (ms: number): string => {
@@ -27,6 +28,7 @@ export default function SpotifyWaveformPlayer({
   model,
   artworkUrl,
   onTimeUpdate,
+  onTitleSave,
 }: SpotifyWaveformPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -341,6 +343,7 @@ export default function SpotifyWaveformPlayer({
       console.log('Save title response:', response.status, response.ok);
       if (response.ok) {
         setIsEditingTitle(false);
+        onTitleSave?.(editedTitle.trim());
       } else {
         const err = await response.json();
         console.error('Failed to save title:', err);

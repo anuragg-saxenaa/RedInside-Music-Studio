@@ -580,6 +580,15 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
                     model={music.model}
                     title={music.title}
                     artworkUrl={music.artwork_url || `/api/projects/${music.project_id}/artwork`}
+                    onTitleSave={() => {
+                      // Refetch music to get updated title
+                      fetch(`/api/music/${music.id}`)
+                        .then(res => res.json())
+                        .then(updatedMusic => {
+                          setMusicHistory(prev => prev.map(m => m.id === music.id ? updatedMusic : m));
+                        })
+                        .catch(console.error);
+                    }}
                   />
                 )}
 

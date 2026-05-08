@@ -67,17 +67,21 @@ export default function ArtworkGenerator({ projectId, musicId, onSelectArtwork }
 
   const saveArtwork = async (imageUrl: string) => {
     try {
-      // Fetch image as blob and convert to base64 to avoid CORS issues
-      const response = await fetch(imageUrl);
-      const blob = await response.blob();
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
+      // Use backend proxy to fetch image and convert to base64 to avoid CORS issues
+      // The backend doesn't have browser CORS restrictions
+      const response = await fetch(`/api/projects/${projectId}/artwork/fetch-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl }),
       });
 
-      const body: { imageUrl: string; musicId?: string } = { imageUrl: base64 };
+      if (!response.ok) {
+        throw new Error('Failed to fetch image');
+      }
+
+      const { imageData } = await response.json();
+
+      const body: { imageUrl: string; musicId?: string } = { imageUrl: imageData };
       if (musicId) {
         body.musicId = musicId;
       }

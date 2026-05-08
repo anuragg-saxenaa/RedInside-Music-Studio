@@ -88,6 +88,30 @@ export const ProjectsController = {
     }
   },
 
+  async fetchImage(req, res, next) {
+    try {
+      const { imageUrl } = req.body;
+
+      if (!imageUrl) {
+        return res.status(400).json({ error: 'imageUrl is required' });
+      }
+
+      // Server-side fetch avoids CORS restrictions
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        return res.status(400).json({ error: 'Failed to fetch image from URL' });
+      }
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const base64 = buffer.toString('base64');
+      const mimeType = response.headers.get('content-type') || 'image/png';
+
+      res.json({ imageData: `data:${mimeType};base64,${base64}` });
+    } catch (error) {
+      next(error);
+    }
+  },
+
   async getArtwork(req, res, next) {
     try {
       const { id } = req.params;
