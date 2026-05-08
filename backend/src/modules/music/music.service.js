@@ -153,7 +153,7 @@ export class MusicService {
         audioSettings,
         isInstrumental,
         originalFilePath,
-        durationSeconds: response.extra_info?.music_duration || null,
+        durationSeconds: response.extra_info?.music_duration ? response.extra_info.music_duration / 1000 : null,
         sampleRate: response.extra_info?.music_sample_rate || 44100,
         bitrate: response.extra_info?.bitrate || 256000,
         format: 'mp3',
