@@ -51,8 +51,10 @@ export const MasteringController = {
 
       if (saveToProject) {
         const { MusicModel } = await import('../../database/models/music.model.js');
+        const version = MusicModel.getNextVersion(projectId);
         const music = MusicModel.create({
           projectId,
+          version,
           originalFilePath: inputPath,
           processedFilePath: outputPath,
           title: `Mastered ${inputFile}`,
