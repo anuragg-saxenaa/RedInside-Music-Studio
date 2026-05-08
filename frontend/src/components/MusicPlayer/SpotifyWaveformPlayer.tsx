@@ -567,9 +567,9 @@ export default function SpotifyWaveformPlayer({
                 const audio = audioRef.current;
                 if (!audio || !actualDuration) return;
                 const percent = parseFloat(e.target.value) / 1000;
-                const newTimeSec = percent * actualDuration / 1000;
-                audio.currentTime = newTimeSec;
-                setCurrentTime(percent * actualDuration);
+                const newTimeMs = percent * actualDuration;
+                audio.currentTime = newTimeMs / 1000;
+                setCurrentTime(newTimeMs);
               }}
               style={{
                 width: '100%',
