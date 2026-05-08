@@ -241,10 +241,17 @@ export default function SpotifyWaveformPlayer({
 
     try {
       if (audio.paused) {
+        // Find currently playing audio and transfer position before pausing
+        const playingAudio = document.querySelector('audio:not([paused])') as HTMLAudioElement | null;
+        const currentPosition = playingAudio ? playingAudio.currentTime : 0;
+
         // Pause all other audio elements on the page
         document.querySelectorAll('audio').forEach(a => {
           if (a !== audio) a.pause();
         });
+
+        // Transfer position from playing audio to this one
+        audio.currentTime = currentPosition;
         await audio.play();
         setIsPlaying(true);
       } else {
