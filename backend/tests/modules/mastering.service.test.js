@@ -7,7 +7,12 @@ import { AudioMasteringService } from '../../src/modules/mastering/mastering.ser
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE = path.join(__dirname, '../fixtures/test-audio.mp3');
-const OUTPUT_DIR = path.join(__dirname, '../fixtures/output');
+const OUTPUT_DIR = path.join(__dirname, '../fixtures/output-mastering');
+
+// Ensure output directory exists
+if (!fs.existsSync(OUTPUT_DIR)) {
+  fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+}
 
 describe('AudioMasteringService', () => {
   if (!fs.existsSync(FIXTURE)) {

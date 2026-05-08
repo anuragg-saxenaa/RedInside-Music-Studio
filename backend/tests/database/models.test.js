@@ -1,9 +1,13 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { ProjectModel } from '../../src/database/models/project.model.js';
 import { LyricsModel } from '../../src/database/models/lyrics.model.js';
 import { MusicModel } from '../../src/database/models/music.model.js';
 import db from '../../src/database/connection.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe('ProjectModel', () => {
   let testProjectId;
@@ -213,12 +217,12 @@ describe('MusicModel', () => {
   });
 
   it('should handle invalid JSON gracefully on findByProject', () => {
-    // Insert a row with invalid JSON
+    // Insert a row with invalid JSON AND valid file paths (for orphan filter)
     const id = 'test-invalid-json-music-2';
     db.prepare(`
-      INSERT INTO music_generations (id, project_id, version, model, audio_settings)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(id, testProjectId, 98, 'music-01', 'invalid json');
+      INSERT INTO music_generations (id, project_id, version, model, audio_settings, original_file_path)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(id, testProjectId, 98, 'music-01', 'invalid json', path.join(__dirname, '../fixtures/test-audio.mp3'));
 
     const results = MusicModel.findByProject(testProjectId);
     const invalidRow = results.find(r => r.id === id);
