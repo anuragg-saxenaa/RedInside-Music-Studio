@@ -3,6 +3,7 @@ import storage from '../../utils/storage.util.js';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+import { execSync } from 'child_process';
 
 export const MasteringController = {
   async upload(req, res, next) {
@@ -20,11 +21,20 @@ export const MasteringController = {
 
       fs.writeFileSync(uploadPath, req.file.buffer);
 
+      // Get duration using ffprobe
+      let duration = 0;
+      try {
+        const result = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${uploadPath}"`, { encoding: 'utf8' });
+        duration = parseFloat(result.trim()) || 0;
+      } catch (e) {
+        console.error('Failed to get duration:', e);
+      }
+
       res.json({
         id: fileId,
         filename: req.file.originalname,
         originalPath: uploadPath,
-        duration: 0,
+        duration,
       });
     } catch (error) {
       next(error);
@@ -46,6 +56,13 @@ export const MasteringController = {
       const mastersDir = storage.getMastersDir(projectId);
       const outputPath = path.join(mastersDir, `${fileId}_spotify_master.wav`);
 
+      // Get input duration
+      let inputDuration = 0;
+      try {
+        const dur = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${inputPath}"`, { encoding: 'utf8' });
+        inputDuration = parseFloat(dur.trim()) || 0;
+      } catch (e) {}
+
       const service = new AudioMasteringService(mastersDir);
       await service.masterToSpotify(inputPath, outputPath);
 
@@ -59,6 +76,7 @@ export const MasteringController = {
           processedFilePath: outputPath,
           title: `Mastered ${inputFile}`,
           model: 'upload',
+          durationSeconds: inputDuration,
         });
         return res.json({ success: true, music });
       }
