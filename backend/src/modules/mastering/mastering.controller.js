@@ -111,6 +111,11 @@ export const MasteringController = {
     try {
       const { fileId, projectId } = req.params;
       const uploadDir = storage.getUploadDir(projectId);
+
+      if (!fs.existsSync(uploadDir)) {
+        return res.status(404).json({ error: 'Upload directory not found' });
+      }
+
       const files = fs.readdirSync(uploadDir);
       const file = files.find(f => f.startsWith(fileId));
 
