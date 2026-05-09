@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import UploadZone from './UploadZone';
 import VUMeter from './VUMeter';
+import AudioEditorPanel from '../AudioEditor/AudioEditorPanel';
 
 interface FileInfo {
   id: string;
@@ -8,6 +9,7 @@ interface FileInfo {
   status: 'uploading' | 'idle' | 'processing' | 'complete' | 'error';
   progress: number;
   error?: string;
+  filePath?: string;
 }
 
 interface AudioMasteringPanelProps {
@@ -65,9 +67,10 @@ const EquipmentLED = ({ status }: { status: FileInfo['status'] }) => {
 export default function AudioMasteringPanel({ projectId, allMusic: _allMusic }: AudioMasteringPanelProps) {
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [vuLevel, setVuLevel] = useState(0);
+  const [editingFile, setEditingFile] = useState<FileInfo | null>(null);
 
-  const handleUploadComplete = (fileId: string, filename: string) => {
-    setFiles(prev => [...prev, { id: fileId, filename, status: 'idle', progress: 0 }]);
+  const handleUploadComplete = (fileId: string, filename: string, filePath?: string) => {
+    setFiles(prev => [...prev, { id: fileId, filename, status: 'idle', progress: 0, filePath }]);
   };
 
   const masterFile = async (fileId: string) => {
@@ -112,6 +115,42 @@ export default function AudioMasteringPanel({ projectId, allMusic: _allMusic }: 
   const removeFile = (fileId: string) => {
     setFiles(prev => prev.filter(f => f.id !== fileId));
   };
+
+  // If editing a file, show AudioEditorPanel instead
+  if (editingFile) {
+    const audioUrl = `/api/mastering/${editingFile.id}/file/${projectId}`;
+    return (
+      <div style={{
+        background: 'linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 100%)',
+        borderRadius: '16px',
+        border: '1px solid #3a3a3a',
+        padding: '20px',
+      }}>
+        <div style={{ marginBottom: '16px' }}>
+          <button
+            onClick={() => setEditingFile(null)}
+            style={{
+              background: 'transparent',
+              border: '1px solid #444',
+              borderRadius: '6px',
+              padding: '8px 16px',
+              color: '#888',
+              fontSize: '12px',
+              cursor: 'pointer',
+            }}
+          >
+            ← Back to Mastering
+          </button>
+        </div>
+        <AudioEditorPanel
+          projectId={projectId}
+          audioUrl={audioUrl}
+          trackId={editingFile.id}
+          onExport={() => setEditingFile(null)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -298,32 +337,58 @@ export default function AudioMasteringPanel({ projectId, allMusic: _allMusic }: 
                       }}>{file.filename}</span>
                     </div>
                     {file.status === 'idle' && (
-                      <button
-                        onClick={() => masterFile(file.id)}
-                        style={{
-                          background: 'linear-gradient(180deg, #E63946 0%, #B8232E 100%)',
-                          border: 'none',
-                          borderRadius: '6px',
-                          padding: '8px 18px',
-                          color: '#FFF',
-                          fontSize: '11px',
-                          fontFamily: 'Bebas Neue, sans-serif',
-                          letterSpacing: '1px',
-                          cursor: 'pointer',
-                          boxShadow: '0 4px 12px rgba(230, 57, 70, 0.4), inset 0 1px 0 rgba(255,255,255,0.1)',
-                          transition: 'all 150ms ease',
-                        }}
-                        onMouseOver={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-1px)';
-                          e.currentTarget.style.boxShadow = '0 6px 16px rgba(230, 57, 70, 0.5), inset 0 1px 0 rgba(255,255,255,0.1)';
-                        }}
-                        onMouseOut={(e) => {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(230, 57, 70, 0.4), inset 0 1px 0 rgba(255,255,255,0.1)';
-                        }}
-                      >
-                        MASTER
-                      </button>
+                      <>
+                        <button
+                          onClick={() => masterFile(file.id)}
+                          style={{
+                            background: 'linear-gradient(180deg, #E63946 0%, #B8232E 100%)',
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '8px 18px',
+                            color: '#FFF',
+                            fontSize: '11px',
+                            fontFamily: 'Bebas Neue, sans-serif',
+                            letterSpacing: '1px',
+                            cursor: 'pointer',
+                            boxShadow: '0 4px 12px rgba(230, 57, 70, 0.4), inset 0 1px 0 rgba(255,255,255,0.1)',
+                            transition: 'all 150ms ease',
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                            e.currentTarget.style.boxShadow = '0 6px 16px rgba(230, 57, 70, 0.5), inset 0 1px 0 rgba(255,255,255,0.1)';
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(230, 57, 70, 0.4), inset 0 1px 0 rgba(255,255,255,0.1)';
+                          }}
+                        >
+                          MASTER
+                        </button>
+                        <button
+                          onClick={() => setEditingFile(file)}
+                          style={{
+                            background: 'linear-gradient(180deg, #333 0%, #222 100%)',
+                            border: '1px solid #444',
+                            borderRadius: '6px',
+                            padding: '8px 18px',
+                            color: '#FFF',
+                            fontSize: '11px',
+                            fontFamily: 'Bebas Neue, sans-serif',
+                            letterSpacing: '1px',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                            transition: 'all 150ms ease',
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.borderColor = '#666';
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.borderColor = '#444';
+                          }}
+                        >
+                          EDIT
+                        </button>
+                      </>
                     )}
                     {file.status === 'error' && (
                       <button

@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 
 interface UploadZoneProps {
   projectId: string;
-  onUploadComplete: (fileId: string, filename: string) => void;
+  onUploadComplete: (fileId: string, filename: string, filePath?: string) => void;
 }
 
 type UploadState = 'idle' | 'processing' | 'complete';
@@ -29,7 +29,8 @@ export default function UploadZone({ projectId, onUploadComplete }: UploadZonePr
       if (response.ok) {
         const data = await response.json();
         setUploadState('complete');
-        onUploadComplete(data.id, data.filename);
+        // Pass both id and filePath so AudioMasteringPanel can edit it
+        onUploadComplete(data.id, data.filename, data.originalPath);
         // Reset to idle after showing complete state
         animationRef.current = setTimeout(() => {
           setUploadState('idle');

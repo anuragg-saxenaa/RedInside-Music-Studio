@@ -106,4 +106,22 @@ export const MasteringController = {
       next(error);
     }
   },
+
+  async serveOriginal(req, res, next) {
+    try {
+      const { fileId, projectId } = req.params;
+      const uploadDir = storage.getUploadDir(projectId);
+      const files = fs.readdirSync(uploadDir);
+      const file = files.find(f => f.startsWith(fileId));
+
+      if (!file) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+
+      const filePath = path.join(uploadDir, file);
+      res.sendFile(filePath);
+    } catch (error) {
+      next(error);
+    }
+  },
 };
