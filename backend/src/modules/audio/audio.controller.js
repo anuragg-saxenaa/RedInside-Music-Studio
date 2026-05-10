@@ -1,6 +1,57 @@
 import audioService from './audio.service.js';
 import storage from '../../utils/storage.util.js';
 import logger from '../../utils/logger.js';
+import fs from 'fs';
+import path from 'path';
+import { AudioMasteringService } from '../mastering/mastering.service.js';
+
+/**
+ * Convert HTTP URL to filesystem path for uploaded mastering files
+ * Pattern: /api/mastering/:fileId/file/:projectId
+ */
+function convertMasteringUrlToPath(url) {
+  const masteringMatch = url.match(/^\/api\/mastering\/([^/]+)\/file\/([^/]+)$/);
+  if (masteringMatch) {
+    const [, fileId, projectId] = masteringMatch;
+    const uploadDir = storage.getUploadDir(projectId);
+    try {
+      const files = fs.readdirSync(uploadDir);
+      const file = files.find(f => f.startsWith(fileId));
+      if (file) {
+        return path.join(uploadDir, file);
+      }
+    } catch (e) {
+      logger.error('Failed to find mastering file', { fileId, projectId });
+    }
+  }
+  return null;
+}
+
+/**
+ * Convert music API URL to filesystem path
+ * Pattern: /api/music/:id/file
+ */
+async function convertMusicUrlToPath(url) {
+  const musicMatch = url.match(/^\/api\/music\/([^/]+)\/file$/);
+  if (musicMatch) {
+    const [, musicId] = musicMatch;
+    try {
+      const { MusicModel } = await import('../../database/models/music.model.js');
+      const music = MusicModel.findById(musicId);
+      if (music) {
+        const filePath = music.processed_file_path || music.original_file_path;
+        if (filePath && fs.existsSync(filePath)) {
+          logger.info('Converted music URL to filesystem path', { musicId, filePath });
+          return filePath;
+        }
+      }
+      logger.error('Music file not found', { musicId });
+    } catch (e) {
+      logger.error('Error converting music URL', { musicId, error: e.message });
+    }
+  }
+  return null;
+}
 
 /**
  * AudioController - HTTP handlers for audio processing
@@ -12,7 +63,7 @@ export const AudioController = {
    */
   async process(req, res, next) {
     try {
-      const { inputPath, operations, outputPath, options } = req.body;
+      let { inputPath, operations, outputPath, options } = req.body;
 
       if (!inputPath || !operations || !Array.isArray(operations)) {
         return res.status(400).json({
@@ -26,6 +77,40 @@ export const AudioController = {
         });
       }
 
+      // Convert HTTP URL to filesystem path for mastering uploads
+      if (inputPath.startsWith('/api/mastering/')) {
+        const convertedPath = convertMasteringUrlToPath(inputPath);
+        if (convertedPath) {
+          logger.info('Converted mastering URL to filesystem path', { inputPath, convertedPath });
+          inputPath = convertedPath;
+        } else {
+          logger.error('Failed to convert mastering URL', { inputPath });
+          return res.status(400).json({
+            error: 'Failed to find mastering file - file may not exist',
+          });
+        }
+      }
+
+      // Convert music API URL to filesystem path
+      if (inputPath.startsWith('/api/music/')) {
+        const convertedPath = await convertMusicUrlToPath(inputPath);
+        if (convertedPath) {
+          logger.info('Converted music URL to filesystem path', { inputPath, convertedPath });
+          inputPath = convertedPath;
+        } else {
+          logger.error('Failed to convert music URL', { inputPath });
+          return res.status(400).json({
+            error: 'Music file not found or not available',
+          });
+        }
+      }
+
+      if (!inputPath || !fs.existsSync(inputPath)) {
+        return res.status(400).json({
+          error: 'inputPath is required and must exist',
+        });
+      }
+
       logger.info('Processing audio', { inputPath, operations, outputPath });
 
       const result = await audioService.processAudio(
@@ -35,10 +120,36 @@ export const AudioController = {
         options
       );
 
-      res.json({
-        message: 'Audio processed successfully',
-        ...result,
-      });
+      // Run mastering on the processed file
+      const masteringService = new AudioMasteringService(storage.storageDir);
+      const masteredPath = outputPath.replace('.mp3', '_mastered.wav');
+
+      try {
+        await masteringService.masterToSpotify(result.filePath, masteredPath);
+        logger.info('Mastering completed', { masteredPath });
+
+        // Generate download URL - serve from /api/audio/download/:filename
+        const downloadUrl = `/api/audio/download/${path.basename(masteredPath)}`;
+
+        res.json({
+          message: 'Audio processed and mastered successfully',
+          filePath: result.filePath,
+          duration: result.duration,
+          downloadUrl,
+          masteredFile: masteredPath,
+        });
+      } catch (masterErr) {
+        logger.error('Mastering failed, returning processed file', { error: masterErr.message });
+        // If mastering fails, still return the processed file
+        const downloadUrl = `/api/audio/download/${path.basename(result.filePath)}`;
+        res.json({
+          message: 'Audio processed (mastering failed)',
+          filePath: result.filePath,
+          duration: result.duration,
+          downloadUrl,
+          masteredFile: null,
+        });
+      }
     } catch (error) {
       next(error);
     }
@@ -327,6 +438,55 @@ export const AudioController = {
       res.set({
         'Content-Type': 'audio/mpeg',
         'Content-Disposition': `attachment; filename="${path.basename(decodedPath)}"`,
+        'Content-Length': fileBuffer.length,
+      });
+
+      res.send(fileBuffer);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Download processed audio file
+   * GET /api/audio/download/:filename
+   */
+  async download(req, res, next) {
+    try {
+      const { filename } = req.params;
+
+      if (!filename) {
+        return res.status(400).json({ error: 'Filename is required' });
+      }
+
+      // Security: only allow downloaded files from known paths
+      // Accept both full paths and just basenames (e.g., processed_123_mastered.wav)
+      const safeBasenames = ['processed_', '_mastered.wav'];
+      const isSafe = safeBasenames.some(p => filename.includes(p));
+
+      if (!isSafe) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const filePath = filename.includes('/tmp/') ? filename : `/tmp/${filename}`;
+
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+
+      const fileBuffer = fs.readFileSync(filePath);
+      const ext = path.extname(filename).toLowerCase();
+
+      const contentTypes = {
+        '.mp3': 'audio/mpeg',
+        '.wav': 'audio/wav',
+        '.flac': 'audio/flac',
+        '.aac': 'audio/aac',
+      };
+
+      res.set({
+        'Content-Type': contentTypes[ext] || 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${filename}"`,
         'Content-Length': fileBuffer.length,
       });
 

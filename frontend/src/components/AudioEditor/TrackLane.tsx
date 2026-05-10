@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 export interface TrackLaneProps {
   audioUrl: string
@@ -7,16 +7,17 @@ export interface TrackLaneProps {
   trimEnd: number
   duration: number
   isSelected?: boolean
+  isPlaying?: boolean
   onSeek?: (time: number) => void
   onTrimChange?: (start: number, end: number) => void
+  onPlayPause?: () => void
 }
 
-const formatTimeMs = (ms: number): string => {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = Math.floor(totalSeconds % 60);
-  const centiseconds = Math.floor((ms % 1000) / 10);
-  return `${minutes}:${seconds.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
+const formatTime = (s: number): string => {
+  const mins = Math.floor(s / 60);
+  const secs = Math.floor(s % 60);
+  const ms = Math.floor((s % 1) * 100);
+  return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
 };
 
 export default function TrackLane({
@@ -26,21 +27,22 @@ export default function TrackLane({
   trimEnd,
   duration,
   isSelected = false,
+  isPlaying = false,
   onSeek,
   onTrimChange,
+  onPlayPause,
 }: TrackLaneProps) {
   const [peaks, setPeaks] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState<'start' | 'end' | null>(null);
   const [localTrimStart, setLocalTrimStart] = useState(trimStart);
   const [localTrimEnd, setLocalTrimEnd] = useState(trimEnd);
   const [playheadPosition, setPlayheadPosition] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isDragging, setIsDragging] = useState<'start' | 'end' | null>(null);
+  const [dragOffset, setDragOffset] = useState(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const animationRef = useRef<number>();
+  const svgRef = useRef<SVGSVGElement>(null);
 
   // Sync with prop changes
   useEffect(() => {
@@ -50,6 +52,13 @@ export default function TrackLane({
   useEffect(() => {
     setLocalTrimEnd(trimEnd);
   }, [trimEnd]);
+
+  // Sync playhead with isPlaying
+  useEffect(() => {
+    if (!isPlaying) {
+      setPlayheadPosition(localTrimStart);
+    }
+  }, [isPlaying, localTrimStart]);
 
   // Fetch and decode audio
   useEffect(() => {
@@ -66,15 +75,12 @@ export default function TrackLane({
         }
 
         const arrayBuffer = await response.arrayBuffer();
-
         if (cancelled) return;
 
         const audioContext = new AudioContext();
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
         if (cancelled) return;
 
-        // Downsample to peaks
         const channelData = audioBuffer.getChannelData(0);
         const samplesPerPeak = Math.max(1, Math.floor(channelData.length / 150));
         const peakCount = Math.floor(channelData.length / samplesPerPeak);
@@ -91,7 +97,6 @@ export default function TrackLane({
           peakData.push(max);
         }
 
-        // Normalize peaks
         const maxPeak = Math.max(...peakData, 0.01);
         const normalizedPeaks = peakData.map(p => p / maxPeak);
 
@@ -107,111 +112,73 @@ export default function TrackLane({
     };
 
     fetchAudio();
-
     return () => {
       cancelled = true;
     };
   }, [audioUrl]);
 
-  // Playback time update loop
-  const updatePlayhead = useCallback(() => {
-    if (audioRef.current && isPlaying) {
-      setPlayheadPosition(audioRef.current.currentTime);
-      animationRef.current = requestAnimationFrame(updatePlayhead);
-    }
-  }, [isPlaying]);
-
-  useEffect(() => {
-    if (isPlaying) {
-      animationRef.current = requestAnimationFrame(updatePlayhead);
-    } else {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    }
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [isPlaying, updatePlayhead]);
-
-  // Handle click-to-seek
-  const handleWaveformClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isDragging) return;
-    if (!containerRef.current || peaks.length === 0) return;
-
+  // Get time from mouse position
+  const getTimeFromMouse = (clientX: number): number => {
+    if (!containerRef.current) return 0;
     const rect = containerRef.current.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const percent = clickX / rect.width;
-    const seekTime = percent * duration;
-
-    onSeek?.(seekTime);
-    setPlayheadPosition(seekTime);
+    const x = clientX - rect.left;
+    const percent = Math.max(0, Math.min(x / rect.width, 1));
+    return percent * duration;
   };
 
-  // Handle marker drag
-  const handleMarkerDragStart = (
-    e: React.MouseEvent,
-    marker: 'start' | 'end'
-  ) => {
+  // Marker drag handlers
+  const handleMarkerMouseDown = (e: React.PointerEvent, marker: 'start' | 'end') => {
     e.stopPropagation();
     e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
     setIsDragging(marker);
+
+    const time = getTimeFromMouse(e.clientX);
+    setDragOffset(marker === 'start' ? time - localTrimStart : time - localTrimEnd);
   };
 
   useEffect(() => {
     if (!isDragging) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!containerRef.current) return;
-
-      const rect = containerRef.current.getBoundingClientRect();
-      const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
-      const percent = x / rect.width;
-      const time = percent * duration;
+      const time = getTimeFromMouse(e.clientX);
 
       if (isDragging === 'start') {
-        const newStart = Math.max(0, Math.min(time, localTrimEnd - 0.1));
+        const newStart = Math.max(0, Math.min(time - dragOffset, localTrimEnd - 0.5));
         setLocalTrimStart(newStart);
       } else if (isDragging === 'end') {
-        const newEnd = Math.max(localTrimStart + 0.1, Math.min(time, duration));
+        const newEnd = Math.max(localTrimStart + 0.5, Math.min(time - dragOffset, duration));
         setLocalTrimEnd(newEnd);
       }
     };
 
-    const handleMouseUp = () => {
+    const handleMouseUp = (e: MouseEvent) => {
       if (isDragging === 'start' || isDragging === 'end') {
-        onTrimChange?.(localTrimStart, localTrimEnd);
+        // Final update to parent
+        const time = getTimeFromMouse(e.clientX);
+        if (isDragging === 'start') {
+          const finalStart = Math.max(0, Math.min(time - dragOffset, localTrimEnd - 0.5));
+          onTrimChange?.(finalStart, localTrimEnd);
+        } else {
+          const finalEnd = Math.max(localTrimStart + 0.5, Math.min(time - dragOffset, duration));
+          onTrimChange?.(localTrimStart, finalEnd);
+        }
       }
       setIsDragging(null);
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('pointermove', handleMouseMove);
+    window.addEventListener('pointerup', handleMouseUp);
 
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('pointermove', handleMouseMove);
+      window.removeEventListener('pointerup', handleMouseUp);
     };
-  }, [isDragging, duration, localTrimStart, localTrimEnd, onTrimChange]);
+  }, [isDragging, dragOffset, duration, localTrimStart, localTrimEnd, onTrimChange]);
 
   const startPercent = duration > 0 ? (localTrimStart / duration) * 100 : 0;
   const endPercent = duration > 0 ? (localTrimEnd / duration) * 100 : 100;
   const playheadPercent = duration > 0 ? (playheadPosition / duration) * 100 : 0;
-
-  const handlePlayPause = () => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    if (isPlaying) {
-      audio.pause();
-      setIsPlaying(false);
-    } else {
-      audio.play();
-      setIsPlaying(true);
-    }
-  };
 
   if (loading) {
     return (
@@ -227,26 +194,34 @@ export default function TrackLane({
   if (error) {
     return (
       <div style={styles.container}>
-        <div style={styles.errorState}>
-          <span>Failed to load audio: {error}</span>
-        </div>
+        <div style={styles.errorState}>{error}</div>
       </div>
     );
   }
 
   return (
     <div style={{ ...styles.container, borderColor: isSelected ? '#E63946' : '#2A2A2A' }}>
-      <audio ref={audioRef} src={audioUrl} preload="metadata" />
-
       {/* Track header */}
       <div style={styles.trackHeader}>
         <span style={styles.trackId}>Track {trackId}</span>
         <span style={styles.timeRange}>
-          {formatTimeMs(localTrimStart * 1000)} - {formatTimeMs(localTrimEnd * 1000)}
+          {formatTime(localTrimStart)} - {formatTime(localTrimEnd)}
         </span>
         <button
-          onClick={handlePlayPause}
-          style={styles.playButton}
+          className="play-btn-fix"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPlayPause?.();
+          }}
+          style={{
+            ...styles.playButton,
+            background: isPlaying ? '#E63946' : '#333',
+            borderRadius: '50%',
+            border: 'none',
+            width: 28,
+            height: 28,
+            padding: 0,
+          }}
         >
           {isPlaying ? (
             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
@@ -255,37 +230,63 @@ export default function TrackLane({
             </svg>
           ) : (
             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-              <polygon points="5 3 19 12 5 21 5 3" />
+              <polygon points="5,3 19,12 5,21" />
             </svg>
           )}
         </button>
       </div>
 
-      {/* Waveform SVG */}
+      {/* Waveform with markers */}
       <div
         ref={containerRef}
         style={styles.waveformContainer}
-        onClick={handleWaveformClick}
+        onPointerDown={(e) => {
+          if (isDragging) return;
+          const time = getTimeFromMouse(e.clientX);
+          onSeek?.(time);
+          setPlayheadPosition(time);
+          containerRef.current?.setPointerCapture(e.pointerId);
+        }}
+        onPointerMove={(e) => {
+          if (!containerRef.current?.hasPointerCapture(e.pointerId)) return;
+          const time = getTimeFromMouse(e.clientX);
+          setPlayheadPosition(time);
+        }}
       >
-        <svg width="100%" height="60" style={styles.waveformSvg}>
-          {/* Background dim for trimmed regions */}
-          <rect x="0%" y="0" width={`${startPercent}%`} height="60" fill="rgba(0,0,0,0.5)" />
-          <rect x={`${endPercent}%`} y="0" width={`${100 - endPercent}%`} height="60" fill="rgba(0,0,0,0.5)" />
+        {/* Background dim */}
+        <div style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          width: `${startPercent}%`,
+          height: '100%',
+          background: 'rgba(0,0,0,0.6)',
+          pointerEvents: 'none',
+        }} />
+        <div style={{
+          position: 'absolute',
+          left: `${endPercent}%`,
+          top: 0,
+          width: `${100 - endPercent}%`,
+          height: '100%',
+          background: 'rgba(0,0,0,0.6)',
+          pointerEvents: 'none',
+        }} />
 
-          {/* Waveform bars */}
+        {/* Waveform bars */}
+        <svg ref={svgRef} width="100%" height="60" style={{ display: 'block', position: 'relative', zIndex: 1 }}>
           {peaks.map((peak, index) => {
             const barPercent = (index / peaks.length) * 100;
-            const isInTrimRegion = barPercent >= startPercent && barPercent <= endPercent;
+            const isInTrim = barPercent >= startPercent && barPercent <= endPercent;
             const barHeight = Math.max(4, peak * 50);
-
             return (
               <rect
                 key={index}
                 x={`${barPercent}%`}
-                y={`${(60 - barHeight) / 2}px`}
-                width={`${100 / peaks.length * 0.8}%`}
-                height={`${barHeight}px`}
-                fill={isInTrimRegion ? '#E63946' : '#3A3A3A'}
+                y={`${(60 - barHeight) / 2}`}
+                width={`${100 / peaks.length * 0.85}%`}
+                height={`${barHeight}`}
+                fill={isInTrim ? '#E63946' : '#4a4a4a'}
                 rx="1"
               />
             );
@@ -297,84 +298,74 @@ export default function TrackLane({
             y1="0"
             x2={`${playheadPercent}%`}
             y2="60"
-            stroke="#FFFFFF"
+            stroke="#fff"
             strokeWidth="2"
             opacity={0.9}
+            style={{ pointerEvents: 'none' }}
           />
-
-          {/* Start marker */}
-          <g
-            style={{ cursor: 'ew-resize' }}
-            onMouseDown={(e) => handleMarkerDragStart(e, 'start')}
-          >
-            <rect
-              x={`${startPercent}%`}
-              y="0"
-              width="10"
-              height="60"
-              fill="#E63946"
-              opacity={isDragging === 'start' ? 0.8 : 0.6}
-            />
-            <polygon
-              points={`${startPercent}%,60 ${startPercent + 1}%,55 ${startPercent}%,50`}
-              fill="#E63946"
-            />
-          </g>
-
-          {/* End marker */}
-          <g
-            style={{ cursor: 'ew-resize' }}
-            onMouseDown={(e) => handleMarkerDragStart(e, 'end')}
-          >
-            <rect
-              x={`${endPercent}%`}
-              y="0"
-              width="10"
-              height="60"
-              fill="#E63946"
-              opacity={isDragging === 'end' ? 0.8 : 0.6}
-            />
-            <polygon
-              points={`${endPercent}%,60 ${endPercent - 1}%,55 ${endPercent}%,50`}
-              fill="#E63946"
-            />
-          </g>
         </svg>
 
-        {/* Marker handles on top */}
+        {/* Start marker - larger click target */}
         <div
           style={{
             position: 'absolute',
             left: `${startPercent}%`,
             top: 0,
-            width: '2px',
+            width: 20,
             height: '100%',
-            backgroundColor: '#FFFFFF',
-            cursor: 'ew-resize',
             transform: 'translateX(-50%)',
-            opacity: 0.8,
+            cursor: 'ew-resize',
+            zIndex: 2,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
-          onMouseDown={(e) => handleMarkerDragStart(e, 'start')}
-        />
+          onPointerDown={(e) => handleMarkerMouseDown(e, 'start')}
+        >
+          <div style={{
+            width: 4,
+            height: '80%',
+            background: '#fff',
+            borderRadius: 2,
+            opacity: isDragging === 'start' ? 1 : 0.7,
+            boxShadow: isDragging === 'start' ? '0 0 8px rgba(255,255,255,0.5)' : 'none',
+          }} />
+        </div>
+
+        {/* End marker - larger click target */}
         <div
           style={{
             position: 'absolute',
             left: `${endPercent}%`,
             top: 0,
-            width: '2px',
+            width: 20,
             height: '100%',
-            backgroundColor: '#FFFFFF',
-            cursor: 'ew-resize',
             transform: 'translateX(-50%)',
-            opacity: 0.8,
+            cursor: 'ew-resize',
+            zIndex: 2,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
-          onMouseDown={(e) => handleMarkerDragStart(e, 'end')}
-        />
+          onPointerDown={(e) => handleMarkerMouseDown(e, 'end')}
+        >
+          <div style={{
+            width: 4,
+            height: '80%',
+            background: '#fff',
+            borderRadius: 2,
+            opacity: isDragging === 'end' ? 1 : 0.7,
+            boxShadow: isDragging === 'end' ? '0 0 8px rgba(255,255,255,0.5)' : 'none',
+          }} />
+        </div>
       </div>
 
       <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        button.play-btn-fix {
+          appearance: none !important;
+          -webkit-appearance: none !important;
+          border-radius: 50% !important;
         }
       `}</style>
     </div>
@@ -384,62 +375,63 @@ export default function TrackLane({
 const styles: Record<string, React.CSSProperties> = {
   container: {
     backgroundColor: '#1E1E1E',
-    borderRadius: '8px',
-    padding: '12px',
+    borderRadius: 8,
+    padding: 12,
     border: '1px solid #2A2A2A',
     fontFamily: 'DM Sans, sans-serif',
+    userSelect: 'none',
   },
   trackHeader: {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
-    marginBottom: '8px',
+    gap: 12,
+    marginBottom: 8,
   },
   trackId: {
-    color: '#FFFFFF',
-    fontSize: '13px',
+    color: '#fff',
+    fontSize: 13,
     fontWeight: 600,
   },
   timeRange: {
     color: '#A0A0A0',
-    fontSize: '11px',
+    fontSize: 11,
     fontFamily: 'JetBrains Mono, monospace',
   },
   playButton: {
-    background: '#E63946',
-    border: 'none',
-    borderRadius: '50%',
-    width: '28px',
-    height: '28px',
+    width: 28,
+    height: 28,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer',
-    color: '#FFFFFF',
-    flexShrink: 0,
+    color: '#fff',
     marginLeft: 'auto',
+    transition: 'background 150ms',
+    appearance: 'none',
+    WebkitAppearance: 'none',
+    borderRadius: '50%',
   },
   loadingState: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '24px',
+    padding: 24,
     color: '#A0A0A0',
-    gap: '8px',
-    fontSize: '12px',
+    gap: 8,
+    fontSize: 12,
   },
   errorState: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '24px',
+    padding: 24,
     color: '#E63946',
-    fontSize: '12px',
+    fontSize: 12,
   },
   spinner: {
-    width: '20px',
-    height: '20px',
+    width: 20,
+    height: 20,
     border: '2px solid #2A2A2A',
     borderTopColor: '#E63946',
     borderRadius: '50%',
@@ -448,14 +440,9 @@ const styles: Record<string, React.CSSProperties> = {
   waveformContainer: {
     position: 'relative',
     backgroundColor: '#2A2A2A',
-    borderRadius: '6px',
-    height: '60px',
-    cursor: 'pointer',
-    overflow: 'hidden',
-  },
-  waveformSvg: {
-    display: 'block',
-    width: '100%',
-    height: '60px',
+    borderRadius: 6,
+    height: 60,
+    cursor: 'crosshair',
+    overflow: 'visible',
   },
 };

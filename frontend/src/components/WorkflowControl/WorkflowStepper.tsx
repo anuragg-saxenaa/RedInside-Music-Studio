@@ -1,18 +1,17 @@
 interface WorkflowStepperProps {
-  currentStep: 'lyrics' | 'music' | 'artwork' | 'voice' | 'export' | 'edit';
-  onStepChange: (step: 'lyrics' | 'music' | 'artwork' | 'voice' | 'export' | 'edit') => void;
+  currentStep: 'lyrics' | 'music' | 'artwork' | 'voice' | 'export';
+  onStepChange: (step: 'lyrics' | 'music' | 'artwork' | 'voice' | 'export') => void;
   hasLyrics: boolean;
   hasMusic: boolean;
   hasArtwork?: boolean;
 }
 
 const STEPS = [
-  { key: 'lyrics', label: 'Lyrics', icon: '✍️' },
-  { key: 'music', label: 'Music', icon: '🎵' },
-  { key: 'artwork', label: 'Artwork', icon: '🎨' },
-  { key: 'voice', label: 'Voice', icon: '🎤' },
-  { key: 'export', label: 'Export', icon: '🔧' },
-  { key: 'edit', label: 'Edit', icon: '✂️' },
+  { key: 'lyrics', label: 'Lyrics' },
+  { key: 'music', label: 'Music' },
+  { key: 'artwork', label: 'Artwork' },
+  { key: 'voice', label: 'Voice' },
+  { key: 'export', label: 'Export/Master' },
 ] as const;
 
 export default function WorkflowStepper({ currentStep, onStepChange, hasLyrics, hasMusic }: WorkflowStepperProps) {
@@ -31,7 +30,6 @@ export default function WorkflowStepper({ currentStep, onStepChange, hasLyrics, 
     if (step === 'artwork') return hasMusic;
     if (step === 'voice') return hasMusic;
     if (step === 'export') return hasMusic;
-    if (step === 'edit') return hasMusic;
     return false;
   };
 
@@ -83,7 +81,6 @@ export default function WorkflowStepper({ currentStep, onStepChange, hasLyrics, 
                 }
               }}
             >
-              <span>{step.icon}</span>
               <span>{step.label}</span>
             </button>
             {index < STEPS.length - 1 && (

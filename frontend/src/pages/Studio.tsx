@@ -6,7 +6,6 @@ import ArtworkGenerator from '../components/ArtworkGenerator/ArtworkGenerator';
 import VoiceDesign from '../components/VoiceDesign/VoiceDesign';
 import WorkflowStepper from '../components/WorkflowControl/WorkflowStepper';
 import CompactPlayer from '../components/MusicPlayer/CompactPlayer';
-import AudioEditorPanel from '../components/AudioEditor/AudioEditorPanel';
 import AudioMasteringPanel from '../components/Mastering/AudioMasteringPanel';
 
 interface StudioProps {
@@ -14,7 +13,7 @@ interface StudioProps {
   onBack: () => void;
 }
 
-type WorkflowStep = 'lyrics' | 'music' | 'artwork' | 'voice' | 'export' | 'edit';
+type WorkflowStep = 'lyrics' | 'music' | 'artwork' | 'voice' | 'export';
 
 export default function Studio({ project, onBack }: StudioProps) {
   const [currentStep, setCurrentStep] = useState<WorkflowStep>('lyrics');
@@ -24,7 +23,6 @@ export default function Studio({ project, onBack }: StudioProps) {
   const [allMusicList, setAllMusicList] = useState<MusicGeneration[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
-  const [editingMusic, setEditingMusic] = useState<MusicGeneration | null>(null);
 
   useEffect(() => {
     if (project.current_music_version > 0) {
@@ -143,24 +141,6 @@ export default function Studio({ project, onBack }: StudioProps) {
               projectId={project.id}
               allMusic={allMusicList}
             />
-          </div>
-          <div style={{ display: currentStep === 'edit' ? 'block' : 'none' }}>
-            {editingMusic ? (
-              <AudioEditorPanel
-                projectId={project.id}
-                audioUrl={`/api/music/${editingMusic.id}/file`}
-                trackId={editingMusic.id}
-                onExport={(result) => {
-                  console.log('Exported:', result);
-                  setEditingMusic(null);
-                  setCurrentStep('export');
-                }}
-              />
-            ) : (
-              <div style={{ textAlign: 'center', padding: '40px', color: '#666666' }}>
-                Select a music version to edit from the Export section
-              </div>
-            )}
           </div>
         </div>
       </div>

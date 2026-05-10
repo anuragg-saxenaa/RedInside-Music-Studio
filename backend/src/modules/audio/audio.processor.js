@@ -148,9 +148,17 @@ export class AudioProcessor {
         }
 
         case 'reverse':
-          this._filters.push('areverse');
+          // Reverse must be FIRST before trim because trim does seekInput
+          // But filters are applied in order, so we need to handle this
+          // We'll reverse at the very start by applying areverse first
           break;
       }
+    }
+
+    // Apply reverse FIRST if present (must happen before trim seek)
+    const hasReverse = this._operations.some(op => op.type === 'reverse');
+    if (hasReverse) {
+      this._filters.unshift('areverse');
     }
 
     // Apply tempo filter if speed was changed

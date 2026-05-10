@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import TrackLane from './TrackLane';
 import ControlsSidebar, { AudioOperations } from './ControlsSidebar';
 
@@ -27,7 +27,6 @@ const defaultOperations: AudioOperations = {
 };
 
 export default function AudioEditorPanel({
-  projectId,
   audioUrl,
   trackId,
   onExport,
@@ -38,66 +37,79 @@ export default function AudioEditorPanel({
     trimEnd: 0,
   });
   const [isExporting, setIsExporting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [exportMessage, setExportMessage] = useState<{type: 'success' | 'error' | 'processing', text: string} | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number>(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // Load audio duration
+  // Clamp volume to prevent page issues (100% max)
+  const safeVolume = Math.min(1, Math.max(0, operations.volume));
+  const hasEffects = operations.speed !== 1.0 || operations.volume !== 1.0 ||
+    operations.fadeInEnabled || operations.fadeOutEnabled || operations.reverse;
+
+  // Load audio
   useEffect(() => {
     const audio = new Audio();
     audioRef.current = audio;
+    audio.crossOrigin = 'anonymous';
 
-    const handleLoadedMetadata = () => {
+    const onLoaded = () => {
       const dur = audio.duration;
       setDuration(dur);
-      setOperations((prev) => ({ ...prev, trimEnd: dur }));
+      setOperations(prev => ({ ...prev, trimEnd: dur }));
     };
 
-    const handleError = () => {
-      setError('Failed to load audio file');
+    const onError = () => {
+      console.error('Audio load error');
     };
 
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-    audio.addEventListener('error', handleError);
+    audio.addEventListener('loadedmetadata', onLoaded);
+    audio.addEventListener('error', onError);
     audio.src = audioUrl;
 
     return () => {
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.removeEventListener('error', handleError);
+      audio.removeEventListener('loadedmetadata', onLoaded);
+      audio.removeEventListener('error', onError);
     };
   }, [audioUrl]);
 
-  // Update preview settings when operations change
+  // Sync playback rate and volume (use safeVolume)
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.playbackRate = operations.speed;
-      audioRef.current.volume = operations.volume;
+      audioRef.current.volume = safeVolume;
     }
-  }, [operations.speed, operations.volume]);
+  }, [operations.speed, safeVolume]);
 
-  // Playback loop
-  const updatePlayhead = useCallback(() => {
-    if (audioRef.current && isPlaying) {
-      setCurrentTime(audioRef.current.currentTime);
-      animationRef.current = requestAnimationFrame(updatePlayhead);
-    }
-  }, [isPlaying]);
-
+  // Playback animation loop
   useEffect(() => {
-    if (isPlaying) {
-      animationRef.current = requestAnimationFrame(updatePlayhead);
-    } else if (animationRef.current) {
+    if (!isPlaying) {
       cancelAnimationFrame(animationRef.current);
+      return;
     }
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
+
+    const tick = () => {
+      if (!audioRef.current) return;
+      const t = audioRef.current.currentTime;
+      setCurrentTime(t);
+
+      // Stop at trim end
+      if (t >= operations.trimEnd) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = operations.trimStart;
+        setIsPlaying(false);
+        setCurrentTime(operations.trimStart);
+        return;
       }
+
+      animationRef.current = requestAnimationFrame(tick);
     };
-  }, [isPlaying, updatePlayhead]);
+
+    animationRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animationRef.current);
+  }, [isPlaying, operations.trimStart, operations.trimEnd]);
 
   const handlePreview = () => {
     const audio = audioRef.current;
@@ -109,29 +121,12 @@ export default function AudioEditorPanel({
       return;
     }
 
-    // Set playback position to trim start
+    // Start at trim start
     audio.currentTime = operations.trimStart;
     audio.playbackRate = operations.speed;
     audio.volume = operations.volume;
+    audio.play();
     setIsPlaying(true);
-
-    const updatePlayback = () => {
-      if (!audioRef.current) return;
-
-      // Stop at trim end
-      if (audioRef.current.currentTime >= operations.trimEnd) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = operations.trimStart;
-        setIsPlaying(false);
-        setCurrentTime(operations.trimStart);
-        return;
-      }
-
-      setCurrentTime(audioRef.current.currentTime);
-      animationRef.current = requestAnimationFrame(updatePlayback);
-    };
-
-    animationRef.current = requestAnimationFrame(updatePlayback);
   };
 
   const handleStop = () => {
@@ -143,14 +138,7 @@ export default function AudioEditorPanel({
     setCurrentTime(operations.trimStart);
   };
 
-  const buildOperationsArray = (): Array<{
-    type: string
-    startSec?: number
-    endSec?: number
-    tempoFactor?: number
-    gain?: number
-    durationSec?: number
-  }> => {
+  const buildOperationsArray = () => {
     const ops: Array<{
       type: string
       startSec?: number
@@ -160,65 +148,34 @@ export default function AudioEditorPanel({
       durationSec?: number
     }> = [];
 
-    // Trim operation
     if (operations.trimStart > 0 || operations.trimEnd < duration) {
-      ops.push({
-        type: 'trim',
-        startSec: operations.trimStart,
-        endSec: operations.trimEnd,
-      });
+      ops.push({ type: 'trim', startSec: operations.trimStart, endSec: operations.trimEnd });
     }
-
-    // Speed operation
     if (operations.speed !== 1.0) {
-      ops.push({
-        type: 'speed',
-        tempoFactor: operations.speed,
-      });
+      ops.push({ type: 'speed', tempoFactor: operations.speed });
     }
-
-    // Volume operation
     if (operations.volume !== 1.0) {
-      ops.push({
-        type: 'volume',
-        gain: operations.volume,
-      });
+      ops.push({ type: 'volume', gain: operations.volume });
     }
-
-    // Fade in
     if (operations.fadeInEnabled && operations.fadeInDuration > 0) {
-      ops.push({
-        type: 'fadeIn',
-        durationSec: operations.fadeInDuration,
-      });
+      ops.push({ type: 'fadeIn', durationSec: operations.fadeInDuration });
     }
-
-    // Fade out
     if (operations.fadeOutEnabled && operations.fadeOutDuration > 0) {
-      ops.push({
-        type: 'fadeOut',
-        durationSec: operations.fadeOutDuration,
-      });
+      ops.push({ type: 'fadeOut', durationSec: operations.fadeOutDuration });
     }
-
-    // Reverse
     if (operations.reverse) {
-      ops.push({
-        type: 'reverse',
-      });
+      ops.push({ type: 'reverse' });
     }
-
     return ops;
   };
 
   const handleExport = async (format: 'mp3-320' | 'wav' | 'flac') => {
     setIsExporting(true);
-    setError(null);
+    setExportMessage(null);
 
     try {
-      // Build output path for processed audio
       const outputFormat = format === 'mp3-320' ? 'mp3' : format;
-      const outputPath = `/storage/projects/${projectId}/generations/music/processed_${Date.now()}.${outputFormat}`;
+      const outputPath = `/tmp/processed_${Date.now()}.${outputFormat}`;
 
       const payload = {
         inputPath: audioUrl,
@@ -230,67 +187,101 @@ export default function AudioEditorPanel({
         },
       };
 
+      setExportMessage({ type: 'processing', text: 'Processing audio...' });
+
       const response = await fetch('/api/audio/process', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Failed to process audio');
+        throw new Error(data.error || 'Export failed');
       }
 
-      const result: ProcessingResult = await response.json();
-      onExport?.(result);
+      // Trigger download
+      if (data.downloadUrl) {
+        // Use mastered file if available, otherwise use processed file
+        const downloadFilename = data.masteredFile
+          ? data.masteredFile.split('/').pop()
+          : data.filePath?.split('/').pop();
+
+        if (!downloadFilename) {
+          throw new Error('No file to download');
+        }
+
+        const downloadUrl = `/api/audio/download/${downloadFilename}`;
+
+        setExportMessage({ type: 'processing', text: 'Mastering complete! Starting download...' });
+
+        // Create a link and click it to trigger download
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = downloadFilename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      setExportMessage({
+        type: 'success',
+        text: data.masteredFile
+          ? `Exported & mastered! Download started.`
+          : `Exported! Duration: ${data.duration?.toFixed(1) || '?'}s`
+      });
+      onExport?.(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Export failed');
+      setExportMessage({ type: 'error', text: err instanceof Error ? err.message : 'Export failed' });
     } finally {
       setIsExporting(false);
     }
   };
 
   const handleTrimChange = (start: number, end: number) => {
-    setOperations((prev) => ({
-      ...prev,
-      trimStart: start,
-      trimEnd: end,
-    }));
+    setOperations(prev => ({ ...prev, trimStart: start, trimEnd: end }));
   };
 
-  const handleOperationsChange = (newOps: AudioOperations) => {
+  const handleOpsChange = (newOps: AudioOperations) => {
     setOperations(newOps);
   };
+
+  const formatTime = (s: number) => `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, '0')}`;
 
   return (
     <div style={styles.container}>
       {/* Header */}
       <div style={styles.header}>
-        <h2 style={styles.title}>Audio Editor</h2>
+        <div style={styles.headerLeft}>
+          <div style={styles.powerLed} />
+          <span style={styles.title}>AUDIO EDITOR</span>
+        </div>
         {duration > 0 && (
-          <span style={styles.duration}>
-            Total: {Math.floor(duration / 60)}:{(duration % 60).toFixed(2).padStart(5, '0')}
-          </span>
+          <div style={styles.durationBadge}>
+            <span style={styles.durationLabel}>TOTAL</span>
+            <span style={styles.durationValue}>{formatTime(duration)}</span>
+          </div>
         )}
       </div>
 
-      {/* Error display */}
-      {error && (
-        <div style={styles.errorBanner}>
-          <span>{error}</span>
-          <button onClick={() => setError(null)} style={styles.errorClose}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+      {/* Export message */}
+      {exportMessage && (
+        <div style={{
+          ...styles.messageBanner,
+          background: exportMessage.type === 'processing' ? 'rgba(255,184,0,0.15)' : exportMessage.type === 'success' ? 'rgba(0,210,106,0.15)' : 'rgba(230,57,70,0.15)',
+          color: exportMessage.type === 'processing' ? '#FFB800' : exportMessage.type === 'success' ? '#00D26A' : '#E63946',
+          borderBottom: `1px solid ${exportMessage.type === 'processing' ? 'rgba(255,184,0,0.3)' : exportMessage.type === 'success' ? 'rgba(0,210,106,0.3)' : 'rgba(230,57,70,0.3)'}`,
+        }}>
+          <span>{exportMessage.text}</span>
+          <button onClick={() => setExportMessage(null)} style={styles.messageClose}>×</button>
         </div>
       )}
 
-      {/* Main content */}
-      <div style={styles.content}>
-        {/* Track lane */}
+      {/* Main area */}
+      <div style={styles.mainArea}>
         <div style={styles.waveformSection}>
+          <div style={styles.sectionLabel}>WAVEFORM</div>
           <TrackLane
             audioUrl={audioUrl}
             trackId={trackId}
@@ -298,205 +289,285 @@ export default function AudioEditorPanel({
             trimEnd={operations.trimEnd}
             duration={duration}
             isSelected={true}
-            onSeek={(time) => setCurrentTime(time)}
+            isPlaying={isPlaying}
+            onSeek={(t) => {
+              setCurrentTime(t);
+              if (audioRef.current) audioRef.current.currentTime = t;
+            }}
             onTrimChange={handleTrimChange}
+            onPlayPause={handlePreview}
           />
         </div>
 
-        {/* Controls sidebar */}
         <ControlsSidebar
           duration={duration}
           operations={operations}
-          onChange={handleOperationsChange}
+          onChange={handleOpsChange}
           onPreview={handlePreview}
           onExport={handleExport}
           isExporting={isExporting}
         />
       </div>
 
-      {/* Playback controls */}
-      <div style={styles.playbackBar}>
-        <button onClick={handleStop} style={styles.stopButton}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-            <rect x="4" y="4" width="16" height="16" />
-          </svg>
-        </button>
+      {/* Console bar */}
+      <div style={styles.consoleBar}>
+        <div style={styles.transportBtns}>
+          <button onClick={handleStop} style={styles.transportBtn}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="4" y="4" width="16" height="16" />
+            </svg>
+          </button>
+          <button
+            onClick={handlePreview}
+            style={{
+              ...styles.transportBtn,
+              ...styles.playBtn,
+              background: isPlaying ? '#E63946' : '#333',
+            }}
+          >
+            {isPlaying ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" />
+              </svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5,3 19,12 5,21" />
+              </svg>
+            )}
+          </button>
+        </div>
 
-        <div style={styles.progressContainer}>
+        <div style={styles.progressSection}>
           <div style={styles.progressBar}>
-            <div
-              style={{
-                ...styles.progressFill,
-                width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`,
-              }}
-            />
-            <div
-              style={{
-                ...styles.trimRegion,
-                left: `${duration > 0 ? (operations.trimStart / duration) * 100 : 0}%`,
-                width: `${duration > 0 ? ((operations.trimEnd - operations.trimStart) / duration) * 100 : 100}%`,
-              }}
-            />
+            <div style={{
+              ...styles.progressFill,
+              width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`
+            }} />
           </div>
           <div style={styles.timeDisplay}>
-            <span>{formatTime(currentTime)}</span>
-            <span>/</span>
-            <span>{formatTime(duration)}</span>
+            <span style={styles.currentTime}>{formatTime(currentTime)}</span>
+            <span style={styles.timeSep}>/</span>
+            <span style={styles.totalTime}>{formatTime(duration)}</span>
           </div>
         </div>
 
-        <div style={styles.playbackInfo}>
-          <span style={styles.infoChip}>
-            {operations.speed.toFixed(2)}x
-          </span>
-          <span style={styles.infoChip}>
-            Vol: {Math.round(operations.volume * 100)}%
-          </span>
+        <div style={styles.infoChips}>
+          <div style={{...styles.chip, background: operations.speed !== 1.0 ? '#E63946' : '#1a1a1a'}}>
+            <span style={styles.chipLabel}>SPD</span>
+            <span style={styles.chipValue}>{operations.speed.toFixed(2)}x</span>
+          </div>
+          <div style={{...styles.chip, background: operations.volume !== 1.0 ? '#E63946' : '#1a1a1a'}}>
+            <span style={styles.chipLabel}>VOL</span>
+            <span style={styles.chipValue}>{Math.round(operations.volume * 100)}%</span>
+          </div>
+          {operations.fadeInEnabled && (
+            <div style={{...styles.chip, background: '#E63946'}}>
+              <span style={styles.chipLabel}>IN</span>
+              <span style={styles.chipValue}>{operations.fadeInDuration}s</span>
+            </div>
+          )}
+          {operations.fadeOutEnabled && (
+            <div style={{...styles.chip, background: '#E63946'}}>
+              <span style={styles.chipLabel}>OUT</span>
+              <span style={styles.chipValue}>{operations.fadeOutDuration}s</span>
+            </div>
+          )}
+          {operations.reverse && (
+            <div style={{...styles.chip, background: '#E63946'}}>
+              <span style={styles.chipLabel}>REV</span>
+            </div>
+          )}
         </div>
+        {hasEffects && (
+          <div style={styles.effectsBadge}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="#FFB800">
+              <path d="M12 3v18M3 12h18" stroke="#FFB800" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            <span style={{color: '#FFB800', fontSize: 10, fontWeight: 600}}>EFFECTS QUEUED</span>
+          </div>
+        )}
       </div>
-
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }
 
-const formatTime = (seconds: number): string => {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  const ms = Math.floor((seconds % 1) * 100);
-  return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
-};
-
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    backgroundColor: '#141414',
-    borderRadius: '12px',
-    padding: '20px',
-    border: '1px solid #2A2A2A',
-    fontFamily: 'DM Sans, sans-serif',
+    background: 'linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 100%)',
+    borderRadius: 12,
+    border: '1px solid #3a3a3a',
+    overflow: 'hidden',
+    fontFamily: 'Outfit, sans-serif',
   },
   header: {
+    background: 'linear-gradient(180deg, #1e1e1e 0%, #141414 100%)',
+    padding: '12px 20px',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '20px',
+    borderBottom: '1px solid #2a2a2a',
+  },
+  headerLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+  },
+  powerLed: {
+    width: 8,
+    height: 8,
+    borderRadius: '50%',
+    background: '#00FF00',
+    boxShadow: '0 0 8px #00FF00',
   },
   title: {
-    color: '#FFFFFF',
-    fontSize: '16px',
-    fontWeight: 600,
-    fontFamily: 'Outfit, sans-serif',
-    margin: 0,
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: 700,
+    letterSpacing: 2,
+    fontFamily: 'Bebas Neue, sans-serif',
   },
-  duration: {
-    color: '#A0A0A0',
-    fontSize: '12px',
+  durationBadge: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  durationLabel: {
+    color: '#666',
+    fontSize: 9,
+    letterSpacing: 1,
+  },
+  durationValue: {
+    color: '#00FF00',
+    fontSize: 15,
     fontFamily: 'JetBrains Mono, monospace',
+    fontWeight: 600,
   },
-  errorBanner: {
+  messageBanner: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(230, 57, 70, 0.1)',
-    border: '1px solid rgba(230, 57, 70, 0.3)',
-    borderRadius: '8px',
-    padding: '10px 14px',
-    marginBottom: '16px',
-    color: '#E63946',
-    fontSize: '13px',
+    padding: '10px 20px',
+    fontSize: 12,
   },
-  errorClose: {
+  messageClose: {
     background: 'none',
     border: 'none',
-    color: '#E63946',
+    color: 'inherit',
     cursor: 'pointer',
-    padding: '4px',
-    display: 'flex',
-    alignItems: 'center',
+    fontSize: 16,
+    padding: 0,
   },
-  content: {
+  mainArea: {
+    padding: 20,
     display: 'flex',
-    gap: '20px',
-    marginBottom: '20px',
+    gap: 20,
   },
   waveformSection: {
     flex: 1,
     minWidth: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
   },
-  playbackBar: {
+  sectionLabel: {
+    color: '#555',
+    fontSize: 10,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  consoleBar: {
+    background: 'linear-gradient(180deg, #141414 0%, #0a0a0a 100%)',
+    padding: '12px 20px',
     display: 'flex',
     alignItems: 'center',
-    gap: '16px',
-    padding: '12px 16px',
-    backgroundColor: '#1E1E1E',
-    borderRadius: '8px',
-    border: '1px solid #2A2A2A',
+    gap: 16,
+    borderTop: '1px solid #2a2a2a',
   },
-  stopButton: {
-    background: '#2A2A2A',
-    border: 'none',
+  transportBtns: {
+    display: 'flex',
+    gap: 8,
+  },
+  transportBtn: {
+    width: 32,
+    height: 32,
     borderRadius: '50%',
-    width: '32px',
-    height: '32px',
+    border: '1px solid #333',
+    background: '#1a1a1a',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer',
-    color: '#A0A0A0',
-    flexShrink: 0,
-    transition: 'all 150ms',
+    color: '#888',
   },
-  progressContainer: {
+  playBtn: {
+    border: 'none',
+    borderRadius: '50%',
+  },
+  progressSection: {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
-    gap: '6px',
+    gap: 6,
   },
   progressBar: {
-    position: 'relative',
-    height: '6px',
-    backgroundColor: '#2A2A2A',
-    borderRadius: '3px',
+    height: 4,
+    background: '#1a1a1a',
+    borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
     height: '100%',
-    backgroundColor: '#E63946',
-    borderRadius: '3px',
+    background: 'linear-gradient(90deg, #00FF00 0%, #FFB800 70%, #E63946 100%)',
     transition: 'width 100ms linear',
-  },
-  trimRegion: {
-    position: 'absolute',
-    top: 0,
-    height: '100%',
-    backgroundColor: 'rgba(230, 57, 70, 0.3)',
-    borderRadius: '3px',
   },
   timeDisplay: {
     display: 'flex',
-    gap: '6px',
-    fontSize: '11px',
+    gap: 4,
+    fontSize: 11,
     fontFamily: 'JetBrains Mono, monospace',
-    color: '#A0A0A0',
   },
-  playbackInfo: {
+  currentTime: {
+    color: '#fff',
+    fontWeight: 600,
+  },
+  timeSep: {
+    color: '#555',
+  },
+  totalTime: {
+    color: '#888',
+  },
+  infoChips: {
     display: 'flex',
-    gap: '8px',
-    flexShrink: 0,
+    gap: 6,
   },
-  infoChip: {
-    backgroundColor: '#2A2A2A',
-    color: '#A0A0A0',
-    fontSize: '10px',
-    fontFamily: 'JetBrains Mono, monospace',
+  chip: {
+    background: '#1a1a1a',
+    border: '1px solid #333',
+    borderRadius: 4,
     padding: '4px 8px',
-    borderRadius: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+  },
+  chipLabel: {
+    color: '#666',
+    fontSize: 9,
+    fontFamily: 'JetBrains Mono, monospace',
+  },
+  chipValue: {
+    color: '#fff',
+    fontSize: 11,
+    fontFamily: 'JetBrains Mono, monospace',
+    fontWeight: 600,
+  },
+  effectsBadge: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    padding: '4px 8px',
+    background: 'rgba(255,184,0,0.1)',
+    border: '1px solid rgba(255,184,0,0.3)',
+    borderRadius: 4,
   },
 };

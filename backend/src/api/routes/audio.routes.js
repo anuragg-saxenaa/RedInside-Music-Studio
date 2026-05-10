@@ -41,4 +41,14 @@ export const AudioRoutes = [
     path: '/api/audio/:id/metadata',
     handler: AudioController.getMetadata,
   },
+  {
+    method: 'get',
+    path: '/api/audio/download/:filename',
+    handler: AudioController.download,
+  },
+  {
+    method: 'get',
+    path: '/api/audio/file/*',
+    handler: AudioController.getFile,
+  },
 ];
