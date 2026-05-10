@@ -286,7 +286,7 @@ export default function AudioMasteringPanel({ projectId, allMusic: _allMusic }: 
             }}>
               AUDIO INPUT
             </div>
-            <UploadZone projectId={projectId} onUploadComplete={handleUploadComplete} />
+            <UploadZone projectId={projectId} onUploadComplete={handleUploadComplete} dataTestId="upload-zone" />
           </div>
 
           {/* File list */}
