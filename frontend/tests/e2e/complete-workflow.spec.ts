@@ -22,24 +22,24 @@ async function getFirstProject(page: Page) {
   return projects[0] || null;
 }
 
+// Helper to get a project that has music (so Export step is enabled)
+async function getProjectWithMusic(page: Page) {
+  const response = await page.request.get('http://localhost:3000/api/projects');
+  const projects = await response.json();
+  for (const project of projects) {
+    if (project.current_music_version > 0) {
+      return project;
+    }
+  }
+  return projects[0] || null;
+}
+
 test.describe('Complete Music Creation Workflow E2E', () => {
   test.beforeEach(async ({ page }) => {
     // Ensure backend is ready
     await page.goto('/');
     await page.waitForLoadState('networkidle');
   });
-
-  // Get a project that has music
-  async function getProjectWithMusic(page: Page) {
-    const response = await page.request.get('http://localhost:3000/api/projects');
-    const projects = await response.json();
-    for (const project of projects) {
-      if (project.current_music_version > 0) {
-        return project;
-      }
-    }
-    return projects[0] || null;
-  }
 
   test('1. Lyrics Generation - generate new lyrics', async ({ page }) => {
     // Navigate to studio
