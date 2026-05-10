@@ -98,6 +98,181 @@ const PlusIcon = () => (
   </svg>
 );
 
+const CancelIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <circle cx="12" cy="12" r="10" />
+    <line x1="15" y1="9" x2="9" y2="15" />
+    <line x1="9" y1="9" x2="15" y2="15" />
+  </svg>
+);
+
+// ============== GENERATION PROGRESS INDICATOR ==============
+interface GenerationProgressProps {
+  jobId: string;
+  onCancel: () => void;
+}
+
+const GenerationProgressIndicator = ({ jobId, onCancel }: GenerationProgressProps) => {
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const [pulsePhase, setPulsePhase] = useState(0);
+  const startTimeRef = useRef(Date.now());
+  const animationRef = useRef<number>();
+
+  useEffect(() => {
+    startTimeRef.current = Date.now();
+    setElapsedSec(0);
+
+    const updateTime = () => {
+      setElapsedSec(Math.floor((Date.now() - startTimeRef.current) / 1000));
+      setPulsePhase(p => (p + 1) % 100);
+      animationRef.current = requestAnimationFrame(updateTime);
+    };
+    animationRef.current = requestAnimationFrame(updateTime);
+
+    return () => {
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    };
+  }, [jobId]);
+
+  const formatTime = (sec: number) => {
+    if (sec < 60) return `${sec}s`;
+    const min = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${min}m ${s}s`;
+  };
+
+  // Animated waveform bars (8 bars, varying heights)
+  const bars = [0.3, 0.5, 0.8, 1, 0.7, 0.9, 0.4, 0.6];
+  const animatedBars = bars.map((baseHeight, i) => {
+    const phase = (pulsePhase + i * 12) % 100;
+    const wave = Math.sin(phase * Math.PI / 50) * 0.5 + 0.5;
+    return baseHeight * (0.6 + wave * 0.4);
+  });
+
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '16px',
+      padding: '16px 20px',
+      background: 'linear-gradient(135deg, rgba(230,57,70,0.15) 0%, rgba(184,35,46,0.1) 100%)',
+      borderRadius: '12px',
+      border: '1px solid rgba(230,57,70,0.3)',
+      boxShadow: '0 0 30px rgba(230,57,70,0.15), inset 0 0 20px rgba(0,0,0,0.3)',
+    }}>
+      {/* Animated waveform */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '3px',
+        height: '36px',
+        padding: '0 8px',
+        background: 'rgba(0,0,0,0.4)',
+        borderRadius: '8px',
+      }}>
+        {animatedBars.map((height, i) => (
+          <div
+            key={i}
+            style={{
+              width: '4px',
+              height: `${height * 100}%`,
+              background: i === 3 || i === 4
+                ? 'linear-gradient(180deg, #E63946 0%, #FF6B6B 100%)'
+                : '#888',
+              borderRadius: '2px',
+              transition: 'height 150ms ease',
+              boxShadow: i === 3 || i === 4 ? '0 0 8px rgba(230,57,70,0.8)' : 'none',
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Status text */}
+      <div style={{ flex: 1 }}>
+        <div style={{
+          color: '#fff',
+          fontSize: '14px',
+          fontWeight: 600,
+          fontFamily: "'Outfit', sans-serif",
+          marginBottom: '4px',
+          textShadow: '0 0 10px rgba(230,57,70,0.5)',
+        }}>
+          Generating your track
+          <span style={{
+            display: 'inline-block',
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            background: '#E63946',
+            marginLeft: '8px',
+            animation: 'pulse 1.5s ease-in-out infinite',
+            boxShadow: '0 0 10px #E63946',
+          }} />
+        </div>
+        <div style={{
+          color: '#888',
+          fontSize: '12px',
+          fontFamily: "'DM Sans', sans-serif",
+        }}>
+          This usually takes 1-2 minutes
+        </div>
+      </div>
+
+      {/* Time elapsed */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        gap: '2px',
+      }}>
+        <div style={{
+          color: '#FFB800',
+          fontSize: '16px',
+          fontWeight: 700,
+          fontFamily: "'Outfit', sans-serif",
+          fontVariantNumeric: 'tabular-nums',
+        }}>
+          {formatTime(elapsedSec)}
+        </div>
+        <div style={{ color: '#555', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+          Elapsed
+        </div>
+      </div>
+
+      {/* Cancel button */}
+      <button
+        onClick={onCancel}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '8px 14px',
+          borderRadius: '8px',
+          border: '1px solid rgba(255,100,100,0.3)',
+          background: 'rgba(255,50,50,0.1)',
+          color: '#ff6b6b',
+          fontSize: '12px',
+          fontWeight: 500,
+          cursor: 'pointer',
+          transition: 'all 150ms',
+          fontFamily: "'DM Sans', sans-serif",
+        }}
+        onMouseOver={(e) => {
+          e.currentTarget.style.background = 'rgba(255,50,50,0.2)';
+          e.currentTarget.style.borderColor = 'rgba(255,100,100,0.6)';
+        }}
+        onMouseOut={(e) => {
+          e.currentTarget.style.background = 'rgba(255,50,50,0.1)';
+          e.currentTarget.style.borderColor = 'rgba(255,100,100,0.3)';
+        }}
+      >
+        <CancelIcon />
+        Cancel
+      </button>
+    </div>
+  );
+};
+
 const ChevronDownIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <polyline points="6 9 12 15 18 9" />
@@ -767,6 +942,17 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
     }
   };
 
+  const handleCancelGeneration = async () => {
+    if (!pollingJobId) return;
+    try {
+      await fetch(`/api/jobs/${pollingJobId}/cancel`, { method: 'POST' });
+    } catch (err) {
+      console.error('Cancel failed:', err);
+    }
+    setPollingJobId(null);
+    setGenerating(false);
+  };
+
   useEffect(() => {
     if (!pollingJobId) return;
 
@@ -1024,10 +1210,10 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
             )}
 
             {pollingJobId && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#FFB800', fontSize: '13px' }}>
-                <div style={{ width: '16px', height: '16px', border: '2px solid #FFB800', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                <span>Generating... (job: {pollingJobId.slice(0, 8)}...)</span>
-              </div>
+              <GenerationProgressIndicator
+                jobId={pollingJobId}
+                onCancel={handleCancelGeneration}
+              />
             )}
 
             <button

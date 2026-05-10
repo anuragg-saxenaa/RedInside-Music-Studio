@@ -66,6 +66,26 @@ export const JobsController = {
       next(error);
     }
   },
+
+  async cancel(req, res, next) {
+    try {
+      const { id } = req.params;
+      const job = JobModel.findById(id);
+
+      if (!job) {
+        return res.status(404).json({ error: 'Job not found' });
+      }
+
+      if (job.status === 'completed' || job.status === 'failed') {
+        return res.status(400).json({ error: 'Cannot cancel a finished job' });
+      }
+
+      JobModel.updateStatus(id, 'cancelled');
+      res.json({ message: 'Job cancelled', jobId: id });
+    } catch (error) {
+      next(error);
+    }
+  },
 };
 
 export const JobsRoutes = [
@@ -78,6 +98,11 @@ export const JobsRoutes = [
     method: 'get',
     path: '/api/jobs/:id',
     handler: JobsController.getById,
+  },
+  {
+    method: 'post',
+    path: '/api/jobs/:id/cancel',
+    handler: JobsController.cancel,
   },
   {
     method: 'get',
