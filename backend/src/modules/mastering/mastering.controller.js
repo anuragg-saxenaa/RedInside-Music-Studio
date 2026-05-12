@@ -9,33 +9,40 @@ export const MasteringController = {
   async upload(req, res, next) {
     try {
       const { projectId } = req.params;
-      if (!req.file) {
+      const files = Array.isArray(req.files) ? req.files : (req.file ? [req.file] : []);
+
+      if (files.length === 0) {
         return res.status(400).json({ error: 'No file uploaded' });
       }
 
       storage.createProjectDirs(projectId);
       const uploadDir = storage.getUploadDir(projectId);
-      const fileId = uuidv4();
-      const ext = path.extname(req.file.originalname);
-      const uploadPath = path.join(uploadDir, `${fileId}${ext}`);
 
-      fs.writeFileSync(uploadPath, req.file.buffer);
+      const uploadedFiles = files.map(file => {
+        const fileId = uuidv4();
+        const ext = path.extname(file.originalname);
+        const uploadPath = path.join(uploadDir, `${fileId}${ext}`);
+        fs.writeFileSync(uploadPath, file.buffer);
 
-      // Get duration using ffprobe
-      let duration = 0;
-      try {
-        const result = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${uploadPath}"`, { encoding: 'utf8' });
-        duration = parseFloat(result.trim()) || 0;
-      } catch (e) {
-        console.error('Failed to get duration:', e);
-      }
+        // Get duration using ffprobe
+        let duration = 0;
+        try {
+          const result = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${uploadPath}"`, { encoding: 'utf8' });
+          duration = parseFloat(result.trim()) || 0;
+        } catch (e) {
+          console.error('Failed to get duration:', e);
+        }
 
-      res.json({
-        id: fileId,
-        filename: req.file.originalname,
-        originalPath: uploadPath,
-        duration,
+        return {
+          id: fileId,
+          filename: file.originalname,
+          originalPath: uploadPath,
+          duration,
+        };
       });
+
+      // Return array for both single and multi-file uploads
+      res.json({ files: uploadedFiles });
     } catch (error) {
       next(error);
     }

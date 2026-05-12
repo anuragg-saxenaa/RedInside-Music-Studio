@@ -16,7 +16,7 @@ const upload = multer({
 });
 
 export const MasteringRoutes = [
-  { method: 'post', path: '/api/mastering/upload/:projectId', handler: MasteringController.upload, middlewares: [upload.single('file')] },
+  { method: 'post', path: '/api/mastering/upload/:projectId', handler: MasteringController.upload, middlewares: [upload.array('files', 50)] },
   { method: 'post', path: '/api/mastering/process', handler: MasteringController.process },
   { method: 'get', path: '/api/mastering/:fileId/download/:projectId', handler: MasteringController.download },
   { method: 'get', path: '/api/mastering/:fileId/file/:projectId', handler: MasteringController.serveOriginal },
