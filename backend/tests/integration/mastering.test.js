@@ -42,14 +42,19 @@ function createMultiPartRequest(files, projectId) {
 }
 
 describe('Mastering API - Multi-file Upload', () => {
+  // Track project IDs for cleanup
   const testProjectId = 'test-batch-' + Date.now();
+  let listTestProjectId;
 
   after(() => {
-    // Cleanup
-    const projectDir = path.join(process.cwd(), 'storage/projects', testProjectId);
-    if (fs.existsSync(projectDir)) {
-      fs.rmSync(projectDir, { recursive: true, force: true });
-    }
+    // Cleanup - remove all test project directories
+    const testProjects = [testProjectId, listTestProjectId].filter(Boolean);
+    testProjects.forEach(id => {
+      const dir = path.join(process.cwd(), 'storage/projects', id);
+      if (fs.existsSync(dir)) {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
   });
 
   function makeRequest(options, body) {
@@ -98,6 +103,40 @@ describe('Mastering API - Multi-file Upload', () => {
     assert.strictEqual(res.status, 200);
     assert.ok(Array.isArray(res.data.files), 'Response should have files array');
     assert.strictEqual(res.data.files.length, 1, 'Should have 1 file');
+  });
+
+  it('lists mastered files for project', async () => {
+    const projectId = 'test-list-' + Date.now();
+    listTestProjectId = projectId;
+    const fileData = fs.readFileSync(FIXTURE);
+    const { options, body } = createMultiPartRequest([
+      { name: 'track1.mp3', data: fileData },
+    ], projectId);
+
+    // Upload a file
+    const uploadRes = await makeRequest(options, body);
+    assert.strictEqual(uploadRes.status, 200);
+    const { files: [{ id: fileId }] } = uploadRes.data;
+
+    // Process it
+    const processRes = await fetch('http://localhost:3000/api/mastering/process', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileId, projectId, preset: 'spotify', saveToProject: false })
+    });
+    const processData = await processRes.json();
+    assert.strictEqual(processRes.status, 200);
+    assert.ok(processData.masteredPath);
+
+    // List files
+    const listRes = await fetch(`http://localhost:3000/api/mastering/files/${projectId}`);
+    const listData = await listRes.json();
+
+    assert.strictEqual(listRes.status, 200);
+    assert.ok(Array.isArray(listData.files), 'Response should have files array');
+    assert.strictEqual(listData.files.length, 1);
+    assert.strictEqual(listData.files[0].id, fileId);
+    assert.ok(listData.files[0].masteredPath);
   });
 
   it('returns 400 when no files uploaded', async () => {

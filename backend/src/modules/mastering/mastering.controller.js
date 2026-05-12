@@ -136,4 +136,45 @@ export const MasteringController = {
       next(error);
     }
   },
+
+  async listFiles(req, res, next) {
+    try {
+      const { projectId } = req.params;
+      const mastersDir = storage.getMastersDir(projectId);
+      const uploadDir = storage.getUploadDir(projectId);
+
+      if (!fs.existsSync(uploadDir)) {
+        return res.json({ files: [] });
+      }
+
+      const uploadFiles = fs.readdirSync(uploadDir).filter(f => f.match(/\.(mp3|wav|flac|m4a|ogg)$/i));
+      const masterFiles = fs.existsSync(mastersDir) ? fs.readdirSync(mastersDir) : [];
+
+      const files = uploadFiles.map(f => {
+        const fileId = f.replace(/\.(mp3|wav|flac|m4a|ogg)$/i, '');
+        const masterFile = masterFiles.find(m => m.startsWith(fileId));
+        const masterPath = masterFile ? path.join(mastersDir, masterFile) : null;
+
+        let duration = 0;
+        const fullPath = path.join(uploadDir, f);
+        try {
+          const result = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${fullPath}"`, { encoding: 'utf8' });
+          duration = parseFloat(result.trim()) || 0;
+        } catch (e) {}
+
+        return {
+          id: fileId,
+          filename: f,
+          originalPath: fullPath,
+          masteredPath: masterPath,
+          duration,
+          status: masterPath ? 'mastered' : 'pending',
+        };
+      });
+
+      res.json({ files });
+    } catch (error) {
+      next(error);
+    }
+  },
 };

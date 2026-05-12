@@ -20,4 +20,5 @@ export const MasteringRoutes = [
   { method: 'post', path: '/api/mastering/process', handler: MasteringController.process },
   { method: 'get', path: '/api/mastering/:fileId/download/:projectId', handler: MasteringController.download },
   { method: 'get', path: '/api/mastering/:fileId/file/:projectId', handler: MasteringController.serveOriginal },
+  { method: 'get', path: '/api/mastering/files/:projectId', handler: MasteringController.listFiles },
 ];
