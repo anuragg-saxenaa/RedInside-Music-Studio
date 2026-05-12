@@ -139,6 +139,39 @@ describe('Mastering API - Multi-file Upload', () => {
     assert.ok(listData.files[0].masteredPath);
   });
 
+  it('batch processes multiple files', async () => {
+    const projectId = 'test-batch-process-' + Date.now();
+
+    // Upload 2 files
+    const fileData = fs.readFileSync(FIXTURE);
+    const { options, body } = createMultiPartRequest([
+      { name: 'track1.mp3', data: fileData },
+      { name: 'track2.mp3', data: fileData },
+    ], projectId);
+
+    const uploadRes = await makeRequest(options, body);
+    assert.strictEqual(uploadRes.status, 200);
+    const { files } = uploadRes.data;
+    const fileIds = files.map(f => f.id);
+
+    // Batch process
+    const processRes = await fetch('http://localhost:3000/api/mastering/process', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileIds, projectId, preset: 'spotify', saveToProject: false })
+    });
+
+    const { results, errors } = await processRes.json();
+    assert.strictEqual(results.length, 2);
+    assert.strictEqual(errors.length, 0);
+    assert.ok(results[0].masteredPath);
+    assert.ok(results[1].masteredPath);
+
+    // Verify files on disk
+    assert.ok(fs.existsSync(results[0].masteredPath));
+    assert.ok(fs.existsSync(results[1].masteredPath));
+  });
+
   it('returns 400 when no files uploaded', async () => {
     const boundary = '----FormBoundary' + Date.now();
     const body = Buffer.from(`--${boundary}--\r\n`);

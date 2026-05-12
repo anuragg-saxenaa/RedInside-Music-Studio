@@ -50,49 +50,74 @@ export const MasteringController = {
 
   async process(req, res, next) {
     try {
-      const { fileId, projectId, preset, saveToProject } = req.body;
+      const { fileIds, fileId, projectId, preset, saveToProject } = req.body;
+
+      // Handle single ID or array - support both fileId and fileIds
+      const isSingle = !fileIds;
+      const ids = Array.isArray(fileIds) ? fileIds : (fileIds ? [fileIds] : (fileId ? [fileId] : []));
+
+      if (ids.length === 0) {
+        return res.status(400).json({ error: 'No fileIds provided' });
+      }
 
       const uploadDir = storage.getUploadDir(projectId);
-      const files = fs.readdirSync(uploadDir);
-      const inputFile = files.find(f => f.startsWith(fileId));
-      if (!inputFile) {
-        return res.status(404).json({ error: 'File not found' });
-      }
-
-      const inputPath = path.join(uploadDir, inputFile);
       const mastersDir = storage.getMastersDir(projectId);
-      const outputPath = path.join(mastersDir, `${fileId}_spotify_master.wav`);
+      const results = [];
+      const errors = [];
 
-      // Get input duration
-      let inputDuration = 0;
-      try {
-        const dur = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${inputPath}"`, { encoding: 'utf8' });
-        inputDuration = parseFloat(dur.trim()) || 0;
-      } catch (e) {}
+      for (const fileId of ids) {
+        try {
+          const files = fs.readdirSync(uploadDir);
+          const inputFile = files.find(f => f.startsWith(fileId));
 
-      const service = new AudioMasteringService(mastersDir);
-      await service.masterToSpotify(inputPath, outputPath);
+          if (!inputFile) {
+            errors.push({ fileId, error: 'File not found' });
+            continue;
+          }
 
-      if (saveToProject) {
-        const { MusicModel } = await import('../../database/models/music.model.js');
-        const version = MusicModel.getNextVersion(projectId);
-        const music = MusicModel.create({
-          projectId,
-          version,
-          originalFilePath: inputPath,
-          processedFilePath: outputPath,
-          title: `Mastered ${inputFile}`,
-          model: 'upload',
-          durationSeconds: inputDuration,
-        });
-        return res.json({ success: true, music });
+          const inputPath = path.join(uploadDir, inputFile);
+          const outputPath = path.join(mastersDir, `${fileId}_spotify_master.wav`);
+
+          let inputDuration = 0;
+          try {
+            const dur = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${inputPath}"`, { encoding: 'utf8' });
+            inputDuration = parseFloat(dur.trim()) || 0;
+          } catch (e) {}
+
+          const service = new AudioMasteringService(mastersDir);
+          await service.masterToSpotify(inputPath, outputPath);
+
+          if (saveToProject) {
+            const { MusicModel } = await import('../../database/models/music.model.js');
+            const version = MusicModel.getNextVersion(projectId);
+            const music = MusicModel.create({
+              projectId,
+              version,
+              originalFilePath: inputPath,
+              processedFilePath: outputPath,
+              title: inputFile,
+              model: 'upload',
+              durationSeconds: inputDuration,
+            });
+            results.push({ fileId, status: 'success', masteredPath: outputPath, musicId: music.id, version });
+          } else {
+            results.push({ fileId, status: 'success', masteredPath: outputPath });
+          }
+        } catch (err) {
+          errors.push({ fileId, error: err.message });
+        }
       }
 
-      res.json({
-        success: true,
-        masteredPath: outputPath,
-        downloadUrl: `/api/mastering/${fileId}/download/${projectId}`,
-      });
+      // Backward compatible response for single fileId
+      if (isSingle && results.length === 1 && errors.length === 0) {
+        return res.json({
+          success: true,
+          masteredPath: results[0].masteredPath,
+          downloadUrl: `/api/mastering/${results[0].fileId}/download/${projectId}`,
+        });
+      }
+
+      res.json({ results, errors });
     } catch (error) {
       next(error);
     }
