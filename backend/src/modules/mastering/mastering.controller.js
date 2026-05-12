@@ -162,6 +162,77 @@ export const MasteringController = {
     }
   },
 
+  async saveToMusic(req, res, next) {
+    try {
+      const { projectId, fileIds } = req.body;
+
+      if (!projectId || !Array.isArray(fileIds) || fileIds.length === 0) {
+        return res.status(400).json({ error: 'projectId and fileIds required' });
+      }
+
+      const mastersDir = storage.getMastersDir(projectId);
+      const saved = [];
+
+      // Ensure masters directory exists
+      if (!fs.existsSync(mastersDir)) {
+        return res.json({ saved: [] });
+      }
+
+      for (const fileId of fileIds) {
+        const masterFiles = fs.readdirSync(mastersDir).filter(f => f.startsWith(fileId));
+        const masterFile = masterFiles.find(f => f.endsWith('_spotify_master.wav'));
+
+        if (!masterFile) {
+          continue; // Skip if not mastered
+        }
+
+        const masterPath = path.join(mastersDir, masterFile);
+
+        let duration = 0;
+        try {
+          const dur = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${masterPath}"`, { encoding: 'utf8' });
+          duration = parseFloat(dur.trim()) || 0;
+        } catch (e) {}
+
+        const { MusicModel } = await import('../../database/models/music.model.js');
+        const db = (await import('../../database/connection.js')).default;
+
+        // Ensure project exists in database (create if necessary)
+        let project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+        if (!project) {
+          try {
+            // Insert directly with the provided projectId
+            db.prepare(`
+              INSERT INTO projects (id, name, description, workflow_mode)
+              VALUES (?, ?, ?, ?)
+            `).run(projectId, `Mastering Project ${projectId}`, null, 'hybrid');
+            project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+          } catch (e) {
+            // Project may already exist from concurrent request
+            project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+          }
+        }
+
+        const version = MusicModel.getNextVersion(projectId);
+        const music = MusicModel.create({
+          projectId,
+          version,
+          originalFilePath: masterPath, // mastered file
+          processedFilePath: masterPath,
+          title: masterFile.replace('_spotify_master.wav', ''),
+          model: 'mastering',
+          durationSeconds: duration,
+        });
+
+        saved.push({ fileId, musicId: music.id, version });
+      }
+
+      res.json({ saved });
+    } catch (error) {
+      next(error);
+    }
+  },
+
   async listFiles(req, res, next) {
     try {
       const { projectId } = req.params;

@@ -190,4 +190,41 @@ describe('Mastering API - Multi-file Upload', () => {
     const res = await makeRequest(options, body);
     assert.ok(res.status >= 400, 'Should return error status');
   });
+
+  it('saves mastered files to music history', async () => {
+    const projectId = 'test-save-music-' + Date.now();
+
+    // Upload and process
+    const fileData = fs.readFileSync(FIXTURE);
+    const { options, body } = createMultiPartRequest([
+      { name: 'track.mp3', data: fileData },
+    ], projectId);
+
+    const uploadRes = await makeRequest(options, body);
+    assert.strictEqual(uploadRes.status, 200);
+    const { files: [{ id: fileId }] } = uploadRes.data;
+
+    await fetch('http://localhost:3000/api/mastering/process', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileIds: [fileId], projectId, preset: 'spotify', saveToProject: false })
+    });
+
+    // Save to Music
+    const saveRes = await fetch('http://localhost:3000/api/mastering/save-to-music', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectId, fileIds: [fileId] })
+    });
+
+    const { saved } = await saveRes.json();
+    assert.strictEqual(saved.length, 1);
+    assert.ok(saved[0].musicId);
+    assert.ok(saved[0].version);
+
+    // Verify music exists via API
+    const musicRes = await fetch(`http://localhost:3000/api/projects/${projectId}/music`);
+    const musicList = await musicRes.json();
+    assert.strictEqual(musicList.length, 1);
+  });
 });
