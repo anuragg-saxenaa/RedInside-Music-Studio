@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import http from 'http';
+import AdmZip from 'adm-zip';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE = path.join(__dirname, '../fixtures/test-audio.mp3');
@@ -226,5 +227,42 @@ describe('Mastering API - Multi-file Upload', () => {
     const musicRes = await fetch(`http://localhost:3000/api/projects/${projectId}/music`);
     const musicList = await musicRes.json();
     assert.strictEqual(musicList.length, 1);
+  });
+
+  it('creates ZIP of selected mastered files', async () => {
+    const projectId = 'test-zip-' + Date.now();
+
+    // Upload and process 2 files
+    const fileData = fs.readFileSync(FIXTURE);
+    const { options, body } = createMultiPartRequest([
+      { name: 'track1.mp3', data: fileData },
+      { name: 'track2.mp3', data: fileData },
+    ], projectId);
+
+    const uploadRes = await makeRequest(options, body);
+    assert.strictEqual(uploadRes.status, 200);
+    const { files } = uploadRes.data;
+    const fileIds = files.map(f => f.id);
+
+    await fetch('http://localhost:3000/api/mastering/process', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileIds, projectId, preset: 'spotify', saveToProject: false })
+    });
+
+    // Download ZIP
+    const zipRes = await fetch(`http://localhost:3000/api/mastering/zip?projectId=${projectId}&fileIds=${fileIds.join(',')}`);
+
+    assert.strictEqual(zipRes.status, 200);
+    assert.ok(zipRes.headers.get('content-type').includes('zip'));
+
+    // Verify ZIP content
+    const buffer = await zipRes.arrayBuffer();
+    assert.ok(buffer.byteLength > 0);
+
+    // Extract and verify (basic check)
+    const zip = new AdmZip(Buffer.from(buffer));
+    const entries = zip.getEntries();
+    assert.ok(entries.length >= 2); // At least our 2 files
   });
 });

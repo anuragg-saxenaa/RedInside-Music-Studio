@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { execSync } from 'child_process';
+import JSZip from 'jszip';
 
 export const MasteringController = {
   async upload(req, res, next) {
@@ -269,6 +270,57 @@ export const MasteringController = {
       });
 
       res.json({ files });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async downloadZip(req, res, next) {
+    try {
+      const { projectId, fileIds } = req.query;
+
+      if (!projectId || !fileIds) {
+        return res.status(400).json({ error: 'projectId and fileIds required' });
+      }
+
+      const ids = fileIds.split(',');
+      const mastersDir = storage.getMastersDir(projectId);
+
+      // Check if masters directory exists
+      if (!fs.existsSync(mastersDir)) {
+        return res.status(404).json({ error: 'Mastered files not found' });
+      }
+
+      const zip = new JSZip();
+
+      for (const fileId of ids) {
+        const masterFiles = fs.readdirSync(mastersDir).filter(f => f.startsWith(fileId));
+        const masterFile = masterFiles.find(f => f.endsWith('_spotify_master.wav'));
+
+        if (masterFile) {
+          const filePath = path.join(mastersDir, masterFile);
+          const fileData = fs.readFileSync(filePath);
+          zip.file(masterFile, fileData);
+        }
+      }
+
+      if (zip.length === 0) {
+        return res.status(404).json({ error: 'No mastered files found for specified IDs' });
+      }
+
+      const zipBuffer = await zip.generateAsync({
+        type: 'nodebuffer',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 9 }
+      });
+
+      res.set({
+        'Content-Type': 'application/zip',
+        'Content-Disposition': `attachment; filename="mastered-tracks-${Date.now()}.zip"`,
+        'Content-Length': zipBuffer.length
+      });
+
+      res.send(zipBuffer);
     } catch (error) {
       next(error);
     }
