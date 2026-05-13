@@ -1,0 +1,99 @@
+<h2>Batch Mastering - Sleek Redesign</h2>
+<p class="subtitle">Clean, minimal interface with subtle hover states</p>
+
+<div class="mockup">
+  <div class="mockup-header">Spotify Mastering</div>
+  <div class="mockup-body">
+    <style>
+      .container { max-width: 900px; margin: 0 auto; }
+      .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+      .file-card {
+        background: #0d0d0d; border: 1px solid #2a2a2a; border-radius: 12px;
+        padding: 20px 16px; cursor: pointer; transition: all 200ms ease;
+        position: relative; overflow: hidden;
+      }
+      .file-card:hover { border-color: #444; transform: translateY(-2px); }
+      .file-card.selected { border-color: #E63946; box-shadow: 0 0 20px rgba(230,57,70,0.2); }
+      .file-card.selected::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+        background: linear-gradient(90deg, #E63946, #ff6b6b);
+      }
+      .file-icon { font-size: 28px; margin-bottom: 12px; color: #555; }
+      .file-card.selected .file-icon { color: #E63946; }
+      .filename { font-size: 13px; color: #ccc; font-weight: 500; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .meta { display: flex; justify-content: space-between; font-size: 11px; color: #666; }
+      .duration { font-variant-numeric: tabular-nums; }
+      .action-bar {
+        margin-top: 32px; padding: 20px 24px; background: #0d0d0d;
+        border-radius: 16px; display: flex; align-items: center; gap: 16px;
+        border: 1px solid #2a2a2a;
+      }
+      .btn { padding: 12px 24px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 150ms; }
+      .btn-ghost { background: transparent; color: #888; border: 1px solid #333; }
+      .btn-ghost:hover { border-color: #555; color: #fff; }
+      .btn-primary { background: linear-gradient(135deg, #E63946, #B8232E); color: white; }
+      .btn-primary:hover { box-shadow: 0 4px 20px rgba(230,57,70,0.4); }
+      .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+      .spacer { flex: 1; }
+      .selection-info { font-size: 12px; color: #666; }
+      .selection-info strong { color: #E63946; }
+    </style>
+
+    <div class="container">
+      <div class="file-grid">
+        <div class="file-card" onclick="toggleSelect(this)">
+          <div class="file-icon">♪</div>
+          <div class="filename">track_01_draft.mp3</div>
+          <div class="meta"><span>3:24</span><span>320kbps</span></div>
+        </div>
+        <div class="file-card" onclick="toggleSelect(this)">
+          <div class="file-icon">♪</div>
+          <div class="filename">track_02_vocal.wav</div>
+          <div class="meta"><span>2:58</span><span>WAV</span></div>
+        </div>
+        <div class="file-card selected" onclick="toggleSelect(this)">
+          <div class="file-icon">♪</div>
+          <div class="filename">track_03_hook.mp3</div>
+          <div class="meta"><span>4:12</span><span>256kbps</span></div>
+        </div>
+        <div class="file-card" onclick="toggleSelect(this)">
+          <div class="file-icon">♪</div>
+          <div class="filename">track_04_chorus.flac</div>
+          <div class="meta"><span>3:45</span><span>FLAC</span></div>
+        </div>
+        <div class="file-card selected" onclick="toggleSelect(this)">
+          <div class="file-icon">♪</div>
+          <div class="filename">track_05_bridge.wav</div>
+          <div class="meta"><span>2:30</span><span>WAV</span></div>
+        </div>
+        <div class="file-card" onclick="toggleSelect(this)">
+          <div class="file-icon">♪</div>
+          <div class="filename">track_06_verse2.mp3</div>
+          <div class="meta"><span>3:10</span><span>320kbps</span></div>
+        </div>
+        <div class="file-card" onclick="toggleSelect(this)">
+          <div class="file-icon">♪</div>
+          <div class="filename">track_07_outro.wav</div>
+          <div class="meta"><span>1:55</span><span>WAV</span></div>
+        </div>
+        <div class="file-card" onclick="toggleSelect(this)">
+          <div class="file-icon">♪</div>
+          <div class="filename">track_08_final.mp3</div>
+          <div class="meta"><span>4:02</span><span>320kbps</span></div>
+        </div>
+      </div>
+
+      <div class="action-bar">
+        <button class="btn btn-primary" onclick="masterAll()">Master All</button>
+        <button class="btn btn-primary" onclick="downloadZip()" disabled>Download ZIP</button>
+        <div class="spacer"></div>
+        <span class="selection-info"><strong>2</strong> selected</span>
+        <button class="btn btn-ghost" onclick="clearSelection()">Clear</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top: 20px; color: #666; font-size: 12px;">
+Minimal cards with music note icon, duration, format. Top accent bar on selected. Bottom action bar stays clean.
+</p>

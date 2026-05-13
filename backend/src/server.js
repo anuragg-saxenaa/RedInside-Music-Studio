@@ -99,6 +99,12 @@ registerImageRoutes(app);
 registerVoiceRoutes(app);
 registerUploadRoutes(app);
 
+// Test routes (E2E testing only)
+const { TestRoutes } = await import('./api/routes/test.routes.js');
+TestRoutes.forEach(route => {
+  app[route.method](route.path, route.handler);
+});
+
 // Error handling middleware
 app.use(errorMiddleware);
 

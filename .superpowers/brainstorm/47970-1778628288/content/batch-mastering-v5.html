@@ -1,0 +1,137 @@
+<h2>List View - Scales to 100+ Files</h2>
+<p class="subtitle">Clean horizontal list, no grid mess</p>
+
+<div class="mockup">
+  <div class="mockup-header">Spotify Mastering</div>
+  <div class="mockup-body">
+    <style>
+      .panel { background: rgba(20,20,25,0.95); border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); overflow: hidden; }
+      .list-header {
+        display: grid; grid-template-columns: 40px 1fr 80px 80px 100px; gap: 12px;
+        padding: 12px 20px; background: rgba(255,255,255,0.03);
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px;
+      }
+      .list-item {
+        display: grid; grid-template-columns: 40px 1fr 80px 80px 100px; gap: 12px;
+        padding: 14px 20px; align-items: center;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+        cursor: pointer; transition: background 150ms;
+      }
+      .list-item:hover { background: rgba(255,255,255,0.03); }
+      .list-item.selected { background: rgba(230,57,70,0.08); }
+      .num { font-size: 12px; color: #444; font-variant-numeric: tabular-nums; }
+      .list-item.selected .num { color: #E63946; }
+      .name { font-size: 13px; color: #ccc; }
+      .list-item.selected .name { color: #fff; }
+      .dur { font-size: 12px; color: #666; font-variant-numeric: tabular-nums; }
+      .fmt { font-size: 11px; color: #888; }
+      .status {
+        font-size: 10px; padding: 4px 10px; border-radius: 20px;
+        display: inline-block;
+      }
+      .status.ready { background: rgba(0,255,100,0.1); color: #00FF88; }
+      .status.pending { background: rgba(255,255,255,0.08); color: #888; }
+      .status.processing { background: rgba(255,180,0,0.1); color: #FFB800; }
+      .action-bar {
+        padding: 16px 20px; display: flex; align-items: center; gap: 12px;
+        background: rgba(255,255,255,0.02); border-top: 1px solid rgba(255,255,255,0.06);
+      }
+      .btn { padding: 10px 20px; border-radius: 8px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; }
+      .btn-primary { background: linear-gradient(135deg, #E63946, #B8232E); color: white; }
+      .btn-primary:disabled { opacity: 0.4; }
+      .btn-ghost { background: transparent; color: #666; border: 1px solid #333; }
+      .spacer { flex: 1; }
+      .count { font-size: 11px; color: #555; }
+      .count strong { color: #E63946; }
+    </style>
+
+    <div class="panel">
+      <div class="list-header">
+        <span>#</span><span>Track</span><span>Duration</span><span>Format</span><span>Status</span>
+      </div>
+      <div class="list-item selected" onclick="toggleSelect(this)">
+        <span class="num">01</span>
+        <span class="name">01 - Draft Mix.mp3</span>
+        <span class="dur">3:24</span>
+        <span class="fmt">MP3</span>
+        <span class="status ready">Ready</span>
+      </div>
+      <div class="list-item" onclick="toggleSelect(this)">
+        <span class="num">02</span>
+        <span class="name">02 - Raw Vocals.wav</span>
+        <span class="dur">2:58</span>
+        <span class="fmt">WAV</span>
+        <span class="status ready">Ready</span>
+      </div>
+      <div class="list-item selected" onclick="toggleSelect(this)">
+        <span class="num">03</span>
+        <span class="name">03 - Hook Section.mp3</span>
+        <span class="dur">4:12</span>
+        <span class="fmt">MP3</span>
+        <span class="status ready">Ready</span>
+      </div>
+      <div class="list-item" onclick="toggleSelect(this)">
+        <span class="num">04</span>
+        <span class="name">04 - Chorus Final.wav</span>
+        <span class="dur">3:45</span>
+        <span class="fmt">WAV</span>
+        <span class="status processing">Mastering...</span>
+      </div>
+      <div class="list-item" onclick="toggleSelect(this)">
+        <span class="num">05</span>
+        <span class="name">05 - Bridge Mix.mp3</span>
+        <span class="dur">2:30</span>
+        <span class="fmt">MP3</span>
+        <span class="status pending">Pending</span>
+      </div>
+      <div class="list-item" onclick="toggleSelect(this)">
+        <span class="num">06</span>
+        <span class="name">06 - Verse 2 Hook.wav</span>
+        <span class="dur">3:10</span>
+        <span class="fmt">WAV</span>
+        <span class="status pending">Pending</span>
+      </div>
+      <div class="list-item" onclick="toggleSelect(this)">
+        <span class="num">07</span>
+        <span class="name">07 - Outro Loop.mp3</span>
+        <span class="dur">1:55</span>
+        <span class="fmt">MP3</span>
+        <span class="status pending">Pending</span>
+      </div>
+      <div class="list-item" onclick="toggleSelect(this)">
+        <span class="num">08</span>
+        <span class="name">08 - Final Master.wav</span>
+        <span class="dur">4:02</span>
+        <span class="fmt">WAV</span>
+        <span class="status pending">Pending</span>
+      </div>
+      <div class="list-item" onclick="toggleSelect(this)">
+        <span class="num">09</span>
+        <span class="name">09 - Radio Edit.mp3</span>
+        <span class="dur">3:33</span>
+        <span class="fmt">MP3</span>
+        <span class="status pending">Pending</span>
+      </div>
+      <div class="list-item" onclick="toggleSelect(this)">
+        <span class="num">10</span>
+        <span class="name">10 - Extended Mix.wav</span>
+        <span class="dur">5:15</span>
+        <span class="fmt">WAV</span>
+        <span class="status pending">Pending</span>
+      </div>
+
+      <div class="action-bar">
+        <button class="btn btn-primary">Master All</button>
+        <button class="btn btn-primary" disabled>Download ZIP</button>
+        <div class="spacer"></div>
+        <span class="count"><strong>2</strong> selected</span>
+        <button class="btn btn-ghost">Clear</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top: 16px; color: #555; font-size: 12px;">
+List view - each file on own row, scannable, status badges, scales to 100+ files without mess.
+</p>

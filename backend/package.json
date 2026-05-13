@@ -25,6 +25,7 @@
     "winston": "^3.11.0"
   },
   "devDependencies": {
-    "adm-zip": "^0.5.17"
+    "adm-zip": "^0.5.17",
+    "nock": "^14.0.15"
   }
 }

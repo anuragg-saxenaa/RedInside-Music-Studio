@@ -1,0 +1,86 @@
+<h2>Batch Mastering - Selection UI</h2>
+<p class="subtitle">Click to select files. Shift+Click for range. Ctrl+Click to toggle.</p>
+
+<div class="mockup">
+  <div class="mockup-header">Spotify Mastering Panel - 10 files uploaded</div>
+  <div class="mockup-body">
+    <style>
+      .file-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; padding: 16px; }
+      .file-item {
+        background: #1a1a1a; border: 2px solid #333; border-radius: 8px;
+        padding: 12px; cursor: pointer; transition: all 150ms;
+        position: relative;
+      }
+      .file-item.selected { border-color: #E63946; background: rgba(230,57,70,0.15); }
+      .file-item.selected::after {
+        content: '✓'; position: absolute; top: 8px; right: 8px;
+        background: #E63946; color: white; width: 20px; height: 20px;
+        border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        font-size: 12px;
+      }
+      .file-item.processing { border-color: #FFB800; }
+      .file-item.complete { border-color: #00FF00; }
+      .filename { font-size: 12px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .status { font-size: 10px; color: #888; margin-top: 4px; }
+      .btn-bar { margin-top: 16px; padding: 12px; background: #222; border-radius: 8px; display: flex; gap: 12px; align-items: center; }
+      .action-btn { background: #333; color: #fff; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+      .action-btn.primary { background: linear-gradient(135deg, #E63946, #B8232E); }
+      .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+      .count { color: #888; font-size: 12px; margin-left: auto; }
+    </style>
+
+    <div class="file-list">
+      <div class="file-item complete" onclick="toggleSelect(this)">
+        <div class="filename">track_01_draft.mp3</div>
+        <div class="status">✓ Ready</div>
+      </div>
+      <div class="file-item complete" onclick="toggleSelect(this)">
+        <div class="filename">track_02_vocal.wav</div>
+        <div class="status">✓ Ready</div>
+      </div>
+      <div class="file-item selected" onclick="toggleSelect(this)">
+        <div class="filename">track_03_hook.mp3</div>
+        <div class="status">✓ Ready</div>
+      </div>
+      <div class="file-item complete" onclick="toggleSelect(this)">
+        <div class="filename">track_04_chorus.flac</div>
+        <div class="status">✓ Ready</div>
+      </div>
+      <div class="file-item selected" onclick="toggleSelect(this)">
+        <div class="filename">track_05_bridge.wav</div>
+        <div class="status">✓ Ready</div>
+      </div>
+      <div class="file-item processing" onclick="toggleSelect(this)">
+        <div class="filename">track_06_verse2.mp3</div>
+        <div class="status">◌ Processing...</div>
+      </div>
+      <div class="file-item" onclick="toggleSelect(this)">
+        <div class="filename">track_07_outro.wav</div>
+        <div class="status">○ Pending</div>
+      </div>
+      <div class="file-item" onclick="toggleSelect(this)">
+        <div class="filename">track_08_final.mp3</div>
+        <div class="status">○ Pending</div>
+      </div>
+      <div class="file-item" onclick="toggleSelect(this)">
+        <div class="filename">track_09_acoustic.wav</div>
+        <div class="status">○ Pending</div>
+      </div>
+      <div class="file-item" onclick="toggleSelect(this)">
+        <div class="filename">track_10_radio.flac</div>
+        <div class="status">○ Pending</div>
+      </div>
+    </div>
+
+    <div class="btn-bar">
+      <button class="action-btn" onclick="masterAll()">Master All (10)</button>
+      <button class="action-btn primary" onclick="downloadZip()" disabled>↓ Download ZIP (0 selected)</button>
+      <button class="action-btn" onclick="clearSelection()">Clear</button>
+      <span class="count">2 selected</span>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top: 20px; color: #888; font-size: 13px;">
+Visual feedback: Selected files get red border + checkmark. Bulk actions in bottom bar.
+</p>

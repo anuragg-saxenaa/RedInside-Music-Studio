@@ -15,23 +15,35 @@ async function createTestProject(page: Page, name: string = 'E2E Test Project') 
   return response.json();
 }
 
-// Helper to get first available project
+// Helper to get first available project with lyrics (for general workflow tests)
 async function getFirstProject(page: Page) {
   const response = await page.request.get('http://localhost:3000/api/projects');
   const projects = await response.json();
+  // Prefer project with lyrics for workflow navigation tests
+  const withLyrics = projects.find((p: any) => p.current_lyrics_version > 0);
+  if (withLyrics) {
+    // Ensure it has a unique name or use lyrics version selector
+    const duplicates = projects.filter((p: any) => p.name === withLyrics.name);
+    if (duplicates.length === 1) return withLyrics;
+    // If duplicates exist, prefer the one with higher version
+    return duplicates.sort((a: any, b: any) => b.current_lyrics_version - a.current_lyrics_version)[0];
+  }
   return projects[0] || null;
 }
 
 // Helper to get a project that has music (so Export step is enabled)
+// Prefers projects with unique names to avoid test failures from duplicate names
 async function getProjectWithMusic(page: Page) {
   const response = await page.request.get('http://localhost:3000/api/projects');
   const projects = await response.json();
-  for (const project of projects) {
-    if (project.current_music_version > 0) {
-      return project;
-    }
-  }
-  return projects[0] || null;
+  // First try to find a project with music that has a unique name
+  const projectsWithMusic = projects.filter((p: any) => p.current_music_version > 0);
+  const uniqueName = projectsWithMusic.find((p: any) => {
+    return projectsWithMusic.filter((o: any) => o.name === p.name).length === 1;
+  });
+  if (uniqueName) return uniqueName;
+  // Fall back to first project with music
+  return projectsWithMusic[0] || null;
 }
 
 test.describe('Complete Music Creation Workflow E2E', () => {
@@ -71,8 +83,9 @@ test.describe('Complete Music Creation Workflow E2E', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    // Navigate to project with music
-    const projectCard = page.locator(`text=${project.name}`).first();
+    // Navigate to project with music - use selector that includes music version to avoid duplicates
+    const musicVersion = project.current_music_version;
+    const projectCard = page.locator('button').filter({ hasText: new RegExp(`Music v${musicVersion}`) }).first();
     if (await projectCard.isVisible({ timeout: 3000 })) {
       await projectCard.click();
     }
@@ -113,7 +126,9 @@ test.describe('Complete Music Creation Workflow E2E', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    const projectCard = page.locator(`text=${project.name}`).first();
+    // Use selector with music version to avoid duplicate name issues
+    const musicVersion = project.current_music_version;
+    const projectCard = page.locator('button').filter({ hasText: new RegExp(`Music v${musicVersion}`) }).first();
     if (await projectCard.isVisible({ timeout: 3000 })) {
       await projectCard.click();
     }
@@ -272,7 +287,7 @@ test.describe('Complete Music Creation Workflow E2E', () => {
 
   test('5. Download and Re-upload workflow', async ({ page }) => {
     // Get project with music
-    const project = await getFirstProject(page);
+    const project = await getProjectWithMusic(page);
     if (!project) {
       test.skip('No project available');
     }
@@ -298,19 +313,21 @@ test.describe('Complete Music Creation Workflow E2E', () => {
     const formData = new FormData();
     const blob = new Blob([buffer]);
     const file = new File([blob], 'test_download.mp3', { type: 'audio/mpeg' });
-    formData.append('file', file);
+    formData.append('files', file);
 
     const uploadRes = await page.request.post(`/api/mastering/upload/${project.id}`, {
       multipart: formData
     });
     expect(uploadRes.status()).toBe(200);
     const uploadData = await uploadRes.json();
-    expect(uploadData.id).toBeDefined();
+    expect(uploadData.files).toBeDefined();
+    expect(uploadData.files.length).toBeGreaterThan(0);
+    expect(uploadData.files[0].id).toBeDefined();
 
     // Process the uploaded file
     const processRes = await page.request.post('http://localhost:3000/api/mastering/process', {
       data: {
-        fileId: uploadData.id,
+        fileId: uploadData.files[0].id,
         projectId: project.id,
         preset: 'spotify',
         saveToProject: true
@@ -320,7 +337,7 @@ test.describe('Complete Music Creation Workflow E2E', () => {
   });
 
   test('6. Music Player - playback controls work', async ({ page }) => {
-    // Get project with music
+    // Get project with lyrics for workflow navigation
     const project = await getFirstProject(page);
     if (!project) {
       test.skip('No project available');
@@ -330,7 +347,15 @@ test.describe('Complete Music Creation Workflow E2E', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    const projectCard = page.locator(`text=${project.name}`).first();
+    // Use selector that includes lyrics version to avoid duplicate name issues
+    const lyricsVersion = project.current_lyrics_version;
+    const musicVersion = project.current_music_version;
+    let projectCard;
+    if (lyricsVersion > 0) {
+      projectCard = page.locator('button').filter({ hasText: new RegExp(`Lyrics v${lyricsVersion}`) }).first();
+    } else {
+      projectCard = page.locator(`text=${project.name}`).first();
+    }
     if (await projectCard.isVisible({ timeout: 3000 })) {
       await projectCard.click();
     }
@@ -484,8 +509,9 @@ test.describe('Frontend Component Rendering', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    // Navigate to project
-    const projectCard = page.locator(`text=${project.name}`).first();
+    // Navigate to project with music - use selector with music version to avoid duplicates
+    const musicVersion = project.current_music_version;
+    const projectCard = page.locator('button').filter({ hasText: new RegExp(`Music v${musicVersion}`) }).first();
     if (await projectCard.isVisible({ timeout: 3000 })) {
       await projectCard.click();
     }

@@ -1,0 +1,134 @@
+<h2>Apple Liquid Glass Mastering</h2>
+<p class="subtitle">Frosted glass with blur backdrop, translucent panels</p>
+
+<div class="mockup">
+  <div class="mockup-header">Spotify Mastering</div>
+  <div class="mockup-body">
+    <style>
+      body { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%); min-height: 100vh; margin: 0; padding: 20px; }
+      .glass-panel {
+        background: rgba(255,255,255,0.08);
+        backdrop-filter: blur(40px) saturate(180%);
+        -webkit-backdrop-filter: blur(40px) saturate(180%);
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 20px;
+        padding: 24px;
+      }
+      .file-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+      .glass-card {
+        background: rgba(255,255,255,0.05);
+        backdrop-filter: blur(20px) saturate(150%);
+        -webkit-backdrop-filter: blur(20px) saturate(150%);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 14px;
+        padding: 16px 20px;
+        cursor: pointer;
+        transition: all 300ms ease;
+        display: flex; align-items: center; gap: 14px;
+        min-width: 220px; flex: 1;
+      }
+      .glass-card:hover {
+        background: rgba(255,255,255,0.12);
+        border-color: rgba(255,255,255,0.25);
+        transform: translateY(-2px);
+      }
+      .glass-card.selected {
+        background: rgba(230,57,70,0.2);
+        border: 1px solid rgba(230,57,70,0.5);
+        box-shadow: 0 8px 32px rgba(230,57,70,0.15);
+      }
+      .icon-circle {
+        width: 40px; height: 40px; border-radius: 50%;
+        background: rgba(255,255,255,0.1);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 16px; color: #fff;
+      }
+      .glass-card.selected .icon-circle { background: rgba(230,57,70,0.4); }
+      .file-info { flex: 1; }
+      .file-name { font-size: 13px; color: rgba(255,255,255,0.9); font-weight: 500; margin-bottom: 4px; }
+      .file-meta { font-size: 11px; color: rgba(255,255,255,0.5); }
+      .check-badge {
+        width: 22px; height: 22px; border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.2);
+        display: flex; align-items: center; justify-content: center;
+        color: transparent; font-size: 11px;
+        transition: all 200ms;
+      }
+      .glass-card.selected .check-badge { background: #E63946; border-color: #E63946; color: white; }
+      .action-bar {
+        margin-top: 24px;
+        background: rgba(255,255,255,0.06);
+        backdrop-filter: blur(30px) saturate(160%);
+        -webkit-backdrop-filter: blur(30px) saturate(160%);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 16px;
+        padding: 16px 24px;
+        display: flex; align-items: center; gap: 14px;
+      }
+      .btn { padding: 12px 24px; border-radius: 12px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; }
+      .btn-primary { background: linear-gradient(135deg, #E63946, #B8232E); color: white; box-shadow: 0 4px 20px rgba(230,57,70,0.3); }
+      .btn-primary:disabled { opacity: 0.4; }
+      .btn-ghost { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.1); }
+      .spacer { flex: 1; }
+      .count { font-size: 12px; color: rgba(255,255,255,0.5); }
+      .count strong { color: #E63946; }
+    </style>
+
+    <div class="glass-panel">
+      <div class="file-grid">
+        <div class="glass-card" onclick="toggleSelect(this)">
+          <div class="icon-circle">♪</div>
+          <div class="file-info"><div class="file-name">01 - Draft Mix.mp3</div><div class="file-meta">3:24 • 320kbps</div></div>
+          <div class="check-badge">✓</div>
+        </div>
+        <div class="glass-card" onclick="toggleSelect(this)">
+          <div class="icon-circle">♪</div>
+          <div class="file-info"><div class="file-name">02 - Raw Vocals.wav</div><div class="file-meta">2:58 • WAV</div></div>
+          <div class="check-badge">✓</div>
+        </div>
+        <div class="glass-card selected" onclick="toggleSelect(this)">
+          <div class="icon-circle">♪</div>
+          <div class="file-info"><div class="file-name">03 - Hook Section.mp3</div><div class="file-meta">4:12 • 256kbps</div></div>
+          <div class="check-badge">✓</div>
+        </div>
+        <div class="glass-card" onclick="toggleSelect(this)">
+          <div class="icon-circle">♪</div>
+          <div class="file-info"><div class="file-name">04 - Chorus Final.wav</div><div class="file-meta">3:45 • FLAC</div></div>
+          <div class="check-badge">✓</div>
+        </div>
+        <div class="glass-card selected" onclick="toggleSelect(this)">
+          <div class="icon-circle">♪</div>
+          <div class="file-info"><div class="file-name">05 - Bridge Mix.mp3</div><div class="file-meta">2:30 • 320kbps</div></div>
+          <div class="check-badge">✓</div>
+        </div>
+        <div class="glass-card" onclick="toggleSelect(this)">
+          <div class="icon-circle">♪</div>
+          <div class="file-info"><div class="file-name">06 - Verse 2 Hook.wav</div><div class="file-meta">3:10 • WAV</div></div>
+          <div class="check-badge">✓</div>
+        </div>
+        <div class="glass-card" onclick="toggleSelect(this)">
+          <div class="icon-circle">♪</div>
+          <div class="file-info"><div class="file-name">07 - Outro Loop.mp3</div><div class="file-meta">1:55 • 128kbps</div></div>
+          <div class="check-badge">✓</div>
+        </div>
+        <div class="glass-card" onclick="toggleSelect(this)">
+          <div class="icon-circle">♪</div>
+          <div class="file-info"><div class="file-name">08 - Final Master.wav</div><div class="file-meta">4:02 • WAV</div></div>
+          <div class="check-badge">✓</div>
+        </div>
+      </div>
+
+      <div class="action-bar">
+        <button class="btn btn-primary">Master All</button>
+        <button class="btn btn-primary" disabled>Download ZIP</button>
+        <div class="spacer"></div>
+        <span class="count"><strong>2</strong> selected</span>
+        <button class="btn btn-ghost">Clear</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top: 16px; color: rgba(255,255,255,0.4); font-size: 12px;">
+Apple liquid glass - frosted blur, translucent cards, circular icon, smooth hover lift, gradient background.
+</p>
