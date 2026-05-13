@@ -27,7 +27,7 @@ export default function UploadZone({ projectId, onUploadComplete, multiple = fal
 
     for (const file of files) {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('files', file);
 
       try {
         const response = await fetch(`/api/mastering/upload/${projectId}`, {
@@ -37,7 +37,10 @@ export default function UploadZone({ projectId, onUploadComplete, multiple = fal
 
         if (response.ok) {
           const data = await response.json();
-          uploadedFiles.push({ id: data.id, filename: data.filename, originalPath: data.originalPath });
+          // Backend returns { files: [{ id, filename, originalPath, duration }] }
+          if (data.files && data.files.length > 0) {
+            uploadedFiles.push({ id: data.files[0].id, filename: data.files[0].filename, originalPath: data.files[0].originalPath });
+          }
           setUploadCount(prev => prev + 1);
         }
       } catch (err) {
