@@ -123,10 +123,32 @@ Located at `backend/src/modules/lyrics/presets.js`:
 - `custom`: User-defined prompt
 
 ## Testing
-- Node.js native test runner (`node --test`)
-- Tests skip in CI (`if (process.env.CI) return;`)
-- In-memory SQLite for model tests
-- Mocked MiniMax responses for unit tests
+
+**CRITICAL: Read `docs/TESTING_GUIDELINES.md` before writing any tests.**
+
+### Golden Rules
+- Backend tests MUST call real API endpoints via HTTP (not mocked)
+- Frontend E2E tests MUST exercise real browser + real backend
+- Never mock API boundaries - this hides integration bugs like `file` vs `files` field name mismatch
+
+### Quick Reference
+```bash
+# Backend integration tests (real API, real files)
+cd backend && npm test
+
+# Frontend E2E tests (real browser, real stack)
+cd frontend && npx playwright test
+
+# Both must pass before any commit
+```
+
+### What Counts as Real Tests
+- Backend `fetch('http://localhost:3000/api/...')` - REAL HTTP ✓
+- Playwright clicking UI elements - REAL BROWSER ✓
+- `jest.mock()` or `page.route()` - MOCK ✗
+
+### Legacy (Phase 1) Testing Status
+Tests listed as passing may use mocks. See `docs/TESTING_GUIDELINES.md` for mandatory practices.
 
 ## Key Files
 - `backend/src/server.js` - Express app entry point
