@@ -26,8 +26,8 @@ export default function AudioMasteringPanel({ projectId, allMusic: _allMusic }: 
   const [editingFile, setEditingFile] = useState<FileInfo | null>(null);
   const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null);
 
-  const handleUploadComplete = (fileId: string, filename: string, filePath?: string) => {
-    setFiles(prev => [...prev, { id: fileId, filename, status: 'idle', progress: 0, filePath }]);
+  const handleUploadComplete = (uploadedFiles: Array<{ id: string; filename: string; originalPath?: string }>) => {
+    setFiles(prev => [...prev, ...uploadedFiles.map(f => ({ id: f.id, filename: f.filename, status: 'idle' as const, progress: 0, filePath: f.originalPath }))]);
   };
 
   const masterFile = async (fileId: string) => {
@@ -415,7 +415,7 @@ export default function AudioMasteringPanel({ projectId, allMusic: _allMusic }: 
         {/* Upload Section */}
         <div className="upload-section">
           <div className="upload-label">Audio Input</div>
-          <UploadZone projectId={projectId} onUploadComplete={handleUploadComplete} dataTestId="upload-zone" />
+          <UploadZone projectId={projectId} onUploadComplete={handleUploadComplete} multiple={true} dataTestId="upload-zone" />
         </div>
 
         {/* File List */}

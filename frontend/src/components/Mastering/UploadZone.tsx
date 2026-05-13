@@ -2,45 +2,61 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 
 interface UploadZoneProps {
   projectId: string;
-  onUploadComplete: (fileId: string, filename: string, filePath?: string) => void;
+  onUploadComplete: (files: Array<{ id: string; filename: string; originalPath?: string }>) => void;
+  multiple?: boolean;
 }
 
 type UploadState = 'idle' | 'processing' | 'complete';
 
-export default function UploadZone({ projectId, onUploadComplete }: UploadZoneProps) {
+export default function UploadZone({ projectId, onUploadComplete, multiple = false }: UploadZoneProps) {
   const [dragging, setDragging] = useState(false);
   const [uploadState, setUploadState] = useState<UploadState>('idle');
+  const [uploadCount, setUploadCount] = useState(0);
+  const [totalUploads, setTotalUploads] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const animationRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleFile = useCallback(async (file: File) => {
-    if (!file) return;
+  const handleFiles = useCallback(async (files: File[]) => {
+    if (!files || files.length === 0) return;
 
     setUploadState('processing');
-    const formData = new FormData();
-    formData.append('file', file);
+    setTotalUploads(files.length);
+    setUploadCount(0);
 
-    try {
-      const response = await fetch(`/api/mastering/upload/${projectId}`, {
-        method: 'POST',
-        body: formData,
-      });
+    const uploadedFiles: Array<{ id: string; filename: string; originalPath?: string }> = [];
 
-      if (response.ok) {
-        const data = await response.json();
-        setUploadState('complete');
-        // Pass both id and filePath so AudioMasteringPanel can edit it
-        onUploadComplete(data.id, data.filename, data.originalPath);
-        // Reset to idle after showing complete state
-        animationRef.current = setTimeout(() => {
-          setUploadState('idle');
-        }, 2000);
-      } else {
-        setUploadState('idle');
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await fetch(`/api/mastering/upload/${projectId}`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          uploadedFiles.push({ id: data.id, filename: data.filename, originalPath: data.originalPath });
+          setUploadCount(prev => prev + 1);
+        }
+      } catch (err) {
+        console.error('Upload failed:', err);
       }
-    } catch (err) {
-      console.error('Upload failed:', err);
+    }
+
+    if (uploadedFiles.length > 0) {
+      setUploadState('complete');
+      onUploadComplete(uploadedFiles);
+      animationRef.current = setTimeout(() => {
+        setUploadState('idle');
+        setUploadCount(0);
+        setTotalUploads(0);
+      }, 2000);
+    } else {
       setUploadState('idle');
+      setUploadCount(0);
+      setTotalUploads(0);
     }
   }, [projectId, onUploadComplete]);
 
@@ -48,9 +64,13 @@ export default function UploadZone({ projectId, onUploadComplete }: UploadZonePr
     e.preventDefault();
     setDragging(false);
 
-    const file = e.dataTransfer.files[0];
-    await handleFile(file);
-  }, [handleFile]);
+    const files = Array.from(e.dataTransfer.files);
+    if (multiple) {
+      await handleFiles(files);
+    } else {
+      await handleFiles([files[0]]);
+    }
+  }, [handleFiles, multiple]);
 
   const handleClick = () => {
     if (uploadState !== 'processing') {
@@ -219,9 +239,10 @@ export default function UploadZone({ projectId, onUploadComplete }: UploadZonePr
         ref={inputRef}
         type="file"
         accept=".mp3,.wav,.flac,.m4a,.ogg"
+        multiple={multiple}
         onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) handleFile(file);
+          const files = e.target.files ? Array.from(e.target.files) : [];
+          if (files.length > 0) handleFiles(files);
         }}
         style={{ display: 'none' }}
       />
@@ -233,7 +254,7 @@ export default function UploadZone({ projectId, onUploadComplete }: UploadZonePr
           animation: uploadState === 'processing' ? 'led-pulse 0.5s ease-in-out infinite' : 'none',
         }} />
         <span style={statusTextStyle}>
-          {uploadState === 'processing' ? 'Processing' : uploadState === 'complete' ? 'Complete' : 'Ready'}
+          {uploadState === 'processing' ? `Processing ${uploadCount}/${totalUploads}` : uploadState === 'complete' ? 'Complete' : 'Ready'}
         </span>
         <div style={{
           ...ledStyle,
