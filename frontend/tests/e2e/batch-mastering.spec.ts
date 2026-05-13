@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import * as fs from 'fs';
 
 test('batch mastering - liquid glass file list UI', async ({ page }) => {
   // Use a project that already has music generated
@@ -100,4 +101,75 @@ test('upload zone accepts multiple files', async ({ page }) => {
   await page.waitForTimeout(3000);
   const fileItems = page.locator('[data-testid="file-item"]');
   await expect(fileItems).toHaveCount(3, { timeout: 10000 });
+});
+
+test('download ZIP of selected files', async ({ page }) => {
+  // Navigate to a project with music and open mastering panel
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+
+  // Wait for app to load
+  await page.waitForSelector('input[placeholder="Name your new track..."]', { timeout: 10000 });
+
+  // Find and click on a project with music
+  const projectWithMusic = page.locator('button').filter({ hasText: /^Music v\d+$/ }).first();
+  const projectWithMusicCount = await projectWithMusic.count();
+
+  if (projectWithMusicCount === 0) {
+    test.skip('No project with music found');
+    return;
+  }
+  await projectWithMusic.click();
+  await page.waitForTimeout(2000);
+
+  // Click Export button to open mastering panel
+  const exportBtn = page.locator('button:has-text("Export")');
+  if (await exportBtn.isDisabled()) {
+    test.skip('Export step is disabled - needs music generated first');
+    return;
+  }
+  await exportBtn.click();
+  await page.waitForTimeout(2000);
+
+  // Wait for mastering panel to load
+  const masteringPanel = page.locator('.mastering-panel');
+  await expect(masteringPanel).toBeVisible({ timeout: 10000 });
+
+  // Wait for file items to appear (if any from previous uploads)
+  await page.waitForTimeout(2000);
+
+  // Set up download listener before clicking
+  const downloadPromise = page.waitForEvent('download');
+
+  // Select first two files if available
+  const fileItems = page.locator('[data-testid="file-item"]');
+  const fileCount = await fileItems.count();
+
+  if (fileCount < 1) {
+    test.skip('No files available in track library for ZIP download test');
+    return;
+  }
+
+  // Click to select first file
+  await fileItems.first().click();
+  await page.waitForTimeout(300);
+
+  // If there's a second file, select it too
+  if (fileCount > 1) {
+    await fileItems.nth(1).click();
+    await page.waitForTimeout(300);
+  }
+
+  // Click Download ZIP button
+  const zipBtn = page.locator('button:has-text("Download ZIP")');
+  await expect(zipBtn).toBeVisible({ timeout: 5000 });
+  await zipBtn.click();
+
+  // Wait for download to start
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toContain('.zip');
+
+  // Save and verify file exists
+  const path = await download.path();
+  expect(fs.existsSync(path)).toBeTruthy();
 });
