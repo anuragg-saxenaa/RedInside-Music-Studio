@@ -17,17 +17,18 @@ const FIXTURE_PATH = path.join(__dirname, '../fixtures/test-audio.mp3');
 /**
  * Creates a project with music via seed endpoint (no MiniMax needed)
  */
-async function createProjectWithMusic(page: Page): Promise<{ projectId: string }> {
+async function createProjectWithMusic(page: Page): Promise<{ projectId: string; projectName: string }> {
+  const projectName = `Mastering Test ${Date.now()}`;
   const res = await page.request.post('http://localhost:3000/api/test/seed-project', {
-    data: { name: `Mastering Test ${Date.now()}`, lyrics: true, music: true }
+    data: { name: projectName, lyrics: true, music: true }
   });
 
   expect(res.status()).toBe(200);
   const { project } = await res.json();
   expect(project.id).toBeDefined();
 
-  console.log(`✓ Created test project: ${project.id}`);
-  return { projectId: project.id };
+  console.log(`✓ Created test project: ${project.id} (${projectName})`);
+  return { projectId: project.id, projectName };
 }
 
 test.describe('Mastering Full Flow - No Skips', () => {
@@ -43,27 +44,16 @@ test.describe('Mastering Full Flow - No Skips', () => {
 
   test('1. Create project → go to Export → upload file', async ({ page }) => {
     // Create project with music via seed
-    const { projectId } = await createProjectWithMusic(page);
+    const { projectName } = await createProjectWithMusic(page);
 
     // Reload page to pick up new project
     await page.reload();
     await page.waitForLoadState('networkidle');
 
-    // Find and click our project
-    const projectCard = page.locator(`button:has-text("${projectId.substring(0, 8)}")`).first();
-    const exists = await projectCard.isVisible().catch(() => false);
-
-    if (!exists) {
-      // Try finding any project with music
-      const anyProject = page.locator('button').filter({ hasText: /Test Mastering/ }).first();
-      if (await anyProject.isVisible().catch(() => false)) {
-        await anyProject.click();
-      } else {
-        throw new Error('Could not find test project');
-      }
-    } else {
-      await projectCard.click();
-    }
+    // Find and click our project - look for name containing "Mastering Test"
+    const projectCard = page.locator('button').filter({ hasText: /Mastering Test/ }).first();
+    await expect(projectCard).toBeVisible({ timeout: 5000 });
+    await projectCard.click();
 
     await page.waitForTimeout(1500);
 
@@ -89,16 +79,14 @@ test.describe('Mastering Full Flow - No Skips', () => {
   });
 
   test('2. Upload file → verify in list', async ({ page }) => {
-    const { projectId } = await createProjectWithMusic(page);
+    await createProjectWithMusic(page);
 
     await page.reload();
     await page.waitForLoadState('networkidle');
 
-    // Navigate to project with Export
-    const projectCard = page.locator(`button:has-text("${projectId.substring(0, 8)}")`).first();
-    if (await projectCard.isVisible().catch(() => false)) {
-      await projectCard.click();
-    }
+    // Navigate to project
+    const projectCard = page.locator('button').filter({ hasText: /Mastering Test/ }).first();
+    await projectCard.click();
     await page.waitForTimeout(1500);
 
     const exportBtn = page.locator('button:has-text("Export")');
@@ -120,13 +108,13 @@ test.describe('Mastering Full Flow - No Skips', () => {
   });
 
   test('3. Upload → Master All → verify mastered', async ({ page }) => {
-    const { projectId } = await createProjectWithMusic(page);
+    await createProjectWithMusic(page);
 
     await page.reload();
     await page.waitForLoadState('networkidle');
 
     // Navigate to Export
-    const projectCard = page.locator(`button:has-text("${projectId.substring(0, 8)}")`).first();
+    const projectCard = page.locator('button').filter({ hasText: /Mastering Test/ }).first();
     if (await projectCard.isVisible().catch(() => false)) {
       await projectCard.click();
     }
@@ -152,7 +140,7 @@ test.describe('Mastering Full Flow - No Skips', () => {
     await masterAllBtn.click();
 
     // Wait for mastering to complete (FFmpeg takes time)
-    const masteredItem = page.locator('.tag-complete, [class*="mastered"], text="Mastered"');
+    const masteredItem = page.locator('.tag-complete');
     const masteredAppeared = await masteredItem.waitFor({ state: 'visible', timeout: 180000 }).then(() => true).catch(() => false);
 
     expect(masteredAppeared, 'File should show Mastered status after processing').toBe(true);
@@ -160,13 +148,13 @@ test.describe('Mastering Full Flow - No Skips', () => {
   });
 
   test('4. Upload → Master → Select → Save to Music', async ({ page }) => {
-    const { projectId } = await createProjectWithMusic(page);
+    await createProjectWithMusic(page);
 
     await page.reload();
     await page.waitForLoadState('networkidle');
 
     // Navigate to Export
-    const projectCard = page.locator(`button:has-text("${projectId.substring(0, 8)}")`).first();
+    const projectCard = page.locator('button').filter({ hasText: /Mastering Test/ }).first();
     if (await projectCard.isVisible().catch(() => false)) {
       await projectCard.click();
     }
@@ -192,8 +180,8 @@ test.describe('Mastering Full Flow - No Skips', () => {
     await masterAllBtn.click();
 
     // Wait for mastered
-    const masteredItem = page.locator('.tag-complete, [class*="mastered"], text="Mastered"');
-    await masteredItem.waitFor({ state: 'visible', timeout: 180000 }).catch(() => null);
+    const masteredItem2 = page.locator('.tag-complete');
+    await masteredItem2.waitFor({ state: 'visible', timeout: 180000 }).catch(() => null);
 
     // Select file
     await fileItem.click();
@@ -218,13 +206,13 @@ test.describe('Mastering Full Flow - No Skips', () => {
   });
 
   test('5. ZIP download flow', async ({ page }) => {
-    const { projectId } = await createProjectWithMusic(page);
+    await createProjectWithMusic(page);
 
     await page.reload();
     await page.waitForLoadState('networkidle');
 
     // Navigate to Export
-    const projectCard = page.locator(`button:has-text("${projectId.substring(0, 8)}")`).first();
+    const projectCard = page.locator('button').filter({ hasText: /Mastering Test/ }).first();
     if (await projectCard.isVisible().catch(() => false)) {
       await projectCard.click();
     }
@@ -252,7 +240,7 @@ test.describe('Mastering Full Flow - No Skips', () => {
     await page.waitForTimeout(300);
 
     // Verify selection
-    const selectionInfo = page.locator('text="2 selected"');
+    const selectionInfo = page.locator('.stat:has-text("2")');
     await expect(selectionInfo).toBeVisible({ timeout: 3000 });
 
     // Set up download listener

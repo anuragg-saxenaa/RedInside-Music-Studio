@@ -120,7 +120,7 @@
 |---------|------|------|--------|
 | Timeline View | Horizontal scroll | `TimelineView.tsx` | ✅ DONE |
 | Grid View | Card per track | `GridView.tsx` | ✅ DONE |
-| Toggle button | Switch views | Not in AudioEditorPanel | ❌ MISSING |
+| Toggle button | Switch views | `AudioEditorPanel.tsx:307` | ✅ DONE |
 
 #### 3.5 Player Polish
 | Feature | Spec | Code | Status |
@@ -226,7 +226,7 @@
 | WaveformDisplay | 7 features | 7/7 | 100% |
 | AudioEditorPanel | 9 features | 9/9 | 100% |
 | AudioUpload | 6 features | 6/6 | 100% |
-| View toggle | Timeline/Grid | 1/2 | 50% |
+| View toggle | Timeline/Grid | 2/2 | 100% |
 | Player polish | 5 features | 5/5 | 100% |
 | Batch mastering UI | 10 features | 10/10 | 100% |
 
@@ -234,7 +234,7 @@
 | Category | Items | Complete | % |
 |----------|-------|----------|---|
 | Backend integration | 26 Audio + 15 Medley | 41/41 | 100% |
-| Frontend E2E | 27 passing | 27/39 | 69% |
+| Frontend E2E | 29 passing | 29/39 | 74% |
 | Missing E2E | trim/speed/volume playback | 0/8 | 0% |
 
 ---
@@ -242,16 +242,16 @@
 ## GAPS FOUND
 
 ### Critical Gaps
-1. **View toggle not in AudioEditorPanel** - Timeline/Grid exists but no toggle button in editor
-2. **Cover mode integration incomplete** - AudioUpload exists but not wired to cover mode
-3. **No E2E tests for audio playback** - 0 tests for trim/speed/volume controls
-4. **E2E test navigation wrong** - Tests use `/project/:id/export` but app uses SPA routing
+1. **Cover mode integration incomplete** - AudioUpload exists but not wired to cover mode
+2. **No E2E tests for audio playback** - 0 tests for trim/speed/volume controls
+3. **E2E test navigation wrong** - Tests use `/project/:id/export` but app uses SPA routing
 
 ### Fixed in This Session
-1. ✅ File item click → opens AudioEditorPanel (double-click + edit button)
-2. ✅ Single playback constraint (stopAll)
-3. ✅ Seek bar click-to-seek
-4. ✅ Master Selected only processes selected
+1. ✅ View toggle button added to AudioEditorPanel
+2. ✅ File item click → opens AudioEditorPanel (double-click + edit button)
+3. ✅ Single playback constraint (stopAll)
+4. ✅ Seek bar click-to-seek
+5. ✅ Master Selected only processes selected
 
 ---
 
@@ -260,10 +260,10 @@
 | Layer | Complete | Total | % |
 |-------|----------|-------|---|
 | Backend code | 41 | 41 | 100% |
-| Frontend code | 47 | 49 | 96% |
+| Frontend code | 48 | 49 | 98% |
 | Backend tests | 135 | 135 | 100% |
 | Frontend E2E | 27 | 39 | 69% |
-| **TOTAL** | **250** | **264** | **95%** |
+| **TOTAL** | **251** | **264** | **95%** |
 
 **Status: 95% complete - production ready with minor test gaps**
 
@@ -271,7 +271,7 @@
 
 ## TODO
 
-1. Add view toggle button to AudioEditorPanel
+1. ~~Add view toggle button to AudioEditorPanel~~ ✅ DONE
 2. Wire AudioUpload to cover mode
 3. Fix E2E test navigation to use SPA flow
 4. Add E2E tests for trim/speed/volume playback

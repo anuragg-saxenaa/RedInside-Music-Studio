@@ -4,6 +4,7 @@
  */
 import { MusicModel } from '../../database/models/music.model.js';
 import { ProjectModel } from '../../database/models/project.model.js';
+import storage from '../../utils/storage.util.js';
 import path from 'path';
 import fs from 'fs';
 
@@ -19,11 +20,10 @@ export const TestRoutes = [
         const project = await ProjectModel.create({ name });
 
         if (lyrics) {
-          // Create lyrics record
-          const lyricsDir = path.join(process.cwd(), 'storage/projects', project.id, 'generations/lyrics');
-          fs.mkdirSync(lyricsDir, { recursive: true });
-          const lyricsFile = path.join(lyricsDir, 'v1.txt');
-          fs.writeFileSync(lyricsFile, 'Test lyrics content for E2E testing');
+          // Create project directories
+          storage.createProjectDirs(project.id);
+          const lyricsFilePath = storage.getLyricsFilePath(project.id, 1);
+          fs.writeFileSync(lyricsFilePath, JSON.stringify({ content: 'Test lyrics content for E2E testing', style: 'hinglish-urban' }));
 
           // Update project with lyrics version
           await ProjectModel.update(project.id, {
@@ -32,15 +32,14 @@ export const TestRoutes = [
         }
 
         if (music) {
-          // Create music directory
-          const musicDir = path.join(process.cwd(), 'storage/projects', project.id, 'generations/music');
-          fs.mkdirSync(musicDir, { recursive: true });
+          // Create project directories using storage utility
+          storage.createProjectDirs(project.id);
 
-          // Copy test fixture as music file
+          // Copy test fixture as music file using storage paths
           const fixtureSrc = path.join(process.cwd(), 'tests/fixtures/test-audio.mp3');
-          const fixtureDest = path.join(musicDir, 'v1.mp3');
+          const musicFilePath = storage.getMusicFilePath(project.id, 1, 'processed');
           if (fs.existsSync(fixtureSrc)) {
-            fs.copyFileSync(fixtureSrc, fixtureDest);
+            fs.copyFileSync(fixtureSrc, musicFilePath);
           }
 
           // Create music record
@@ -48,8 +47,8 @@ export const TestRoutes = [
             projectId: project.id,
             version: 1,
             title: 'Test Music v1',
-            originalFilePath: fixtureDest,
-            processedFilePath: fixtureDest,
+            originalFilePath: musicFilePath,
+            processedFilePath: musicFilePath,
             model: 'test',
             durationSeconds: 30,
           });
@@ -75,24 +74,27 @@ export const TestRoutes = [
         const { durationSeconds = 30 } = req.body;
 
         // Check project exists
-        const project = await ProjectModel.get(projectId);
+        const project = await ProjectModel.findById(projectId);
         if (!project) {
           return res.status(404).json({ error: 'Project not found' });
         }
 
+        // Create project directories using storage utility
+        storage.createProjectDirs(projectId);
+
         // Create music directory
-        const musicDir = path.join(process.cwd(), 'storage/projects', projectId, 'generations/music');
+        const musicDir = storage.getMusicDir(projectId);
         fs.mkdirSync(musicDir, { recursive: true });
 
         // Get next version
         const existingMusic = await MusicModel.getProjectMusic(projectId);
         const version = existingMusic.length > 0 ? Math.max(...existingMusic.map(m => m.version)) + 1 : 1;
 
-        // Copy test fixture as music file
+        // Copy test fixture as music file using storage paths
         const fixtureSrc = path.join(process.cwd(), 'tests/fixtures/test-audio.mp3');
-        const fixtureDest = path.join(musicDir, `v${version}.mp3`);
+        const musicFilePath = storage.getMusicFilePath(projectId, version, 'processed');
         if (fs.existsSync(fixtureSrc)) {
-          fs.copyFileSync(fixtureSrc, fixtureDest);
+          fs.copyFileSync(fixtureSrc, musicFilePath);
         }
 
         // Create music record
@@ -100,8 +102,8 @@ export const TestRoutes = [
           projectId,
           version,
           title: `Test Music v${version}`,
-          originalFilePath: fixtureDest,
-          processedFilePath: fixtureDest,
+          originalFilePath: musicFilePath,
+          processedFilePath: musicFilePath,
           model: 'test',
           durationSeconds,
         });

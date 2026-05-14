@@ -494,6 +494,9 @@ export default function AudioMasteringPanel({ projectId, allMusic: _allMusic }: 
         <div className="glass-toolbar">
           <span className="toolbar-title">Track Library</span>
           <span className="toolbar-hint">Click to select | Shift+Click for range</span>
+          <div style={{ marginLeft: 'auto' }}>
+            <VUMeter level={vuLevel} isActive={files.some(f => f.status === 'processing')} />
+          </div>
         </div>
 
         {/* Upload Section */}

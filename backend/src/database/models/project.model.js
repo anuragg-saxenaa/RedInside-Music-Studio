@@ -51,6 +51,14 @@ export const ProjectModel = {
         updates.push('workflow_mode = ?');
         values.push(data.workflowMode);
       }
+      if (data.current_lyrics_version !== undefined) {
+        updates.push('current_lyrics_version = ?');
+        values.push(data.current_lyrics_version);
+      }
+      if (data.current_music_version !== undefined) {
+        updates.push('current_music_version = ?');
+        values.push(data.current_music_version);
+      }
 
       // Check if there are any updates to apply
       if (updates.length === 0) {
