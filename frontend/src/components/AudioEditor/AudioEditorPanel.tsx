@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import TrackLane from './TrackLane';
 import ControlsSidebar, { AudioOperations } from './ControlsSidebar';
+import { useSharedAudio } from '../../contexts/SharedAudioContext';
 
 export interface AudioEditorPanelProps {
   projectId: string
@@ -43,6 +44,9 @@ export default function AudioEditorPanel({
   const animationRef = useRef<number>(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+
+  // Single playback constraint - stop other audio when this plays
+  const { stopAll } = useSharedAudio();
 
   // Clamp volume to prevent page issues (100% max)
   const safeVolume = Math.min(1, Math.max(0, operations.volume));
@@ -95,8 +99,8 @@ export default function AudioEditorPanel({
       const t = audioRef.current.currentTime;
       setCurrentTime(t);
 
-      // Stop at trim end
-      if (t >= operations.trimEnd) {
+      // Stop at trim end (only after we've actually started playing into the region)
+      if (t > operations.trimEnd && operations.trimEnd > 0 && t > operations.trimStart) {
         audioRef.current.pause();
         audioRef.current.currentTime = operations.trimStart;
         setIsPlaying(false);
@@ -121,10 +125,13 @@ export default function AudioEditorPanel({
       return;
     }
 
+    // Stop any other playing audio first (single playback constraint)
+    stopAll();
+
     // Start at trim start
     audio.currentTime = operations.trimStart;
     audio.playbackRate = operations.speed;
-    audio.volume = operations.volume;
+    audio.volume = safeVolume;
     audio.play();
     setIsPlaying(true);
   };
@@ -338,7 +345,15 @@ export default function AudioEditorPanel({
         </div>
 
         <div style={styles.progressSection}>
-          <div style={styles.progressBar}>
+          <div style={styles.progressBar} onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const percent = (e.clientX - rect.left) / rect.width;
+            const newTime = percent * duration;
+            setCurrentTime(newTime);
+            if (audioRef.current) {
+              audioRef.current.currentTime = newTime;
+            }
+          }}>
             <div style={{
               ...styles.progressFill,
               width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`

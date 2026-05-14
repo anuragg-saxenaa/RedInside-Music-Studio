@@ -4,6 +4,7 @@ interface SharedAudioState {
   activeAudioRef: React.MutableRefObject<HTMLAudioElement | null>;
   play: (audioRef: React.MutableRefObject<HTMLAudioElement | null>, audioUrl: string) => void;
   pause: () => void;
+  stopAll: () => void;
   activeUrl: string | null;
 }
 
@@ -37,8 +38,18 @@ export function SharedAudioProvider({ children }: { children: React.ReactNode })
     }
   }, []);
 
+  // Stop ALL audio elements on the page (for single playback constraint)
+  const stopAll = useCallback(() => {
+    document.querySelectorAll('audio').forEach(audio => {
+      audio.pause();
+      audio.currentTime = 0;
+    });
+    activeAudioRef.current = null;
+    setActiveUrl(null);
+  }, []);
+
   return (
-    <SharedAudioContext.Provider value={{ activeAudioRef, play, pause, activeUrl }}>
+    <SharedAudioContext.Provider value={{ activeAudioRef, play, pause, stopAll, activeUrl }}>
       {children}
     </SharedAudioContext.Provider>
   );

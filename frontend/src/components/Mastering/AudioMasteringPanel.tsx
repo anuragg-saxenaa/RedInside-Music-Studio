@@ -67,6 +67,13 @@ export default function AudioMasteringPanel({ projectId, allMusic: _allMusic }: 
     }
   };
 
+  const masterSelected = async () => {
+    const selectedIdle = files.filter(f => f.selected && (f.status === 'idle' || f.status === 'error'));
+    for (const file of selectedIdle) {
+      await masterFile(file.id);
+    }
+  };
+
   const masterAll = async () => {
     const idleFiles = files.filter(f => f.status === 'idle' || f.status === 'error');
     for (const file of idleFiles) {
@@ -102,13 +109,55 @@ export default function AudioMasteringPanel({ projectId, allMusic: _allMusic }: 
 
   const saveToMusic = async () => {
     const selectedFiles = files.filter(f => f.selected && f.status === 'complete');
-    // For now just show selection count in alert
-    alert(`Saving ${selectedFiles.length} mastered files to project music...`);
+    if (selectedFiles.length === 0) return;
+
+    try {
+      const response = await fetch('/api/mastering/save-to-music', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId,
+          fileIds: selectedFiles.map(f => f.id)
+        })
+      });
+
+      if (!response.ok) throw new Error('Save failed');
+
+      const { saved } = await response.json();
+      alert(`Saved ${saved.length} mastered files to Music`);
+    } catch (error) {
+      console.error('Save to music failed:', error);
+      alert('Failed to save to Music');
+    }
   };
 
   const downloadZip = async () => {
     const selectedFiles = files.filter(f => f.selected);
-    alert(`Downloading ${selectedFiles.length} files as ZIP...`);
+    if (selectedFiles.length === 0) return;
+
+    const fileIds = selectedFiles.map(f => f.id).join(',');
+    const url = `/api/mastering/zip?projectId=${projectId}&fileIds=${fileIds}`;
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Download failed');
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `mastered-tracks-${Date.now()}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('ZIP download failed:', error);
+    }
+  };
+
+  const handleEditFile = (file: FileInfo) => {
+    setEditingFile(file);
   };
 
   const removeFile = (fileId: string) => {
@@ -403,6 +452,41 @@ export default function AudioMasteringPanel({ projectId, allMusic: _allMusic }: 
           0%, 100% { opacity: 1; }
           50% { opacity: 0.5; }
         }
+        .mastering-panel .edit-btn {
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          border: 1px solid rgba(255,255,255,0.15);
+          background: rgba(255,255,255,0.05);
+          color: rgba(255,255,255,0.4);
+          font-size: 14px;
+          cursor: pointer;
+          display: none;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          transition: all 200ms;
+        }
+        .mastering-panel .glass-row:hover .edit-btn {
+          display: flex;
+        }
+        .mastering-panel .edit-btn:hover {
+          background: rgba(230,57,70,0.2);
+          border-color: rgba(230,57,70,0.5);
+          color: #E63946;
+        }
+        .mastering-panel .btn-secondary {
+          background: rgba(255,255,255,0.08);
+          color: rgba(255,255,255,0.7);
+          border: 1px solid rgba(255,255,255,0.1);
+        }
+        .mastering-panel .btn-secondary:hover {
+          background: rgba(255,255,255,0.12);
+        }
+        .mastering-panel .btn-secondary:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
       `}</style>
 
       <div className="mastering-panel">
@@ -429,6 +513,7 @@ export default function AudioMasteringPanel({ projectId, allMusic: _allMusic }: 
                 className={`glass-row ${file.selected ? 'selected' : ''}`}
                 data-testid="file-item"
                 onClick={(e) => toggleSelection(index, e.shiftKey)}
+                onDoubleClick={() => handleEditFile(file)}
               >
                 <div className="icon-circle">♪</div>
                 <div className="waveform">
@@ -446,6 +531,13 @@ export default function AudioMasteringPanel({ projectId, allMusic: _allMusic }: 
                 </div>
                 <span className={`tag ${statusTag.class}`}>{statusTag.label}</span>
                 <div className="check-circle">{file.selected && '✓'}</div>
+                <button
+                  className="edit-btn"
+                  onClick={(e) => { e.stopPropagation(); handleEditFile(file); }}
+                  title="Edit file"
+                >
+                  ✎
+                </button>
               </div>
             );
           })}
@@ -455,6 +547,13 @@ export default function AudioMasteringPanel({ projectId, allMusic: _allMusic }: 
         <div className="action-bar">
           <button
             className="btn btn-primary"
+            onClick={masterSelected}
+            disabled={!files.some(f => f.selected && (f.status === 'idle' || f.status === 'error'))}
+          >
+            Master Selected
+          </button>
+          <button
+            className="btn btn-secondary"
             onClick={masterAll}
             disabled={files.length === 0 || files.every(f => f.status === 'processing' || f.status === 'complete')}
           >
