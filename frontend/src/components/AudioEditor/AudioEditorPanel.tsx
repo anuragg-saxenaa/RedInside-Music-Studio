@@ -1,12 +1,18 @@
 import { useState, useRef, useEffect } from 'react';
 import TrackLane from './TrackLane';
+import TimelineView from './TimelineView';
+import GridView from './GridView';
 import ControlsSidebar, { AudioOperations } from './ControlsSidebar';
 import { useSharedAudio } from '../../contexts/SharedAudioContext';
+
+type ViewMode = 'timeline' | 'grid';
 
 export interface AudioEditorPanelProps {
   projectId: string
   audioUrl: string
   trackId: string
+  mode?: 'single' | 'medley'
+  tracks?: any[]
   onExport?: (result: { filePath: string, duration: number }) => void
 }
 
@@ -30,6 +36,8 @@ const defaultOperations: AudioOperations = {
 export default function AudioEditorPanel({
   audioUrl,
   trackId,
+  mode = 'single',
+  tracks = [],
   onExport,
 }: AudioEditorPanelProps) {
   const [duration, setDuration] = useState(0);
@@ -39,11 +47,14 @@ export default function AudioEditorPanel({
   });
   const [isExporting, setIsExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState<{type: 'success' | 'error' | 'processing', text: string} | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('timeline');
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const animationRef = useRef<number>(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+
+  const isMedley = mode === 'medley';
 
   // Single playback constraint - stop other audio when this plays
   const { stopAll } = useSharedAudio();
@@ -288,22 +299,66 @@ export default function AudioEditorPanel({
       {/* Main area */}
       <div style={styles.mainArea}>
         <div style={styles.waveformSection}>
-          <div style={styles.sectionLabel}>WAVEFORM</div>
-          <TrackLane
-            audioUrl={audioUrl}
-            trackId={trackId}
-            trimStart={operations.trimStart}
-            trimEnd={operations.trimEnd}
-            duration={duration}
-            isSelected={true}
-            isPlaying={isPlaying}
-            onSeek={(t) => {
-              setCurrentTime(t);
-              if (audioRef.current) audioRef.current.currentTime = t;
-            }}
-            onTrimChange={handleTrimChange}
-            onPlayPause={handlePreview}
-          />
+          <div style={styles.sectionHeader}>
+            <div style={styles.sectionLabel}>{isMedley ? 'MEDLEY' : 'WAVEFORM'}</div>
+            {isMedley && (
+              <div style={styles.viewToggle}>
+                <button
+                  onClick={() => setViewMode('timeline')}
+                  style={{
+                    ...styles.viewToggleBtn,
+                    background: viewMode === 'timeline' ? '#E63946' : '#2A2A2A',
+                  }}
+                >
+                  ≡
+                </button>
+                <button
+                  onClick={() => setViewMode('grid')}
+                  style={{
+                    ...styles.viewToggleBtn,
+                    background: viewMode === 'grid' ? '#E63946' : '#2A2A2A',
+                  }}
+                >
+                  ⊞
+                </button>
+              </div>
+            )}
+          </div>
+          {isMedley ? (
+            viewMode === 'grid' ? (
+              <GridView
+                tracks={tracks}
+                selectedTrackId={trackId}
+                onSelectTrack={(id) => {}}
+                onReorderTracks={(from, to) => {}}
+                onUpdateTrack={(id, updates) => {}}
+              />
+            ) : (
+              <TimelineView
+                tracks={tracks}
+                selectedTrackId={trackId}
+                onSelectTrack={(id) => {}}
+                onReorderTracks={(from, to) => {}}
+                onUpdateTrack={(id, updates) => {}}
+              />
+            )
+          ) : (
+            <TrackLane
+              audioUrl={audioUrl}
+              trackId={trackId}
+              trimStart={operations.trimStart}
+              trimEnd={operations.trimEnd}
+              duration={duration}
+              isSelected={true}
+              isPlaying={isPlaying}
+              onSeek={(t) => {
+                setCurrentTime(t);
+                if (audioRef.current) audioRef.current.currentTime = t;
+              }}
+              onTrimChange={handleTrimChange}
+              onPlayPause={handlePreview}
+            />
+          )}
         </div>
 
         <ControlsSidebar
@@ -490,6 +545,28 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 10,
     letterSpacing: 2,
     textTransform: 'uppercase',
+  },
+  sectionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  viewToggle: {
+    display: 'flex',
+    gap: 4,
+  },
+  viewToggleBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    border: 'none',
+    color: '#fff',
+    fontSize: 14,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   consoleBar: {
     background: 'linear-gradient(180deg, #141414 0%, #0a0a0a 100%)',
