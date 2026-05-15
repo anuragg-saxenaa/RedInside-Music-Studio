@@ -280,12 +280,12 @@ test.describe('Audio Backend - API Contract Tests', () => {
     expect(res.status()).toBe(200);
     const { project } = await res.json();
 
-    // Get music file URL
-    const musicRes = await page.request.get(`http://localhost:3000/api/projects/${project.id}`);
+    // Get music file URL - fetch from music endpoint, not project
+    const musicRes = await page.request.get(`http://localhost:3000/api/projects/${project.id}/music`);
     expect(musicRes.status()).toBe(200);
-    const projectData = await musicRes.json();
+    const musicList = await musicRes.json();
 
-    const musicId = projectData.music?.[0]?.id;
+    const musicId = musicList[0]?.id;
     if (!musicId) {
       throw new Error('No music found in project');
     }
