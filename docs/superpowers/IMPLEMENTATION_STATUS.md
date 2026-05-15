@@ -234,7 +234,7 @@
 | Category | Items | Complete | % |
 |----------|-------|----------|---|
 | Backend integration | 26 Audio + 15 Medley | 41/41 | 100% |
-| Frontend E2E | 29 passing | 29/39 | 74% |
+| Frontend E2E | 29 passing | 29/43 | 67% |
 | Missing E2E | trim/speed/volume playback | 0/8 | 0% |
 
 ---

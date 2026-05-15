@@ -45,10 +45,9 @@ test.describe('AudioProcessor Chain E2E - Full Integration', () => {
     await fileInput.setInputFiles(FIXTURE_PATH);
     await page.waitForTimeout(2000);
 
-    // Click EDIT button
-    const editButton = page.locator('button:has-text("EDIT")').last();
-    await editButton.waitFor({ state: 'visible', timeout: 5000 });
-    await editButton.click();
+    // Double-click file item to open editor
+    const fileItem = page.locator('[data-testid="file-item"]').last();
+    await fileItem.dblclick();
     await page.waitForTimeout(1000);
 
     // Verify AudioEditorPanel loaded
@@ -118,8 +117,8 @@ test.describe('AudioProcessor Chain E2E - Full Integration', () => {
     await fileInput.setInputFiles(FIXTURE_PATH);
     await page.waitForTimeout(2000);
 
-    // Click EDIT
-    const editButton = page.locator('button:has-text("EDIT")').last();
+    // Click EDIT (pencil icon)
+    const editButton = page.locator('button.edit-btn').last();
     await editButton.waitFor({ state: 'visible', timeout: 5000 });
     await editButton.click();
     await page.waitForTimeout(1000);
@@ -179,8 +178,8 @@ test.describe('AudioProcessor Chain E2E - Full Integration', () => {
     await fileInput.setInputFiles(FIXTURE_PATH);
     await page.waitForTimeout(2000);
 
-    // Click EDIT
-    const editButton = page.locator('button:has-text("EDIT")').last();
+    // Click EDIT (pencil icon)
+    const editButton = page.locator('button.edit-btn').last();
     await editButton.waitFor({ state: 'visible', timeout: 5000 });
     await editButton.click();
     await page.waitForTimeout(1000);

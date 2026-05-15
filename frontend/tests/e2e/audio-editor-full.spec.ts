@@ -52,13 +52,10 @@ test.describe('Audio Editor Full Flow E2E', () => {
     // Wait for upload to complete
     await page.waitForTimeout(2000);
 
-    // Click EDIT button on the uploaded file (exact match to avoid matching "Edit" in workflow stepper)
-    const editButton = page.locator('button:has-text("EDIT")').last();
-    await editButton.waitFor({ state: 'visible', timeout: 5000 });
-    await editButton.click();
-
-    // Wait for AudioEditorPanel to load
-    await page.waitForTimeout(1000);
+    // Double-click file item to open editor
+    const fileItem = page.locator('[data-testid="file-item"]').last();
+    await fileItem.dblclick();
+    await page.waitForTimeout(1500);
 
     // Check AudioEditorPanel is visible
     const audioEditor = page.locator('text=Audio Editor');
@@ -141,13 +138,10 @@ test.describe('Audio Editor Full Flow E2E', () => {
     await fileInput.setInputFiles(FIXTURE_PATH);
     await page.waitForTimeout(2000);
 
-    // Click EDIT (exact match to avoid matching "Edit" in workflow stepper)
-    const editButton = page.locator('button:has-text("EDIT")').last();
-    await editButton.waitFor({ state: 'visible', timeout: 5000 });
-    await editButton.click();
-
-    // Wait for editor
-    await page.waitForTimeout(1000);
+    // Double-click file item to open editor
+    const fileItem = page.locator('[data-testid="file-item"]').last();
+    await fileItem.dblclick();
+    await page.waitForTimeout(1500);
 
     // Check for controls (now uppercase, use .first() to avoid strict mode)
     const trimSection = page.locator('text=TRIM').first();
