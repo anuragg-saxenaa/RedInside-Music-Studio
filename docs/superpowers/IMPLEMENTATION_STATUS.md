@@ -206,11 +206,24 @@ Result: 40/43 PASSING (3 skipped - legitimate preconditions)
 
 ## GAPS FOUND
 
-### Known Issues
-1. **3 E2E tests skip when no mastered files exist in project** - ZIP download test skips if no files available to download. This is correct behavior - test verifies preconditions are met.
-2. **FFmpeg may be unavailable in some environments** - Mastering tests timeout gracefully when FFmpeg not present
+### User-Reported Bugs (CONFIRMED REAL - tests don't cover)
+1. **Seek bar doesn't work** - clicks reset to beginning (only visibility tested, not behavior)
+2. **Music Player + AudioEditor play simultaneously** - not synchronized (only single-component tested)
+3. **Music tab Generate Music button** - may not respond (requires MiniMax API, not E2E tested)
+4. **Delete music** - Feature does NOT exist (no DELETE endpoint, no UI button)
 
-### Fixed in Session
+### Known Gaps (NOT TESTED - require external API or complex setup)
+1. **Music generation** - MiniMax API required, tests skip when unavailable
+2. **Cover mode upload** - UI exists but not E2E tested
+3. **Real-time preview of effects** - Fade/reverse only applied on EXPORT, not in preview
+
+### What IS Fully Tested (REAL tests, NO mocks)
+- Upload audio to Export tab ✅
+- Master All / Master Selected ✅
+- Edit → Preview → Export workflow ✅
+- Backend FFmpeg operations (trim/speed/volume/fade/reverse) ✅
+- ZIP download ✅
+- Save mastered to Music ✅
 1. ✅ VUMeter now renders in toolbar (was imported but not used)
 2. ✅ View toggle button added to AudioEditorPanel
 3. ✅ File item click → opens AudioEditorPanel
@@ -228,12 +241,19 @@ Result: 40/43 PASSING (3 skipped - legitimate preconditions)
 |-------|----------|-------|--------|
 | Backend code | 41 | 41 | 100% |
 | Frontend code | 49 | 49 | 100% |
-| Backend tests | 135 | 136 | 99% |
+| Backend tests (FFmpeg) | 135 | 136 | 99% |
 | Core E2E tests | 14 | 14 | 100% |
-| E2E tests (all) | 40 | 43 | 93% |
-| **TOTAL (core)** | **239** | **239** | **100%** |
+| E2E tests (working) | 40 | 43 | 93% |
+| **Core tested features** | **~80%** | **~100%** | **80%** |
 
-**Status: 100% on core features. Production ready.**
+**Status: 80% of features have passing tests. User reports bugs in music player seek, sync, and generation.**
+
+## GAPS: NOT TESTED (need manual or API mocking)
+
+- Music generation (MiniMax API - requires key)
+- Seek bar actual behavior
+- Cross-player audio sync
+- Cover mode upload
 
 ---
 
