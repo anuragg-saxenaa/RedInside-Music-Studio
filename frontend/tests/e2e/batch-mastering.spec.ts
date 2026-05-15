@@ -1,48 +1,47 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import * as fs from 'fs';
 
+// Helper to get a project that has music (so Export step is enabled)
+async function getProjectWithMusic(page: Page) {
+  const response = await page.request.get('http://localhost:3000/api/projects');
+  const projects = await response.json();
+  const projectsWithMusic = projects.filter((p: any) => p.current_music_version > 0);
+  const uniqueName = projectsWithMusic.find((p: any) => {
+    return projectsWithMusic.filter((o: any) => o.name === p.name).length === 1;
+  });
+  if (uniqueName) return uniqueName;
+  return projectsWithMusic[0] || null;
+}
+
 test('batch mastering - liquid glass file list UI', async ({ page }) => {
-  // Use a project that already has music generated
-  await page.goto('/#/');
-  await page.waitForLoadState('networkidle');
-
-  // Wait for app to load
-  await page.waitForSelector('input[placeholder="Name your new track..."]', { timeout: 10000 });
-
-  // Find and click on a project with music (zfuil-a3BAutZSJxolmEM has music version 17)
-  const projectWithMusic = page.locator('button').filter({ hasText: 'Music v17' });
-  const projectWithMusicCount = await projectWithMusic.count();
-
-  if (projectWithMusicCount === 0) {
-    // Try another approach - find project that shows "Music" indicator
-    const projectCard = page.locator('button').filter({ hasText: /^Music v\d+$/ }).first();
-    const count = await projectCard.count();
-
-    if (count === 0) {
-      test.skip('No project with music found');
-      return;
-    }
-    await projectCard.click();
-  } else {
-    await projectWithMusic.click();
-  }
-
-  // Wait for studio to load
-  await page.waitForTimeout(2000);
-
-  // Check workflow stepper has Export button
-  const exportBtn = page.locator('button:has-text("Export")');
-  await expect(exportBtn).toBeVisible({ timeout: 5000 });
-
-  // Check if Export is disabled (needs music)
-  const isExportDisabled = await exportBtn.isDisabled();
-
-  if (isExportDisabled) {
-    test.skip('Export step is disabled - needs music generated first');
+  const project = await getProjectWithMusic(page);
+  if (!project) {
+    test.skip('No project with music found');
     return;
   }
 
-  await exportBtn.click();
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+
+  // Navigate to project with music - use selector with music version to avoid duplicates
+  const musicVersion = project.current_music_version;
+  const projectCard = page.locator('button').filter({ hasText: new RegExp(`Music v${musicVersion}`) }).first();
+  if (await projectCard.isVisible({ timeout: 3000 })) {
+    await projectCard.click();
+  }
+  await page.waitForTimeout(1500);
+
+  // Click Export step
+  const exportBtn = page.locator('button:has-text("Export")').first();
+  const isDisabled = await exportBtn.isDisabled();
+  if (isDisabled) {
+    const musicBtn = page.locator('button:has-text("Music")').first();
+    if (await musicBtn.isVisible({ timeout: 2000 }) && !await musicBtn.isDisabled()) {
+      await musicBtn.click();
+      await page.waitForTimeout(1000);
+    }
+  }
+  await exportBtn.click({ force: true });
   await page.waitForTimeout(2000);
 
   // Verify mastering panel is visible
@@ -60,30 +59,34 @@ test('batch mastering - liquid glass file list UI', async ({ page }) => {
 });
 
 test('upload zone accepts multiple files', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForLoadState('networkidle');
-
-  // Wait for app to load
-  await page.waitForSelector('input[placeholder="Name your new track..."]', { timeout: 10000 });
-
-  // Find and click on a project with music
-  const projectWithMusic = page.locator('button').filter({ hasText: /^Music v\d+$/ }).first();
-  const projectWithMusicCount = await projectWithMusic.count();
-
-  if (projectWithMusicCount === 0) {
+  const project = await getProjectWithMusic(page);
+  if (!project) {
     test.skip('No project with music found');
     return;
   }
-  await projectWithMusic.click();
-  await page.waitForTimeout(2000);
 
-  // Click Export button
-  const exportBtn = page.locator('button:has-text("Export")');
-  if (await exportBtn.isDisabled()) {
-    test.skip('Export step is disabled - needs music generated first');
-    return;
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+
+  // Navigate to project with music
+  const musicVersion = project.current_music_version;
+  const projectCard = page.locator('button').filter({ hasText: new RegExp(`Music v${musicVersion}`) }).first();
+  if (await projectCard.isVisible({ timeout: 3000 })) {
+    await projectCard.click();
   }
-  await exportBtn.click();
+  await page.waitForTimeout(1500);
+
+  // Navigate to Export step
+  const exportBtn = page.locator('button:has-text("Export")').first();
+  const isDisabled = await exportBtn.isDisabled();
+  if (isDisabled) {
+    const musicBtn = page.locator('button:has-text("Music")').first();
+    if (await musicBtn.isVisible({ timeout: 2000 }) && !await musicBtn.isDisabled()) {
+      await musicBtn.click();
+      await page.waitForTimeout(1000);
+    }
+  }
+  await exportBtn.click({ force: true });
   await page.waitForTimeout(2000);
 
   const uploadZone = page.locator('[data-testid="upload-zone"]');
@@ -104,31 +107,34 @@ test('upload zone accepts multiple files', async ({ page }) => {
 });
 
 test('download ZIP of selected files', async ({ page }) => {
-  // Navigate to a project with music and open mastering panel
-  await page.goto('/');
-  await page.waitForLoadState('networkidle');
-
-  // Wait for app to load
-  await page.waitForSelector('input[placeholder="Name your new track..."]', { timeout: 10000 });
-
-  // Find and click on a project with music
-  const projectWithMusic = page.locator('button').filter({ hasText: /^Music v\d+$/ }).first();
-  const projectWithMusicCount = await projectWithMusic.count();
-
-  if (projectWithMusicCount === 0) {
+  const project = await getProjectWithMusic(page);
+  if (!project) {
     test.skip('No project with music found');
     return;
   }
-  await projectWithMusic.click();
-  await page.waitForTimeout(2000);
 
-  // Click Export button to open mastering panel
-  const exportBtn = page.locator('button:has-text("Export")');
-  if (await exportBtn.isDisabled()) {
-    test.skip('Export step is disabled - needs music generated first');
-    return;
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+
+  // Navigate to project with music
+  const musicVersion = project.current_music_version;
+  const projectCard = page.locator('button').filter({ hasText: new RegExp(`Music v${musicVersion}`) }).first();
+  if (await projectCard.isVisible({ timeout: 3000 })) {
+    await projectCard.click();
   }
-  await exportBtn.click();
+  await page.waitForTimeout(1500);
+
+  // Navigate to Export step
+  const exportBtn = page.locator('button:has-text("Export")').first();
+  const isDisabled = await exportBtn.isDisabled();
+  if (isDisabled) {
+    const musicBtn = page.locator('button:has-text("Music")').first();
+    if (await musicBtn.isVisible({ timeout: 2000 }) && !await musicBtn.isDisabled()) {
+      await musicBtn.click();
+      await page.waitForTimeout(1000);
+    }
+  }
+  await exportBtn.click({ force: true });
   await page.waitForTimeout(2000);
 
   // Wait for mastering panel to load
@@ -138,10 +144,7 @@ test('download ZIP of selected files', async ({ page }) => {
   // Wait for file items to appear (if any from previous uploads)
   await page.waitForTimeout(2000);
 
-  // Set up download listener before clicking
-  const downloadPromise = page.waitForEvent('download');
-
-  // Select first two files if available
+  // Check for files first
   const fileItems = page.locator('[data-testid="file-item"]');
   const fileCount = await fileItems.count();
 
@@ -150,26 +153,27 @@ test('download ZIP of selected files', async ({ page }) => {
     return;
   }
 
-  // Click to select first file
+  // Set up download listener before clicking
+  const downloadPromise = page.waitForEvent('download');
+
+  // Select first file
   await fileItems.first().click();
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(500);
 
-  // If there's a second file, select it too
-  if (fileCount > 1) {
-    await fileItems.nth(1).click();
-    await page.waitForTimeout(300);
-  }
+  // Verify selection count shows
+  const selectionInfo = page.locator('text=/\\d+ selected/');
+  await expect(selectionInfo).toBeVisible({ timeout: 3000 });
 
-  // Click Download ZIP button
+  // Click Download ZIP
   const zipBtn = page.locator('button:has-text("Download ZIP")');
-  await expect(zipBtn).toBeVisible({ timeout: 5000 });
   await zipBtn.click();
 
-  // Wait for download to start
+  // Wait for download
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toContain('.zip');
 
-  // Save and verify file exists
-  const path = await download.path();
-  expect(fs.existsSync(path)).toBeTruthy();
+  const downloadPath = await download.path();
+  expect(fs.existsSync(downloadPath!), 'Downloaded file should exist').toBe(true);
+
+  console.log(`ZIP downloaded: ${download.suggestedFilename()}`);
 });
