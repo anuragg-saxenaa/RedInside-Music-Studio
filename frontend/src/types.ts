@@ -7,6 +7,7 @@ export interface Project {
   workflow_mode: 'auto' | 'manual' | 'hybrid';
   current_lyrics_version: number;
   current_music_version: number;
+  current_video_version: number;
   created_at: string;
   updated_at: string;
 }
