@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Studio from './pages/Studio';
 import History from './pages/History';
 import ViralToolkit from './pages/ViralToolkit';
+import Settings from './pages/Settings';
 import type { Project, LyricsGeneration, MusicGeneration } from './types';
 
 // Re-export for backwards compatibility
@@ -9,9 +10,10 @@ export type { Project, LyricsGeneration, MusicGeneration };
 
 function App() {
   const [project, setProject] = useState<Project | null>(null);
-  const [currentView, setCurrentView] = useState<'studio' | 'history' | 'viral'>(() => {
+  const [currentView, setCurrentView] = useState<'studio' | 'history' | 'viral' | 'settings'>(() => {
     if (window.location.hash === '#/history') return 'history';
     if (window.location.hash === '#/viral') return 'viral';
+    if (window.location.hash === '#/settings') return 'settings';
     return 'studio';
   });
 
@@ -19,6 +21,7 @@ function App() {
     const handleHashChange = () => {
       if (window.location.hash === '#/history') setCurrentView('history');
       else if (window.location.hash === '#/viral') setCurrentView('viral');
+      else if (window.location.hash === '#/settings') setCurrentView('settings');
       else setCurrentView('studio');
     };
     window.addEventListener('hashchange', handleHashChange);
@@ -118,8 +121,10 @@ function App() {
           RedInside <span style={{ color: '#FFFFFF' }}>Music Studio</span>
         </h1>
         <nav style={{ display: 'flex', gap: '16px' }}>
+          <a href="#/" style={{ color: currentView === 'studio' ? '#E63946' : '#A0A0A0', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>Studio</a>
           <a href="#/history" style={{ color: currentView === 'history' ? '#E63946' : '#A0A0A0', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>History</a>
           <a href="#/viral" style={{ color: currentView === 'viral' ? '#E63946' : '#A0A0A0', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>Viral</a>
+          <a href="#/settings" style={{ color: currentView === 'settings' ? '#E63946' : '#A0A0A0', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>Settings</a>
         </nav>
       </header>
       <main style={{ maxWidth: '900px', margin: '0 auto', padding: '48px 24px', position: 'relative', zIndex: 1 }}>
@@ -127,6 +132,8 @@ function App() {
           <History />
         ) : currentView === 'viral' ? (
           <ViralToolkit />
+        ) : currentView === 'settings' ? (
+          <Settings />
         ) : !project ? (
           <ProjectSelector onCreate={createProject} onLoad={loadProject} />
         ) : (

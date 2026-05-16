@@ -3,6 +3,7 @@ import { queues, getRedisConnection } from '../queue.config.js';
 import { JobModel } from '../jobs.service.js';
 import { LyricsService } from '../../modules/lyrics/lyrics.service.js';
 import logger from '../../utils/logger.js';
+import { broadcast } from '../../utils/ws.server.js';
 
 const lyricsService = new LyricsService();
 const connection = getRedisConnection();
@@ -17,6 +18,7 @@ export const lyricsWorker = new Worker(
     try {
       // Update job status to active
       JobModel.updateStatus(job.data.jobId, 'active');
+      broadcast({ type: 'job.started', jobId: job.data.jobId, jobType: 'generate-lyrics', projectId });
 
       // Generate lyrics
       const result = await lyricsService.generateLyrics({
@@ -32,11 +34,13 @@ export const lyricsWorker = new Worker(
         progress: 100,
         result: { lyricsId: result.id, version: result.version },
       });
+      broadcast({ type: 'job.completed', jobId: job.data.jobId, jobType: 'generate-lyrics', projectId, result: { lyricsId: result.id, version: result.version } });
 
       return result;
     } catch (error) {
       logger.error('Lyrics job failed', { jobId: job.id, error: error.message });
       JobModel.updateStatus(job.data.jobId, 'failed', error.message);
+      broadcast({ type: 'job.failed', jobId: job.data.jobId, jobType: 'generate-lyrics', projectId, error: error.message });
       throw error;
     }
   },

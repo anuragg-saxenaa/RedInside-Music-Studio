@@ -5,6 +5,8 @@ import { VideoRoutes } from './api/routes/video.routes.js';
 import { HistoryRoutes } from './api/routes/history.routes.js';
 import { MasteringRoutes } from './api/routes/mastering.routes.js';
 import { ViralRoutes } from './api/routes/viral.routes.js';
+import { SettingsRoutes } from './api/routes/settings.routes.js';
+import { initWebSocketServer } from './utils/ws.server.js';
 import express from 'express';
 import cors from 'cors';
 import config from './config/env.config.js';
@@ -56,6 +58,7 @@ const projectRoutes = [
   { method: 'post', path: '/api/projects/:id/artwork', handler: ProjectsController.saveArtwork },
   { method: 'post', path: '/api/projects/:id/artwork/fetch-image', handler: ProjectsController.fetchImage },
   { method: 'get', path: '/api/projects/:id/artwork/:musicId', handler: ProjectsController.getMusicArtwork },
+  { method: 'get', path: '/api/projects/:id/history', handler: (req, res) => res.redirect(`/api/history/${req.params.id}`) },
 ];
 
 // Register routes
@@ -100,6 +103,10 @@ ViralRoutes.forEach(route => {
   app[route.method](route.path, route.handler);
 });
 
+SettingsRoutes.forEach(route => {
+  app[route.method](route.path, route.handler);
+});
+
 registerImageRoutes(app);
 registerVoiceRoutes(app);
 registerUploadRoutes(app);
@@ -121,11 +128,12 @@ app.use((req, res) => {
 // Start server
 const PORT = config.server.port;
 
-app.listen(PORT, () => {
+const httpServer = app.listen(PORT, () => {
   logger.info(`Server running on port ${PORT}`, {
     env: config.server.env,
     nodeVersion: process.version,
   });
+  initWebSocketServer(httpServer);
 });
 
 export default app;

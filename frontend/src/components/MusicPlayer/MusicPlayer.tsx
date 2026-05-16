@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { LyricsGeneration, MusicGeneration } from '../../types';
 import { parseApiError } from '../../utils/errors';
 import { registerAudioStop, stopAllRegisteredAudio } from '../../utils/audioControl';
+import { useWebSocket } from '../../hooks/useWebSocket';
 
 // ============== GLOBAL PLAYBACK STATE MANAGER ==============
 let globalPlayingId: string | null = null;
@@ -975,6 +976,8 @@ interface MusicPlayerProps {
 export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerated, onSelectForPlayer, onConversionComplete }: MusicPlayerProps) {
   const [generating, setGenerating] = useState(false);
   const [pollingJobId, setPollingJobId] = useState<string | null>(null);
+  const pollingJobIdRef = useRef<string | null>(null);
+  pollingJobIdRef.current = pollingJobId;
   const [error, setError] = useState<string | null>(null);
   const [musicHistory, setMusicHistory] = useState<MusicGeneration[]>([]);
   const [model] = useState('music-2.6');
@@ -996,6 +999,22 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const audioStopUnregisterRef = useRef<(() => void) | null>(null);
+
+  // WebSocket: instant job completion notification (faster than 3s polling)
+  useWebSocket((event) => {
+    if ((event.type === 'job.completed' || event.type === 'job.failed') && event.jobId === pollingJobIdRef.current) {
+      if (event.type === 'job.completed') {
+        setPollingJobId(null);
+        fetch(`/api/projects/${projectId}/music`)
+          .then(r => r.json())
+          .then(list => { setMusicHistory(list); if (list.length > 0) onMusicGenerated(list[0]); })
+          .catch(console.error);
+      } else {
+        setError(event.error || 'Generation failed');
+        setPollingJobId(null);
+      }
+    }
+  });
 
   // Subscribe to global playback
   useEffect(() => {

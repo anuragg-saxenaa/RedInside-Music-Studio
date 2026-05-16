@@ -15,6 +15,19 @@ export const MusicRoutes = [
   },
   {
     method: 'get',
+    path: '/api/music/settings',
+    handler: (req, res) => res.json({
+      data: {
+        sampleRates: [16000, 24000, 32000, 44100],
+        bitrates: [32000, 64000, 128000, 256000],
+        formats: ['mp3', 'wav', 'pcm'],
+        models: ['music-2.6', 'music-cover'],
+        note: 'Audio is post-processed to 320kbps via FFmpeg',
+      },
+    }),
+  },
+  {
+    method: 'get',
     path: '/api/music/:id',
     handler: MusicController.getById,
   },

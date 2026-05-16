@@ -4,6 +4,7 @@ import { JobModel } from '../jobs.service.js';
 import { MusicService } from '../../modules/music/music.service.js';
 import uploadService from '../../modules/upload/upload.service.js';
 import logger from '../../utils/logger.js';
+import { broadcast } from '../../utils/ws.server.js';
 
 const musicService = new MusicService();
 const connection = getRedisConnection();
@@ -18,6 +19,7 @@ export const musicWorker = new Worker(
     try {
       // Update job status to active
       JobModel.updateStatus(jobId, 'active');
+      broadcast({ type: 'job.started', jobId, jobType: 'generate-music', projectId });
 
       // For cover mode, resolve audioUrl to filePath
       let filePath = null;
@@ -51,11 +53,13 @@ export const musicWorker = new Worker(
         progress: 100,
         result: { musicId: result.id, version: result.version },
       });
+      broadcast({ type: 'job.completed', jobId, jobType: 'generate-music', projectId, result: { musicId: result.id, version: result.version } });
 
       return result;
     } catch (error) {
       logger.error('Music job failed', { jobId: job.id, error: error.message });
       JobModel.updateStatus(jobId, 'failed', error.message);
+      broadcast({ type: 'job.failed', jobId, jobType: 'generate-music', projectId, error: error.message });
       throw error;
     }
   },

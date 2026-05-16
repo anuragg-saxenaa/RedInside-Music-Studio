@@ -914,3 +914,69 @@ test.describe('Mastering Upload API - field name contract', () => {
     expect(musicList.length).toBeGreaterThan(0);
   });
 });
+
+// ─── Settings API ──────────────────────────────────────────────────────────
+
+test.describe('Settings API', () => {
+  test('GET /api/settings returns all settings with masked api key', async ({ page }) => {
+    const res = await page.request.get(`${BACKEND}/api/settings`);
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.data).toBeDefined();
+    expect(body.data.default_music_model).toBeDefined();
+    expect(body.data.default_video_model).toBeDefined();
+    expect(body.data.auto_ffmpeg_320kbps).toBeDefined();
+    expect(body.data.default_workflow_mode).toBeDefined();
+  });
+
+  test('GET /api/settings/:key returns single setting', async ({ page }) => {
+    const res = await page.request.get(`${BACKEND}/api/settings/default_music_model`);
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.data.key).toBe('default_music_model');
+    expect(body.data.value).toBe('music-2.6');
+  });
+
+  test('GET /api/settings/:key with unknown key returns 404', async ({ page }) => {
+    const res = await page.request.get(`${BACKEND}/api/settings/nonexistent_key`);
+    expect(res.status()).toBe(404);
+  });
+
+  test('PATCH /api/settings updates a setting', async ({ page }) => {
+    const res = await page.request.patch(`${BACKEND}/api/settings`, {
+      data: { default_music_model: 'music-2.6' },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.data.default_music_model.value).toBe('music-2.6');
+    expect(body.message).toContain('updated');
+  });
+
+  test('PATCH /api/settings with unknown key returns 400', async ({ page }) => {
+    const res = await page.request.patch(`${BACKEND}/api/settings`, {
+      data: { unknown_setting: 'value' },
+    });
+    expect(res.status()).toBe(400);
+  });
+
+  test('GET /api/music/settings returns available audio options', async ({ page }) => {
+    const res = await page.request.get(`${BACKEND}/api/music/settings`);
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.data.sampleRates).toBeDefined();
+    expect(body.data.bitrates).toBeDefined();
+    expect(body.data.models).toContain('music-2.6');
+  });
+
+  test('GET /api/projects/:id/history redirects to /api/history/:id', async ({ page }) => {
+    const projectRes = await page.request.post(`${BACKEND}/api/projects`, {
+      data: { name: `History Alias Test ${Date.now()}` },
+    });
+    const project = await projectRes.json();
+    const res = await page.request.get(`${BACKEND}/api/projects/${project.id}/history`);
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body).toHaveProperty('lyrics');
+    expect(body).toHaveProperty('music');
+  });
+});

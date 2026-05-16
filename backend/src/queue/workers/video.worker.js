@@ -3,6 +3,7 @@ import { queues, getRedisConnection } from '../queue.config.js';
 import { JobModel } from '../jobs.service.js';
 import { VideoService } from '../../modules/video/video.service.js';
 import logger from '../../utils/logger.js';
+import { broadcast } from '../../utils/ws.server.js';
 
 const videoService = new VideoService();
 const connection = getRedisConnection();
@@ -17,6 +18,7 @@ export const videoWorker = new Worker(
     try {
       // Update job status to active
       JobModel.updateStatus(jobId, 'active');
+      broadcast({ type: 'job.started', jobId, jobType: 'generate-video', projectId });
 
       // Start video generation (initiates async task on MiniMax)
       const result = await videoService.generateVideo({
@@ -47,6 +49,7 @@ export const videoWorker = new Worker(
             progress: 100,
             result: { videoId: result.videoId, taskId: result.taskId, fileId: statusResult.fileId },
           });
+          broadcast({ type: 'job.completed', jobId, jobType: 'generate-video', projectId, result: { videoId: result.videoId } });
           logger.info('Video job completed', { jobId: job.id, videoId: result.videoId });
           return { videoId: result.videoId, taskId: result.taskId, status: 'completed' };
         } else if (statusResult.status === 'failed') {
@@ -56,6 +59,7 @@ export const videoWorker = new Worker(
         // Update progress
         const progress = Math.min(95, Math.floor((pollCount / maxPollAttempts) * 100));
         JobModel.update(jobId, { progress });
+        broadcast({ type: 'job.progress', jobId, jobType: 'generate-video', projectId, progress });
 
         pollCount++;
         logger.info('Video still processing', { jobId: job.id, pollCount, progress });
@@ -66,6 +70,7 @@ export const videoWorker = new Worker(
     } catch (error) {
       logger.error('Video job failed', { jobId: job.id, error: error.message });
       JobModel.updateStatus(jobId, 'failed', error.message);
+      broadcast({ type: 'job.failed', jobId, jobType: 'generate-video', projectId, error: error.message });
       throw error;
     }
   },
