@@ -1,7 +1,7 @@
 # Implementation Status — Honest Gap Analysis
 
-**Last verified:** 2026-05-16 (session 6)  
-**E2E tests:** 140 passing, 0 skipped, 0 failing  
+**Last verified:** 2026-05-16 (session 7)  
+**E2E tests:** 147 passing, 0 skipped, 0 failing  
 **Backend:** real FFmpeg, real SQLite — no mocks
 
 ---
@@ -41,6 +41,12 @@
 | `current_video_version` in projects table | ✅ Fixed | ✅ Migration 010 |
 | Settings table in DB | ✅ Fixed | ✅ Migration 010 |
 | ffmpeg_operations audit table | ✅ Fixed | ✅ Migration 010 |
+| Settings API (GET/PATCH /api/settings) | ✅ Implemented | ✅ Tested |
+| Settings UI page (API key, models, workflow mode) | ✅ Implemented | ✅ Nav + page render |
+| WebSocket real-time job events (spec §3.3) | ✅ Implemented | ✅ ws server + useWebSocket hook |
+| GET /api/music/settings (audio options) | ✅ Implemented | ✅ Tested |
+| GET /api/projects/:id/history alias | ✅ Implemented | ✅ Tested |
+| Audio effects in ControlsSidebar UI (normalize/reverb/echo/bassBoost/pitchShift) | ✅ Implemented | ✅ Backend routes tested |
 
 ## Bugs Fixed This Session
 
