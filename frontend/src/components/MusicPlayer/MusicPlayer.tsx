@@ -1114,8 +1114,13 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileId, projectId, preset: 'spotify', saveToProject: true }),
         });
-        // Refresh the music list to show the new upload
-        fetchMusicList();
+        // Refresh the music list and notify parent so workflow steps unlock
+        const musicListRes = await fetch(`/api/projects/${projectId}/music`);
+        const musicList = await musicListRes.json();
+        setMusicHistory(musicList);
+        if (musicList.length > 0) {
+          onMusicGenerated(musicList[0]);
+        }
       }
     } catch (err) {
       console.error('Upload failed:', err);

@@ -90,6 +90,7 @@ export const MasteringController = {
 
           if (saveToProject) {
             const { MusicModel } = await import('../../database/models/music.model.js');
+            const { ProjectModel } = await import('../../database/models/project.model.js');
             const version = MusicModel.getNextVersion(projectId);
             const music = MusicModel.create({
               projectId,
@@ -100,6 +101,7 @@ export const MasteringController = {
               model: 'upload',
               durationSeconds: inputDuration,
             });
+            ProjectModel.incrementVersion(projectId, 'music');
             results.push({ fileId, status: 'success', masteredPath: outputPath, musicId: music.id, version });
           } else {
             results.push({ fileId, status: 'success', masteredPath: outputPath });
@@ -196,6 +198,7 @@ export const MasteringController = {
         } catch (e) {}
 
         const { MusicModel } = await import('../../database/models/music.model.js');
+        const { ProjectModel } = await import('../../database/models/project.model.js');
         const db = (await import('../../database/connection.js')).default;
 
         // Ensure project exists in database (create if necessary)
@@ -224,6 +227,7 @@ export const MasteringController = {
           model: 'mastering',
           durationSeconds: duration,
         });
+        ProjectModel.incrementVersion(projectId, 'music');
 
         saved.push({ fileId, musicId: music.id, version });
       }
