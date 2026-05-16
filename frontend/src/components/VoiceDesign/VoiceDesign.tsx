@@ -8,7 +8,11 @@ const VOICE_EXAMPLES = [
   'Soft and intimate, late-night radio host voice',
 ];
 
-export default function VoiceDesign() {
+interface VoiceDesignProps {
+  projectId?: string;
+}
+
+export default function VoiceDesign({ projectId }: VoiceDesignProps) {
   const [prompt, setPrompt] = useState('');
   const [previewText, setPreviewText] = useState('Hey everyone, welcome back to the show...');
   const [designing, setDesigning] = useState(false);
@@ -21,7 +25,7 @@ export default function VoiceDesign() {
       const response = await fetch('/api/voice/design', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, previewText }),
+        body: JSON.stringify({ prompt, previewText, projectId }),
       });
       const result = await response.json();
       if (!response.ok || result.error) {

@@ -123,7 +123,7 @@ export class VideoService {
       });
 
       // Increment project version
-      ProjectModel.incrementVersion(projectId, 'music'); // Note: project doesn't have video version yet
+      ProjectModel.incrementVersion(projectId, 'video');
 
       logger.info('Video generation started', { videoId: videoRecord.id, taskId, version });
 

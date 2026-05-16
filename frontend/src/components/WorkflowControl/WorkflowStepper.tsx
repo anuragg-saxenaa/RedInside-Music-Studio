@@ -1,6 +1,6 @@
 interface WorkflowStepperProps {
-  currentStep: 'lyrics' | 'music' | 'artwork' | 'voice' | 'export';
-  onStepChange: (step: 'lyrics' | 'music' | 'artwork' | 'voice' | 'export') => void;
+  currentStep: 'lyrics' | 'music' | 'artwork' | 'video' | 'voice' | 'export';
+  onStepChange: (step: 'lyrics' | 'music' | 'artwork' | 'video' | 'voice' | 'export') => void;
   hasLyrics: boolean;
   hasMusic: boolean;
   hasArtwork?: boolean;
@@ -10,6 +10,7 @@ const STEPS = [
   { key: 'lyrics', label: 'Lyrics' },
   { key: 'music', label: 'Music' },
   { key: 'artwork', label: 'Artwork' },
+  { key: 'video', label: 'Video' },
   { key: 'voice', label: 'Voice' },
   { key: 'export', label: 'Export/Master' },
 ] as const;
@@ -28,6 +29,7 @@ export default function WorkflowStepper({ currentStep, onStepChange, hasLyrics, 
     if (step === 'lyrics') return true;
     if (step === 'music') return hasLyrics;
     if (step === 'artwork') return hasMusic;
+    if (step === 'video') return hasMusic;
     if (step === 'voice') return hasMusic;
     if (step === 'export') return hasMusic;
     return false;

@@ -80,7 +80,7 @@ export const ProjectModel = {
   incrementVersion(id, type) {
     try {
       // Add validation to prevent SQL injection
-      if (!['lyrics', 'music'].includes(type)) {
+      if (!['lyrics', 'music', 'video'].includes(type)) {
         throw new Error(`Invalid version type: ${type}`);
       }
       const field = `current_${type}_version`;
