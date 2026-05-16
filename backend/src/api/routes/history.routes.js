@@ -3,13 +3,13 @@ import { HistoryController } from '../../modules/history/history.controller.js';
 export const HistoryRoutes = [
   {
     method: 'get',
-    path: '/api/history/:projectId',
-    handler: HistoryController.getProjectHistory,
+    path: '/api/history/chain/:id',
+    handler: HistoryController.getVersionChain,
   },
   {
     method: 'get',
-    path: '/api/history/chain/:id',
-    handler: HistoryController.getVersionChain,
+    path: '/api/history/:projectId',
+    handler: HistoryController.getProjectHistory,
   },
   {
     method: 'post',

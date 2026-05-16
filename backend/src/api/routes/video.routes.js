@@ -8,6 +8,11 @@ export const VideoRoutes = [
   },
   {
     method: 'get',
+    path: '/api/video/poll/:taskId',
+    handler: VideoController.pollStatus,
+  },
+  {
+    method: 'get',
     path: '/api/video/:id',
     handler: VideoController.getById,
   },
@@ -25,10 +30,5 @@ export const VideoRoutes = [
     method: 'get',
     path: '/api/music/:musicId/video',
     handler: VideoController.getByMusic,
-  },
-  {
-    method: 'get',
-    path: '/api/video/poll/:taskId',
-    handler: VideoController.pollStatus,
   },
 ];
