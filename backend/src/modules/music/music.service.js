@@ -6,6 +6,7 @@ import storage from '../../utils/storage.util.js';
 import config from '../../config/env.config.js';
 import logger from '../../utils/logger.js';
 import axios from 'axios';
+import fs from 'fs';
 import { AudioMasteringService } from '../mastering/mastering.service.js';
 
 export class MusicService {
@@ -206,5 +207,13 @@ export class MusicService {
       bitrate,
       title,
     });
+  }
+
+  async deleteMusic(musicId) {
+    const music = MusicModel.findById(musicId);
+    if (!music) {
+      throw new Error('Music not found');
+    }
+    return MusicModel.delete(musicId);
   }
 }

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useSharedAudio } from '../../contexts/SharedAudioContext';
 
 interface SpotifyWaveformPlayerProps {
   musicId: string;
@@ -38,12 +39,16 @@ export default function SpotifyWaveformPlayer({
   const [audioError, setAudioError] = useState(false);
   const [actualDuration, setActualDuration] = useState(durationMs);
   const [waveformPeaks, setWaveformPeaks] = useState<number[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(title || '');
   const audioRef = useRef<HTMLAudioElement>(null);
   const animationRef = useRef<number>();
   const audioContextRef = useRef<AudioContext | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Shared audio context for single playback constraint
+  const { stopAll } = useSharedAudio();
 
   const progressPercent = useMemo(() =>
     actualDuration > 0 ? (currentTime / actualDuration) * 100 : 0,
@@ -137,13 +142,13 @@ export default function SpotifyWaveformPlayer({
 
   // Real time update loop using requestAnimationFrame
   const updateTime = useCallback(() => {
-    if (audioRef.current && isPlaying) {
+    if (audioRef.current && isPlaying && !isDragging) {
       const timeMs = audioRef.current.currentTime * 1000;
       setCurrentTime(timeMs);
       onTimeUpdate?.(timeMs);
       animationRef.current = requestAnimationFrame(updateTime);
     }
-  }, [isPlaying, onTimeUpdate]);
+  }, [isPlaying, isDragging, onTimeUpdate]);
 
   useEffect(() => {
     if (isPlaying) {
@@ -257,17 +262,10 @@ export default function SpotifyWaveformPlayer({
 
     try {
       if (audio.paused) {
-        // Find currently playing audio and transfer position before pausing
-        const playingAudio = document.querySelector('audio:not([paused])') as HTMLAudioElement | null;
-        const currentPosition = playingAudio ? playingAudio.currentTime : 0;
+        // Stop all other audio using SharedAudioContext (single playback constraint)
+        stopAll();
 
-        // Pause all other audio elements on the page
-        document.querySelectorAll('audio').forEach(a => {
-          if (a !== audio) a.pause();
-        });
-
-        // Transfer position from playing audio to this one
-        audio.currentTime = currentPosition;
+        audio.currentTime = currentTime / 1000 || 0;
         await audio.play();
         setIsPlaying(true);
       } else {
@@ -323,13 +321,19 @@ export default function SpotifyWaveformPlayer({
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current;
-    if (!audio || isLoading || audioError || !audio.duration) return;
+    if (!audio) return;
+
+    // Allow seeking even while loading, just not on error
+    if (audioError) return;
+
+    const durationMs = actualDuration || (audio.duration ? audio.duration * 1000 : 0);
+    if (!durationMs) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
-    const percent = (e.clientX - rect.left) / rect.width;
-    const newTime = percent * audio.duration;
-    audio.currentTime = newTime;
-    setCurrentTime(newTime * 1000);
+    const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const newTimeMs = percent * durationMs;
+    audio.currentTime = newTimeMs / 1000;
+    setCurrentTime(newTimeMs);
   };
 
   const saveTitle = async () => {
@@ -565,12 +569,32 @@ export default function SpotifyWaveformPlayer({
               type="range"
               min={0}
               max={1000}
-              value={currentTime > 0 && actualDuration > 0 ? (currentTime / actualDuration) * 1000 : 0}
+              value={actualDuration > 0 && durationMs > 0 ? Math.round((currentTime / (actualDuration || durationMs)) * 1000) : 0}
+              onMouseDown={() => setIsDragging(true)}
               onChange={(e) => {
+                const durationToUse = actualDuration || durationMs || 0;
+                if (!durationToUse) return;
+                const percent = Math.max(0, Math.min(1, parseFloat(e.target.value) / 1000));
+                const newTimeMs = percent * durationToUse;
+                setCurrentTime(newTimeMs);
+              }}
+              onMouseUp={(e) => {
+                setIsDragging(false);
                 const audio = audioRef.current;
-                if (!audio || !actualDuration) return;
-                const percent = parseFloat(e.target.value) / 1000;
-                const newTimeMs = percent * actualDuration;
+                const durationToUse = actualDuration || durationMs || 0;
+                if (!audio || !durationToUse || audioError) return;
+                const percent = Math.max(0, Math.min(1, parseFloat((e.target as HTMLInputElement).value) / 1000));
+                const newTimeMs = percent * durationToUse;
+                audio.currentTime = newTimeMs / 1000;
+                setCurrentTime(newTimeMs);
+              }}
+              onTouchEnd={(e) => {
+                setIsDragging(false);
+                const audio = audioRef.current;
+                const durationToUse = actualDuration || durationMs || 0;
+                if (!audio || !durationToUse || audioError) return;
+                const percent = Math.max(0, Math.min(1, parseFloat((e.target as HTMLInputElement).value) / 1000));
+                const newTimeMs = percent * durationToUse;
                 audio.currentTime = newTimeMs / 1000;
                 setCurrentTime(newTimeMs);
               }}

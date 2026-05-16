@@ -6,6 +6,7 @@ export interface TrackLaneProps {
   trimStart: number
   trimEnd: number
   duration: number
+  currentTime?: number
   isSelected?: boolean
   isPlaying?: boolean
   onSeek?: (time: number) => void
@@ -26,6 +27,7 @@ export default function TrackLane({
   trimStart,
   trimEnd,
   duration,
+  currentTime,
   isSelected = false,
   isPlaying = false,
   onSeek,
@@ -178,7 +180,9 @@ export default function TrackLane({
 
   const startPercent = duration > 0 ? (localTrimStart / duration) * 100 : 0;
   const endPercent = duration > 0 ? (localTrimEnd / duration) * 100 : 100;
-  const playheadPercent = duration > 0 ? (playheadPosition / duration) * 100 : 0;
+  // Use currentTime from parent when playing (Web Audio API driven), fallback to local drag position
+  const effectivePlayhead = isPlaying && currentTime !== undefined ? currentTime : playheadPosition;
+  const playheadPercent = duration > 0 ? (effectivePlayhead / duration) * 100 : 0;
 
   if (loading) {
     return (

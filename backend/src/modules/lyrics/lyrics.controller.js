@@ -1,5 +1,6 @@
 import { LyricsService } from './lyrics.service.js';
 import { STYLE_PRESETS } from './presets.js';
+import { ProjectModel } from '../../database/models/project.model.js';
 import logger from '../../utils/logger.js';
 
 const lyricsService = new LyricsService();
@@ -17,7 +18,11 @@ export const LyricsController = {
         return res.status(400).json({ error: 'prompt is required and must be a string' });
       }
 
-      // Service will validate stylePreset and mode
+      // Validate project exists before calling MiniMax API
+      const project = ProjectModel.findById(projectId);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
 
       const result = await lyricsService.generateLyrics({
         projectId,

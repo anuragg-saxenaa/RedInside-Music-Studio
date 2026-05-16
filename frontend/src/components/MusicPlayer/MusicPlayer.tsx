@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { LyricsGeneration, MusicGeneration } from '../../types';
 import { parseApiError } from '../../utils/errors';
+import { registerAudioStop, stopAllRegisteredAudio } from '../../utils/audioControl';
 
 // ============== GLOBAL PLAYBACK STATE MANAGER ==============
 let globalPlayingId: string | null = null;
@@ -15,6 +16,8 @@ export function stopAllPlayback() {
   }
   globalPlayingId = null;
   notifyListeners();
+  // Also stop all other audio systems (CompactPlayer, AudioEditor, etc.)
+  stopAllRegisteredAudio();
 }
 
 function notifyListeners() {
@@ -70,6 +73,13 @@ const DownloadIcon = () => (
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
     <polyline points="7 10 12 15 17 10" />
     <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+);
+
+const TrashIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
   </svg>
 );
 
@@ -321,9 +331,15 @@ function AudioEditorInline({ audioUrl, trackId, onClose, onExportComplete }: Aud
   const [reverse, setReverse] = useState(false);
   const [isDragging, setIsDragging] = useState<'start' | 'end' | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playheadSec, setPlayheadSec] = useState(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioBufferRef = useRef<AudioBuffer | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number>(0);
+  const unregisterStopRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -337,7 +353,9 @@ function AudioEditorInline({ audioUrl, trackId, onClose, onExportComplete }: Aud
 
         const audioCtx = new AudioContext();
         const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-        if (cancelled) return;
+        if (cancelled) { audioCtx.close(); return; }
+
+        audioBufferRef.current = audioBuffer;
 
         const channelData = audioBuffer.getChannelData(0);
         const samplesPerPeak = Math.max(1, Math.floor(channelData.length / 150));
@@ -368,6 +386,21 @@ function AudioEditorInline({ audioUrl, trackId, onClose, onExportComplete }: Aud
     fetchAudio();
     return () => { cancelled = true; };
   }, [audioUrl]);
+
+  const stopPreview = useCallback(() => {
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    if (sourceNodeRef.current) { try { sourceNodeRef.current.stop(); } catch (_) {} sourceNodeRef.current = null; }
+    if (audioCtxRef.current) { audioCtxRef.current.close().catch(() => {}); audioCtxRef.current = null; }
+    unregisterStopRef.current?.(); unregisterStopRef.current = null;
+    setIsPlaying(false);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopPreview();
+    };
+  }, [stopPreview]);
 
   const getTimeFromX = (clientX: number): number => {
     if (!containerRef.current) return 0;
@@ -405,30 +438,91 @@ function AudioEditorInline({ audioUrl, trackId, onClose, onExportComplete }: Aud
     };
   }, [isDragging, duration, trimStart, trimEnd]);
 
-  const startPct = (trimStart / duration) * 100;
-  const endPct = (trimEnd / duration) * 100;
+  const startPct = duration > 0 ? (trimStart / duration) * 100 : 0;
+  const endPct = duration > 0 ? (trimEnd / duration) * 100 : 100;
+  const playheadPct = duration > 0 ? (playheadSec / duration) * 100 : 0;
 
-  const handlePreview = async () => {
-    if (!audioRef.current) {
-      audioRef.current = new Audio(audioUrl);
-      audioRef.current.crossOrigin = 'anonymous';
+  const handlePreview = useCallback(async () => {
+    if (isPlaying) { stopPreview(); return; }
+
+    const buffer = audioBufferRef.current;
+    if (!buffer) return;
+
+    // Stop all other audio before previewing
+    stopAllRegisteredAudio();
+
+    const ctx = new AudioContext();
+    audioCtxRef.current = ctx;
+
+    const sampleRate = buffer.sampleRate;
+    const startSample = Math.floor(trimStart * sampleRate);
+    const endSample = Math.min(Math.floor(trimEnd * sampleRate), buffer.length);
+    const frameCount = endSample - startSample;
+    if (frameCount <= 0) { ctx.close(); return; }
+
+    // Slice and optionally reverse the buffer
+    const trimmedBuffer = ctx.createBuffer(buffer.numberOfChannels, frameCount, sampleRate);
+    for (let c = 0; c < buffer.numberOfChannels; c++) {
+      const data = buffer.getChannelData(c).slice(startSample, endSample);
+      if (reverse) data.reverse();
+      trimmedBuffer.getChannelData(c).set(data);
     }
-    const audio = audioRef.current;
 
-    if (isPlaying) {
-      audio.pause();
-      setIsPlaying(false);
-      return;
+    const gainNode = ctx.createGain();
+    const safeVol = Math.min(1, Math.max(0.001, volume));
+    const now = ctx.currentTime;
+    const segDur = trimmedBuffer.duration / speed;
+
+    if (fadeIn && fadeInDur > 0) {
+      gainNode.gain.setValueAtTime(0.001, now);
+      gainNode.gain.linearRampToValueAtTime(safeVol, now + Math.min(fadeInDur, segDur * 0.5));
+    } else {
+      gainNode.gain.setValueAtTime(safeVol, now);
     }
 
-    audio.currentTime = trimStart;
-    audio.playbackRate = speed;
-    audio.volume = Math.min(1, Math.max(0, volume));
-    audio.play();
+    if (fadeOut && fadeOutDur > 0 && segDur > fadeOutDur) {
+      const fadeStart = now + segDur - Math.min(fadeOutDur, segDur * 0.5);
+      gainNode.gain.setValueAtTime(safeVol, fadeStart);
+      gainNode.gain.linearRampToValueAtTime(0.001, now + segDur);
+    }
+
+    gainNode.connect(ctx.destination);
+
+    const source = ctx.createBufferSource();
+    source.buffer = trimmedBuffer;
+    source.playbackRate.value = speed;
+    source.connect(gainNode);
+    sourceNodeRef.current = source;
+    startTimeRef.current = ctx.currentTime;
+
+    const handleEnded = () => {
+      setPlayheadSec(reverse ? trimStart : trimEnd);
+      stopPreview();
+    };
+    source.onended = handleEnded;
+
+    // Register with shared registry so other players can stop this
+    unregisterStopRef.current = registerAudioStop(() => { stopPreview(); });
+
+    source.start();
     setIsPlaying(true);
+    setPlayheadSec(reverse ? trimEnd : trimStart);
 
-    audio.onended = () => setIsPlaying(false);
-  };
+    // Animate playhead
+    const animate = () => {
+      if (!audioCtxRef.current) return;
+      const elapsed = audioCtxRef.current.currentTime - startTimeRef.current;
+      const elapsed_realtime = elapsed * speed;
+      const currentSec = reverse
+        ? Math.max(trimStart, trimEnd - elapsed_realtime)
+        : Math.min(trimEnd, trimStart + elapsed_realtime);
+      setPlayheadSec(currentSec);
+      if (elapsed_realtime < (trimEnd - trimStart)) {
+        rafRef.current = requestAnimationFrame(animate);
+      }
+    };
+    rafRef.current = requestAnimationFrame(animate);
+  }, [isPlaying, trimStart, trimEnd, volume, speed, fadeIn, fadeInDur, fadeOut, fadeOutDur, reverse, stopPreview]);
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -539,6 +633,9 @@ function AudioEditorInline({ audioUrl, trackId, onClose, onExportComplete }: Aud
               const h = Math.max(4, peak * 60);
               return <rect key={i} x={`${pct}%`} y={`${(80 - h) / 2}`} width={`${100 / peaks.length * 0.85}%`} height={`${h}`} fill={inTrim ? '#E63946' : '#444'} rx="1" />;
             })}
+            {isPlaying && (
+              <line x1={`${playheadPct}%`} y1="0" x2={`${playheadPct}%`} y2="80" stroke="#fff" strokeWidth="2" opacity={0.9} style={{ pointerEvents: 'none' }} />
+            )}
           </svg>
 
           <div style={{ position: 'absolute', left: `${startPct}%`, top: 0, width: '20px', height: '100%', transform: 'translateX(-50%)', cursor: 'ew-resize', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }} onPointerDown={(e) => handleMarkerDown(e, 'start')}>
@@ -585,6 +682,10 @@ function AudioEditorInline({ audioUrl, trackId, onClose, onExportComplete }: Aud
           </button>
         </div>
 
+        <div style={{ color: '#555', fontSize: '10px', letterSpacing: '0.5px', fontFamily: "'JetBrains Mono', monospace" }}>
+          PREVIEW plays trim region with all effects applied in realtime.
+        </div>
+
         <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
           <button
             onClick={handlePreview}
@@ -609,7 +710,7 @@ function AudioEditorInline({ audioUrl, trackId, onClose, onExportComplete }: Aud
               transition: 'all 200ms',
             }}
           >
-            {isExporting ? 'PROCESSING...' : 'EXPORT'}
+            {isExporting ? 'PROCESSING...' : 'APPLY & DOWNLOAD'}
           </button>
         </div>
 
@@ -643,9 +744,10 @@ interface TrackRowProps {
   onEdit: () => void;
   onConvert: () => void;
   onDownload: () => void;
+  onDelete: () => void;
 }
 
-function TrackRow({ music, isPlaying, isThisPlaying, onPlay, onEdit, onConvert, onDownload }: TrackRowProps) {
+function TrackRow({ music, isPlaying, isThisPlaying, onPlay, onEdit, onConvert, onDownload, onDelete }: TrackRowProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [converting, setConverting] = useState(false);
 
@@ -657,6 +759,7 @@ function TrackRow({ music, isPlaying, isThisPlaying, onPlay, onEdit, onConvert, 
 
   return (
     <div
+      data-testid="track-row"
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -750,6 +853,9 @@ function TrackRow({ music, isPlaying, isThisPlaying, onPlay, onEdit, onConvert, 
         <button onClick={(e) => { e.stopPropagation(); onDownload(); }} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px', color: '#888', cursor: 'pointer', transition: 'all 150ms' }} title="Download" onMouseOver={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.1)'; (e.currentTarget as HTMLButtonElement).style.color = '#fff'; }} onMouseOut={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)'; (e.currentTarget as HTMLButtonElement).style.color = '#888'; }}>
           <DownloadIcon />
         </button>
+        <button onClick={(e) => { e.stopPropagation(); onDelete(); }} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px', color: '#888', cursor: 'pointer', transition: 'all 150ms' }} title="Delete" onMouseOver={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(230,57,70,0.2)'; (e.currentTarget as HTMLButtonElement).style.color = '#E63946'; }} onMouseOut={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)'; (e.currentTarget as HTMLButtonElement).style.color = '#888'; }}>
+          <TrashIcon />
+        </button>
       </div>
     </div>
   );
@@ -761,6 +867,7 @@ interface PlaybackBarProps {
   isPlaying: boolean;
   onTogglePlay: () => void;
   onSeek: (time: number) => void;
+  onSeekBy: (seconds: number) => void;
   onVolumeChange: (volume: number) => void;
   currentTime: number;
   duration: number;
@@ -769,7 +876,7 @@ interface PlaybackBarProps {
   onToggleMute: () => void;
 }
 
-function PlaybackBar({ music, isPlaying, onTogglePlay, onSeek, onVolumeChange, currentTime, duration, volume, isMuted, onToggleMute }: PlaybackBarProps) {
+function PlaybackBar({ music, isPlaying, onTogglePlay, onSeek, onSeekBy, onVolumeChange, currentTime, duration, volume, isMuted, onToggleMute }: PlaybackBarProps) {
   if (!music) return null;
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
@@ -803,7 +910,7 @@ function PlaybackBar({ music, isPlaying, onTogglePlay, onSeek, onVolumeChange, c
 
         {/* Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button onClick={() => {}} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', padding: '4px', display: 'flex' }}><SkipBackIcon size={20} /></button>
+          <button onClick={() => onSeekBy(-10)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', padding: '4px', display: 'flex' }} title="Back 10s"><SkipBackIcon size={20} /></button>
           <button
             onClick={onTogglePlay}
             style={{
@@ -815,7 +922,7 @@ function PlaybackBar({ music, isPlaying, onTogglePlay, onSeek, onVolumeChange, c
           >
             {isPlaying ? <PauseIcon size={16} /> : <PlayIcon size={16} />}
           </button>
-          <button onClick={() => {}} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', padding: '4px', display: 'flex' }}><SkipForwardIcon size={20} /></button>
+          <button onClick={() => onSeekBy(10)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', padding: '4px', display: 'flex' }} title="Forward 10s"><SkipForwardIcon size={20} /></button>
         </div>
 
         {/* Progress */}
@@ -868,9 +975,10 @@ interface MusicPlayerProps {
 export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerated, onSelectForPlayer, onConversionComplete }: MusicPlayerProps) {
   const [generating, setGenerating] = useState(false);
   const [pollingJobId, setPollingJobId] = useState<string | null>(null);
-  const [error, setError] = useState<unknown>(null);
+  const [error, setError] = useState<string | null>(null);
   const [musicHistory, setMusicHistory] = useState<MusicGeneration[]>([]);
-  const [model, setModel] = useState('music-2.6');
+  const [model] = useState('music-2.6');
+  const [selectedStyle, setSelectedStyle] = useState('');
   const [mode, setMode] = useState<'generate' | 'cover'>('generate');
   const [customPrompt, setCustomPrompt] = useState('');
   const [editingMusic, setEditingMusic] = useState<MusicGeneration | null>(null);
@@ -881,10 +989,13 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
   const [currentTrack, setCurrentTrack] = useState<MusicGeneration | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0); // real duration from audio element
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const editorRef = useRef<HTMLDivElement | null>(null);
+  const audioStopUnregisterRef = useRef<(() => void) | null>(null);
 
   // Subscribe to global playback
   useEffect(() => {
@@ -893,7 +1004,7 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
         setIsPlaying(false);
       }
     });
-    return unsubscribe;
+    return () => { unsubscribe(); };
   }, [currentTrack?.id, isPlaying]);
 
   useEffect(() => {
@@ -924,20 +1035,20 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
           projectId,
           lyricsId: selectedLyrics?.id,
           model,
-          customPrompt: customPrompt || undefined,
+          prompt: [selectedStyle && `[${selectedStyle} style]`, customPrompt].filter(Boolean).join(' ') || undefined,
         }),
       });
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(parseApiError(data.error) || 'Failed to start generation');
+        throw new Error(data.error || 'Failed to start generation');
       }
 
       const { jobId } = await response.json();
       setPollingJobId(jobId);
       setGenerating(false);
     } catch (err) {
-      setError(err);
+      setError(err instanceof Error ? err.message : String(err));
       setGenerating(false);
     }
   };
@@ -963,10 +1074,17 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
 
         if (job.status === 'completed') {
           setPollingJobId(null);
-          fetchMusicList();
-          onConversionComplete?.();
+          fetch(`/api/projects/${projectId}/music`)
+            .then(res => res.json())
+            .then(musicList => {
+              setMusicHistory(musicList);
+              if (musicList.length > 0) {
+                onMusicGenerated(musicList[0]);
+              }
+            })
+            .catch(console.error);
         } else if (job.status === 'failed') {
-          setError(new Error(job.error || 'Generation failed'));
+          setError(job.error_message || job.error || 'Generation failed');
           setPollingJobId(null);
         }
       } catch (err) {
@@ -981,19 +1099,20 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
   const handleUploadNew = async (file: File) => {
     setUploadingFile(file);
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('files', file);
 
     try {
       // Upload the file first
       const res = await fetch(`/api/mastering/upload/${projectId}`, { method: 'POST', body: formData });
       const data = await res.json();
 
-      if (data.id) {
-        // Then process/master it to create a music entry
+      const fileId = data.files?.[0]?.id;
+      if (fileId) {
+        // Process/master it to create a music entry
         await fetch('/api/mastering/process', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fileId: data.id, projectId, preset: 'spotify', saveToProject: true }),
+          body: JSON.stringify({ fileId, projectId, preset: 'spotify', saveToProject: true }),
         });
         // Refresh the music list to show the new upload
         fetchMusicList();
@@ -1011,6 +1130,22 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
     onConversionComplete?.();
   };
 
+  const handleDeleteMusic = async (musicId: string) => {
+    if (!confirm('Are you sure you want to delete this song?')) return;
+    try {
+      const res = await fetch(`/api/music/${musicId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+      // Stop playback if deleting currently playing track
+      if (currentTrack?.id === musicId) {
+        stopAllPlayback();
+        setCurrentTrack(null);
+      }
+      fetchMusicList();
+    } catch (err) {
+      console.error('Delete failed:', err);
+    }
+  };
+
   const handlePlayTrack = useCallback(async (music: MusicGeneration) => {
     if (currentTrack?.id === music.id && isPlaying) {
       // Pause current track
@@ -1020,38 +1155,59 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
       setIsPlaying(false);
       globalPlayingId = null;
       notifyListeners();
+      audioStopUnregisterRef.current?.();
+      audioStopUnregisterRef.current = null;
     } else {
-      // Stop all other audio, play this track
+      // Stop all audio (CompactPlayer, AudioEditor, other instances)
       stopAllPlayback();
+      setCurrentTime(0);
+      setAudioDuration(0);
 
-      audioRef.current = new Audio(`/api/music/${music.id}/file`);
-      audioRef.current.crossOrigin = 'anonymous';
+      const audio = new Audio(`/api/music/${music.id}/file`);
+      audio.crossOrigin = 'anonymous';
+      audioRef.current = audio;
 
-      audioRef.current.onplay = () => {
+      audio.onloadedmetadata = () => {
+        setAudioDuration(audio.duration || 0);
+      };
+
+      audio.onplay = () => {
         setIsPlaying(true);
         setCurrentTrack(music);
         globalPlayingId = music.id;
-        globalAudioElement = audioRef.current;
+        globalAudioElement = audio;
         notifyListeners();
+        onSelectForPlayer?.(music);
       };
 
-      audioRef.current.onpause = () => {
+      audio.onpause = () => {
         setIsPlaying(false);
       };
 
-      audioRef.current.ontimeupdate = () => {
-        setCurrentTime(audioRef.current?.currentTime || 0);
+      audio.ontimeupdate = () => {
+        setCurrentTime(audio.currentTime || 0);
       };
 
-      audioRef.current.onended = () => {
+      audio.onended = () => {
         setIsPlaying(false);
         setCurrentTime(0);
         globalPlayingId = null;
         notifyListeners();
+        audioStopUnregisterRef.current?.();
+        audioStopUnregisterRef.current = null;
       };
 
+      // Register with shared registry so CompactPlayer/AudioEditor can stop this
+      audioStopUnregisterRef.current = registerAudioStop(() => {
+        audio.pause();
+        audio.currentTime = 0;
+        setIsPlaying(false);
+        globalPlayingId = null;
+        notifyListeners();
+      });
+
       try {
-        await audioRef.current.play();
+        await audio.play();
       } catch (err) {
         console.error('Playback error:', err);
       }
@@ -1059,9 +1215,17 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
   }, [currentTrack, isPlaying]);
 
   const handleSeek = (time: number) => {
+    // time is in seconds (matches duration unit)
     if (audioRef.current) {
       audioRef.current.currentTime = time;
       setCurrentTime(time);
+    }
+  };
+
+  const handleSeekBy = (seconds: number) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = Math.max(0, Math.min(audioRef.current.duration || 0, audioRef.current.currentTime + seconds));
+      setCurrentTime(audioRef.current.currentTime);
     }
   };
 
@@ -1093,20 +1257,19 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
 
   const isProcessing = generating || !!pollingJobId;
 
+  const handleEditTrack = (music: MusicGeneration) => {
+    // Stop any currently playing audio so editor has clean slate
+    if (isPlaying) {
+      stopAllPlayback();
+    }
+    setEditingMusic(music);
+    setTimeout(() => {
+      editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: currentTrack ? '100px' : '24px' }}>
-      {/* Inline Editor */}
-      {editingMusic && (
-        <AudioEditorInline
-          audioUrl={`/api/music/${editingMusic.id}/file`}
-          trackId={editingMusic.id}
-          onClose={() => setEditingMusic(null)}
-          onExportComplete={() => {
-            setEditingMusic(null);
-            fetchMusicList();
-          }}
-        />
-      )}
 
       {/* Top Bar - Create New */}
       <div style={{
@@ -1160,7 +1323,7 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
                 }}
               >
                 <span style={{ color: '#888' }}>Style:</span>
-                <span>{styles.find(s => s.value === model.replace('music-', ''))?.label || 'Select Style'}</span>
+                <span>{styles.find(s => s.value === selectedStyle)?.label || 'Select Style'}</span>
                 <ChevronDownIcon />
               </button>
               {styleDropdownOpen && (
@@ -1173,15 +1336,15 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
                   {styles.map(s => (
                     <button
                       key={s.value}
-                      onClick={() => { setModel(`music-${s.value}`); setStyleDropdownOpen(false); }}
+                      onClick={() => { setSelectedStyle(selectedStyle === s.value ? '' : s.value); setStyleDropdownOpen(false); }}
                       style={{
                         width: '100%', padding: '12px 16px', border: 'none',
-                        background: model === `music-${s.value}` ? 'rgba(230,57,70,0.2)' : 'transparent',
-                        color: model === `music-${s.value}` ? '#E63946' : '#fff',
+                        background: selectedStyle === s.value ? 'rgba(230,57,70,0.2)' : 'transparent',
+                        color: selectedStyle === s.value ? '#E63946' : '#fff',
                         fontSize: '13px', cursor: 'pointer', textAlign: 'left',
                       }}
                       onMouseOver={(e) => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)'}
-                      onMouseOut={(e) => (e.currentTarget as HTMLButtonElement).style.background = model === `music-${s.value}` ? 'rgba(230,57,70,0.2)' : 'transparent'}
+                      onMouseOut={(e) => (e.currentTarget as HTMLButtonElement).style.background = selectedStyle === s.value ? 'rgba(230,57,70,0.2)' : 'transparent'}
                     >
                       {s.label}
                     </button>
@@ -1289,23 +1452,38 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {musicHistory.map(music => (
-              <TrackRow
-                key={music.id}
-                music={music}
-                isPlaying={isPlaying}
-                isThisPlaying={currentTrack?.id === music.id && isPlaying}
-                onPlay={() => handlePlayTrack(music)}
-                onEdit={() => setEditingMusic(music)}
-                onConvert={() => handleConvertToMp3(music.id)}
-                onDownload={() => {
-                  const link = document.createElement('a');
-                  link.href = `/api/music/${music.id}/file`;
-                  link.download = music.title || `Version ${music.version}`;
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                }}
-              />
+              <React.Fragment key={music.id}>
+                <TrackRow
+                  music={music}
+                  isPlaying={isPlaying}
+                  isThisPlaying={currentTrack?.id === music.id && isPlaying}
+                  onPlay={() => handlePlayTrack(music)}
+                  onEdit={() => handleEditTrack(music)}
+                  onConvert={() => handleConvertToMp3(music.id)}
+                  onDownload={() => {
+                    const link = document.createElement('a');
+                    link.href = `/api/music/${music.id}/file`;
+                    link.download = music.title || `Version ${music.version}`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                  onDelete={() => handleDeleteMusic(music.id)}
+                />
+                {editingMusic?.id === music.id && (
+                  <div ref={editorRef}>
+                    <AudioEditorInline
+                      audioUrl={`/api/music/${editingMusic.id}/file`}
+                      trackId={editingMusic.id}
+                      onClose={() => setEditingMusic(null)}
+                      onExportComplete={() => {
+                        setEditingMusic(null);
+                        fetchMusicList();
+                      }}
+                    />
+                  </div>
+                )}
+              </React.Fragment>
             ))}
           </div>
         )}
@@ -1317,9 +1495,10 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
         isPlaying={isPlaying}
         onTogglePlay={() => currentTrack && handlePlayTrack(currentTrack)}
         onSeek={handleSeek}
+        onSeekBy={handleSeekBy}
         onVolumeChange={handleVolumeChange}
-        currentTime={currentTime * 1000}
-        duration={(currentTrack?.duration_seconds || 0) * 1000}
+        currentTime={currentTime}
+        duration={audioDuration || (currentTrack?.duration_seconds || 0)}
         volume={volume}
         isMuted={isMuted}
         onToggleMute={handleToggleMute}
@@ -1333,7 +1512,7 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
           boxShadow: '0 10px 40px rgba(230,57,70,0.3)',
           fontSize: '13px', zIndex: 1001,
         }}>
-          {parseApiError(error)}
+          {error}
           <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', marginLeft: '16px', fontSize: '16px' }}>×</button>
         </div>
       )}

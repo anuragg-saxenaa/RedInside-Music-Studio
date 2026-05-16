@@ -4,11 +4,12 @@ interface UploadZoneProps {
   projectId: string;
   onUploadComplete: (files: Array<{ id: string; filename: string; originalPath?: string }>) => void;
   multiple?: boolean;
+  dataTestId?: string;
 }
 
 type UploadState = 'idle' | 'processing' | 'complete';
 
-export default function UploadZone({ projectId, onUploadComplete, multiple = false }: UploadZoneProps) {
+export default function UploadZone({ projectId, onUploadComplete, multiple = false, dataTestId }: UploadZoneProps) {
   const [dragging, setDragging] = useState(false);
   const [uploadState, setUploadState] = useState<UploadState>('idle');
   const [uploadCount, setUploadCount] = useState(0);
@@ -228,7 +229,7 @@ export default function UploadZone({ projectId, onUploadComplete, multiple = fal
 
   return (
     <div
-      data-testid="upload-zone"
+      data-testid={dataTestId ?? 'upload-zone'}
       onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
       onDragLeave={() => setDragging(false)}
       onDrop={handleDrop}

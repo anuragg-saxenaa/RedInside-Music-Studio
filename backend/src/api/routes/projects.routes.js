@@ -153,7 +153,7 @@ export const ProjectsController = {
       // If musicId is provided, save per-song artwork instead of project artwork
       if (musicId) {
         // Get the music to find the project
-        const { MusicModel } = await import('../database/models/music.model.js');
+        const { MusicModel } = await import('../../database/models/music.model.js');
         const music = MusicModel.findById(musicId);
         if (!music) {
           return res.status(404).json({ error: 'Music not found' });
@@ -228,7 +228,7 @@ export const ProjectsController = {
     try {
       const { id, musicId } = req.params;
 
-      const { MusicModel } = await import('../database/models/music.model.js');
+      const { MusicModel } = await import('../../database/models/music.model.js');
       const music = MusicModel.findById(musicId);
 
       if (!music) {

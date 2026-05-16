@@ -72,7 +72,9 @@ export class HistoryService {
         };
       }
 
-      throw new Error(`Generation not found: ${generationId}`);
+      const err = new Error(`Generation not found: ${generationId}`);
+      err.statusCode = 404;
+      throw err;
     }
 
     // Fetch linked generations
@@ -122,7 +124,9 @@ export class HistoryService {
     }
 
     if (!type) {
-      throw new Error(`Generation not found: ${generationId}`);
+      const err = new Error(`Generation not found: ${generationId}`);
+      err.statusCode = 404;
+      throw err;
     }
 
     logger.info('Replaying version', { generationId, type });

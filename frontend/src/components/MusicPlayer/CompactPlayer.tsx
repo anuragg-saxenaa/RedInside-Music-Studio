@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { registerAudioStop, stopAllRegisteredAudio } from '../../utils/audioControl';
 
 interface CompactPlayerProps {
   musicId: string;
@@ -65,7 +66,7 @@ const DownloadIcon = () => (
   </svg>
 );
 
-// Single source of truth - global audio state manager
+// Per-component playback state (tracks which CompactPlayer instance is active)
 let globalPlayingId: string | null = null;
 let globalAudioElement: HTMLAudioElement | null = null;
 const listeners = new Set<(playingId: string | null) => void>();
@@ -75,12 +76,15 @@ function notifyListeners() {
 }
 
 export function stopAllPlayback() {
+  // Stop the tracked CompactPlayer audio
   if (globalAudioElement) {
     globalAudioElement.pause();
     globalAudioElement.currentTime = 0;
   }
   globalPlayingId = null;
   notifyListeners();
+  // Also stop all other audio systems (MusicPlayer, AudioEditor, etc.)
+  stopAllRegisteredAudio();
 }
 
 export function subscribeToPlaybackState(callback: (playingId: string | null) => void) {
@@ -103,7 +107,7 @@ export default function CompactPlayer({
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -115,7 +119,7 @@ export default function CompactPlayer({
         setIsPlaying(false);
       }
     });
-    return unsubscribe;
+    return () => { unsubscribe(); };
   }, [musicId, isPlaying]);
 
   // Sync playing state with global state
@@ -182,22 +186,35 @@ export default function CompactPlayer({
     };
   }, [musicId, isDragging]);
 
+  const stopFnRef = useRef<(() => void) | null>(null);
+
   const togglePlay = useCallback(async () => {
     const audio = audioRef.current;
     if (!audio) return;
 
     try {
       if (isPlaying) {
-        // Pause this track
-        await audio.pause();
+        audio.pause();
         setIsPlaying(false);
         globalPlayingId = null;
         notifyListeners();
+        stopFnRef.current?.();
+        stopFnRef.current = null;
       } else {
-        // Pause all other audio first
+        // Stop all other audio (MusicPlayer, other CompactPlayers, AudioEditor)
+        stopAllRegisteredAudio();
         stopAllPlayback();
 
-        // Play this track
+        // Register this player's stop callback
+        const unregister = registerAudioStop(() => {
+          audio.pause();
+          audio.currentTime = 0;
+          setIsPlaying(false);
+          globalPlayingId = null;
+          notifyListeners();
+        });
+        stopFnRef.current = unregister;
+
         audio.currentTime = currentTime / 1000;
         await audio.play();
         setIsPlaying(true);
@@ -241,7 +258,7 @@ export default function CompactPlayer({
   const handleProgressClick = (e: React.MouseEvent) => {
     if (!progressRef.current || !audioRef.current) return;
     const rect = progressRef.current.getBoundingClientRect();
-    const percent = (e.clientX - rect.left) / rect.width;
+    const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const newTime = percent * (durationMs / 1000);
     audioRef.current.currentTime = newTime;
     setCurrentTime(newTime * 1000);
@@ -438,9 +455,8 @@ export default function CompactPlayer({
 
       {/* Progress */}
       <div
-        ref={progressRef}
         style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}
-        onClick={(e) => { e.stopPropagation(); handleProgressClick(e); }}
+        onClick={(e) => e.stopPropagation()}
       >
         <span style={{
           color: '#888',
@@ -452,7 +468,10 @@ export default function CompactPlayer({
           {formatTime(currentTime)}
         </span>
 
-        <div style={{
+        <div
+          ref={progressRef}
+          onClick={(e) => { e.stopPropagation(); handleProgressClick(e); }}
+          style={{
           flex: 1,
           position: 'relative',
           height: '6px',

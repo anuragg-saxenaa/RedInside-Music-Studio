@@ -3,6 +3,7 @@
  * Creates music records directly without MiniMax API
  */
 import { MusicModel } from '../../database/models/music.model.js';
+import { LyricsModel } from '../../database/models/lyrics.model.js';
 import { ProjectModel } from '../../database/models/project.model.js';
 import storage from '../../utils/storage.util.js';
 import path from 'path';
@@ -22,8 +23,21 @@ export const TestRoutes = [
         if (lyrics) {
           // Create project directories
           storage.createProjectDirs(project.id);
+          const lyricsContent = '[Verse]\nTest lyrics content for E2E testing\nDesi hip-hop vibes\n[Chorus]\nThis is a test song\nFor automated testing';
           const lyricsFilePath = storage.getLyricsFilePath(project.id, 1);
-          fs.writeFileSync(lyricsFilePath, JSON.stringify({ content: 'Test lyrics content for E2E testing', style: 'hinglish-urban' }));
+          fs.writeFileSync(lyricsFilePath, JSON.stringify({ content: lyricsContent, style: 'hinglish-urban' }));
+
+          // Create lyrics DB record so /api/projects/:id/lyrics returns data
+          LyricsModel.create({
+            projectId: project.id,
+            version: 1,
+            prompt: 'E2E test lyrics',
+            mode: 'write_full_song',
+            stylePreset: 'hinglish-urban',
+            content: lyricsContent,
+            title: 'Test Song v1',
+            styleTags: 'hip-hop, desi',
+          });
 
           // Update project with lyrics version
           await ProjectModel.update(project.id, {
@@ -87,7 +101,7 @@ export const TestRoutes = [
         fs.mkdirSync(musicDir, { recursive: true });
 
         // Get next version
-        const existingMusic = await MusicModel.getProjectMusic(projectId);
+        const existingMusic = MusicModel.findByProject(projectId);
         const version = existingMusic.length > 0 ? Math.max(...existingMusic.map(m => m.version)) + 1 : 1;
 
         // Copy test fixture as music file using storage paths

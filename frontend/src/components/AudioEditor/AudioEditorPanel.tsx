@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import TrackLane from './TrackLane';
 import TimelineView from './TimelineView';
 import GridView from './GridView';
@@ -14,11 +14,6 @@ export interface AudioEditorPanelProps {
   mode?: 'single' | 'medley'
   tracks?: any[]
   onExport?: (result: { filePath: string, duration: number }) => void
-}
-
-interface ProcessingResult {
-  filePath: string
-  duration: number
 }
 
 const defaultOperations: AudioOperations = {
@@ -48,57 +43,67 @@ export default function AudioEditorPanel({
   const [isExporting, setIsExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState<{type: 'success' | 'error' | 'processing', text: string} | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('timeline');
-
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const animationRef = useRef<number>(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [bufferLoading, setBufferLoading] = useState(false);
+
+  // Web Audio API refs
+  const audioBufferRef = useRef<AudioBuffer | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
+  const startTimeRef = useRef<number>(0);   // AudioContext.currentTime when playback started
+  const startOffsetRef = useRef<number>(0); // position in original buffer where we started
+  const animationRef = useRef<number>(0);
 
   const isMedley = mode === 'medley';
-
-  // Single playback constraint - stop other audio when this plays
   const { stopAll } = useSharedAudio();
-
-  // Clamp volume to prevent page issues (100% max)
   const safeVolume = Math.min(1, Math.max(0, operations.volume));
-  const hasEffects = operations.speed !== 1.0 || operations.volume !== 1.0 ||
-    operations.fadeInEnabled || operations.fadeOutEnabled || operations.reverse;
 
-  // Load audio
+  // Decode audio buffer whenever audioUrl changes
   useEffect(() => {
-    const audio = new Audio();
-    audioRef.current = audio;
-    audio.crossOrigin = 'anonymous';
+    let cancelled = false;
+    setBufferLoading(true);
+    audioBufferRef.current = null;
 
-    const onLoaded = () => {
-      const dur = audio.duration;
-      setDuration(dur);
-      setOperations(prev => ({ ...prev, trimEnd: dur }));
+    const decode = async () => {
+      try {
+        const resp = await fetch(audioUrl);
+        if (!resp.ok) throw new Error(`Fetch failed: ${resp.status}`);
+        const arrayBuffer = await resp.arrayBuffer();
+        if (cancelled) return;
+
+        // Decode using a temporary AudioContext (no user gesture needed for decode)
+        const tempCtx = new AudioContext();
+        const buffer = await tempCtx.decodeAudioData(arrayBuffer);
+        await tempCtx.close();
+        if (cancelled) return;
+
+        audioBufferRef.current = buffer;
+        setDuration(buffer.duration);
+        setOperations(prev => ({ ...prev, trimEnd: prev.trimEnd > 0 ? prev.trimEnd : buffer.duration }));
+      } catch (err) {
+        console.error('AudioEditorPanel: failed to decode audio', err);
+      } finally {
+        if (!cancelled) setBufferLoading(false);
+      }
     };
 
-    const onError = () => {
-      console.error('Audio load error');
-    };
-
-    audio.addEventListener('loadedmetadata', onLoaded);
-    audio.addEventListener('error', onError);
-    audio.src = audioUrl;
-
-    return () => {
-      audio.removeEventListener('loadedmetadata', onLoaded);
-      audio.removeEventListener('error', onError);
-    };
+    decode();
+    return () => { cancelled = true; };
   }, [audioUrl]);
 
-  // Sync playback rate and volume (use safeVolume)
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.playbackRate = operations.speed;
-      audioRef.current.volume = safeVolume;
+  // Stop source node and cancel animation
+  const stopSource = useCallback(() => {
+    cancelAnimationFrame(animationRef.current);
+    if (sourceNodeRef.current) {
+      try { sourceNodeRef.current.stop(); } catch (_) {}
+      sourceNodeRef.current = null;
     }
-  }, [operations.speed, safeVolume]);
+    gainNodeRef.current = null;
+  }, []);
 
-  // Playback animation loop
+  // Animation loop — tracks position using AudioContext time
   useEffect(() => {
     if (!isPlaying) {
       cancelAnimationFrame(animationRef.current);
@@ -106,14 +111,15 @@ export default function AudioEditorPanel({
     }
 
     const tick = () => {
-      if (!audioRef.current) return;
-      const t = audioRef.current.currentTime;
-      setCurrentTime(t);
+      const ctx = audioContextRef.current;
+      if (!ctx) return;
+      const elapsed = ctx.currentTime - startTimeRef.current;
+      const pos = startOffsetRef.current + elapsed * operations.speed;
+      setCurrentTime(pos);
 
-      // Stop at trim end (only after we've actually started playing into the region)
-      if (t > operations.trimEnd && operations.trimEnd > 0 && t > operations.trimStart) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = operations.trimStart;
+      // Stop when past trim end (source.onended handles it too, but RAF catches early)
+      if (pos >= operations.trimEnd && operations.trimEnd > 0) {
+        stopSource();
         setIsPlaying(false);
         setCurrentTime(operations.trimStart);
         return;
@@ -124,37 +130,93 @@ export default function AudioEditorPanel({
 
     animationRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animationRef.current);
-  }, [isPlaying, operations.trimStart, operations.trimEnd]);
+  }, [isPlaying, operations.trimStart, operations.trimEnd, operations.speed, stopSource]);
 
-  const handlePreview = () => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
+  const handlePreview = useCallback(async () => {
     if (isPlaying) {
-      audio.pause();
+      stopSource();
       setIsPlaying(false);
       return;
     }
 
-    // Stop any other playing audio first (single playback constraint)
-    stopAll();
+    const buffer = audioBufferRef.current;
+    if (!buffer) return;
 
-    // Start at trim start
-    audio.currentTime = operations.trimStart;
-    audio.playbackRate = operations.speed;
-    audio.volume = safeVolume;
-    audio.play();
-    setIsPlaying(true);
-  };
+    stopAll(); // Single playback constraint
 
-  const handleStop = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = operations.trimStart;
+    // Create AudioContext on user gesture
+    if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+      audioContextRef.current = new AudioContext();
     }
+    const ctx = audioContextRef.current;
+    if (ctx.state === 'suspended') await ctx.resume();
+
+    const { trimStart, trimEnd, speed, volume,
+            fadeInEnabled, fadeInDuration,
+            fadeOutEnabled, fadeOutDuration, reverse } = operations;
+
+    // Slice buffer for trim region
+    const sr = buffer.sampleRate;
+    const startSample = Math.max(0, Math.floor(trimStart * sr));
+    const endSample = Math.min(buffer.length, Math.floor(trimEnd * sr));
+    const length = endSample - startSample;
+    if (length <= 0) return;
+
+    const trimmedBuffer = ctx.createBuffer(buffer.numberOfChannels, length, sr);
+    for (let c = 0; c < buffer.numberOfChannels; c++) {
+      const data = buffer.getChannelData(c).slice(startSample, endSample);
+      if (reverse) data.reverse(); // In-place reverse for real-time preview
+      trimmedBuffer.getChannelData(c).set(data);
+    }
+
+    // Source node
+    const source = ctx.createBufferSource();
+    source.buffer = trimmedBuffer;
+    source.playbackRate.value = speed;
+
+    // Gain node for volume + fade envelope
+    const gainNode = ctx.createGain();
+    const vol = Math.min(1, Math.max(0, volume));
+    const trimDuration = (trimEnd - trimStart) / speed; // real-time duration
+    const now = ctx.currentTime;
+
+    if (fadeInEnabled && fadeInDuration > 0) {
+      gainNode.gain.setValueAtTime(0.0001, now);
+      gainNode.gain.linearRampToValueAtTime(vol, now + Math.min(fadeInDuration, trimDuration));
+    } else {
+      gainNode.gain.setValueAtTime(vol, now);
+    }
+
+    if (fadeOutEnabled && fadeOutDuration > 0) {
+      const clampedFadeOut = Math.min(fadeOutDuration, trimDuration);
+      const fadeOutStart = now + Math.max(0, trimDuration - clampedFadeOut);
+      gainNode.gain.setValueAtTime(vol, fadeOutStart);
+      gainNode.gain.linearRampToValueAtTime(0.0001, now + trimDuration);
+    }
+
+    source.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    sourceNodeRef.current = source;
+    gainNodeRef.current = gainNode;
+    startTimeRef.current = now;
+    startOffsetRef.current = trimStart;
+
+    source.onended = () => {
+      setIsPlaying(false);
+      setCurrentTime(trimStart);
+    };
+
+    source.start(now);
+    setIsPlaying(true);
+    setCurrentTime(trimStart);
+  }, [isPlaying, operations, safeVolume, stopAll, stopSource]);
+
+  const handleStop = useCallback(() => {
+    stopSource();
     setIsPlaying(false);
     setCurrentTime(operations.trimStart);
-  };
+  }, [operations.trimStart, stopSource]);
 
   const buildOperationsArray = () => {
     const ops: Array<{
@@ -275,6 +337,9 @@ export default function AudioEditorPanel({
           <div style={styles.powerLed} />
           <span style={styles.title}>AUDIO EDITOR</span>
         </div>
+        {bufferLoading && (
+          <span style={{ color: '#666', fontSize: '11px', fontFamily: 'JetBrains Mono, monospace' }}>Loading...</span>
+        )}
         {duration > 0 && (
           <div style={styles.durationBadge}>
             <span style={styles.durationLabel}>TOTAL</span>
@@ -349,11 +414,18 @@ export default function AudioEditorPanel({
               trimStart={operations.trimStart}
               trimEnd={operations.trimEnd}
               duration={duration}
+              currentTime={currentTime}
               isSelected={true}
               isPlaying={isPlaying}
               onSeek={(t) => {
+                // Seek: if playing, restart from new position; otherwise just update cursor
                 setCurrentTime(t);
-                if (audioRef.current) audioRef.current.currentTime = t;
+                if (isPlaying) {
+                  stopSource();
+                  startOffsetRef.current = t;
+                  // Re-trigger handlePreview from new offset position
+                  setIsPlaying(false);
+                }
               }}
               onTrimChange={handleTrimChange}
               onPlayPause={handlePreview}
@@ -405,8 +477,11 @@ export default function AudioEditorPanel({
             const percent = (e.clientX - rect.left) / rect.width;
             const newTime = percent * duration;
             setCurrentTime(newTime);
-            if (audioRef.current) {
-              audioRef.current.currentTime = newTime;
+            // If playing, restart from new position
+            if (isPlaying) {
+              stopSource();
+              startOffsetRef.current = newTime;
+              setIsPlaying(false);
             }
           }}>
             <div style={{
@@ -448,12 +523,12 @@ export default function AudioEditorPanel({
             </div>
           )}
         </div>
-        {hasEffects && (
+        {(operations.speed !== 1.0 || operations.volume !== 1.0 || operations.fadeInEnabled || operations.fadeOutEnabled || operations.reverse) && (
           <div style={styles.effectsBadge}>
             <svg width="10" height="10" viewBox="0 0 24 24" fill="#FFB800">
               <path d="M12 3v18M3 12h18" stroke="#FFB800" strokeWidth="2" strokeLinecap="round"/>
             </svg>
-            <span style={{color: '#FFB800', fontSize: 10, fontWeight: 600}}>EFFECTS QUEUED</span>
+            <span style={{color: '#FFB800', fontSize: 10, fontWeight: 600}}>EFFECTS ACTIVE</span>
           </div>
         )}
       </div>

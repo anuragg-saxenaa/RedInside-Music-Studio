@@ -4,6 +4,7 @@ import { registerUploadRoutes } from './api/routes/upload.routes.js';
 import { VideoRoutes } from './api/routes/video.routes.js';
 import { HistoryRoutes } from './api/routes/history.routes.js';
 import { MasteringRoutes } from './api/routes/mastering.routes.js';
+import { ViralRoutes } from './api/routes/viral.routes.js';
 import express from 'express';
 import cors from 'cors';
 import config from './config/env.config.js';
@@ -93,6 +94,10 @@ HistoryRoutes.forEach(route => {
 MasteringRoutes.forEach(route => {
   const args = [route.path, ...(route.middlewares || []), route.handler];
   app[route.method](...args);
+});
+
+ViralRoutes.forEach(route => {
+  app[route.method](route.path, route.handler);
 });
 
 registerImageRoutes(app);

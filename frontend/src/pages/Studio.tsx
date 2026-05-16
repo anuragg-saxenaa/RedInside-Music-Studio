@@ -23,10 +23,20 @@ export default function Studio({ project, onBack }: StudioProps) {
   const [allMusicList, setAllMusicList] = useState<MusicGeneration[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
+  // Track generation state locally — project prop is stale after first load
+  const [hasLyrics, setHasLyrics] = useState(project.current_lyrics_version > 0);
+  const [hasMusic, setHasMusic] = useState(project.current_music_version > 0);
 
   useEffect(() => {
-    if (project.current_music_version > 0) {
+    if (hasMusic || project.current_music_version > 0) {
       fetchMusicList();
+    }
+    // Pre-load latest lyrics so Music step works without re-selecting lyrics
+    if (project.current_lyrics_version > 0) {
+      fetch(`/api/projects/${project.id}/lyrics`)
+        .then(res => res.json())
+        .then(list => { if (Array.isArray(list) && list.length > 0) setSelectedLyrics(list[0]); })
+        .catch(() => {});
     }
     // Load existing artwork if available
     fetch(`/api/projects/${project.id}/artwork`)
@@ -54,15 +64,17 @@ export default function Studio({ project, onBack }: StudioProps) {
 
   const handleLyricsGenerated = (lyrics: LyricsGeneration) => {
     setSelectedLyrics(lyrics);
+    setHasLyrics(true);
     setCurrentStep('music');
   };
 
   const handleMusicGenerated = (music: MusicGeneration) => {
     setSelectedMusic(music);
     setActivePlayerMusic(music);
+    setHasMusic(true);
     setCurrentStep('artwork');
-    // Reset artwork when new music is generated - artwork step will load per-music artwork
     setArtworkUrl(null);
+    fetchMusicList();
   };
 
   // Fetch per-music artwork when entering artwork step
@@ -88,7 +100,7 @@ export default function Studio({ project, onBack }: StudioProps) {
   };
 
   return (
-    <div style={{ backgroundColor: '#0A0A0A', minHeight: '100vh', padding: '24px', fontFamily: 'DM Sans, sans-serif', paddingBottom: activePlayerMusic ? '140px' : '80px' }}>
+    <div style={{ backgroundColor: '#0A0A0A', minHeight: '100vh', padding: '24px', fontFamily: 'DM Sans, sans-serif', paddingBottom: (activePlayerMusic && currentStep !== 'music') ? '140px' : '80px' }}>
       <div style={{ maxWidth: '900px', margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
           <button
@@ -105,8 +117,8 @@ export default function Studio({ project, onBack }: StudioProps) {
         <WorkflowStepper
           currentStep={currentStep}
           onStepChange={setCurrentStep}
-          hasLyrics={project.current_lyrics_version > 0}
-          hasMusic={project.current_music_version > 0}
+          hasLyrics={hasLyrics}
+          hasMusic={hasMusic}
         />
 
         <div style={{ backgroundColor: '#141414', borderRadius: '12px', padding: '24px', marginTop: '24px', border: '1px solid #2A2A2A', minHeight: '400px' }}>
@@ -145,8 +157,8 @@ export default function Studio({ project, onBack }: StudioProps) {
         </div>
       </div>
 
-      {/* Persistent Player Bar */}
-      {activePlayerMusic && (
+      {/* Persistent Player Bar - hidden on Music step (MusicPlayer has its own PlaybackBar) */}
+      {activePlayerMusic && currentStep !== 'music' && (
         <div style={{
           position: 'fixed',
           bottom: 0,

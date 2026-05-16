@@ -131,4 +131,23 @@ export const MusicModel = {
     const result = db.prepare('SELECT MAX(version) as max_version FROM music_generations WHERE project_id = ?').get(projectId);
     return (result?.max_version || 0) + 1;
   },
+
+  delete(id) {
+    const music = this.findById(id);
+    if (!music) {
+      throw new Error('Music not found');
+    }
+
+    // Delete files from disk
+    if (music.original_file_path && fs.existsSync(music.original_file_path)) {
+      fs.unlinkSync(music.original_file_path);
+    }
+    if (music.processed_file_path && fs.existsSync(music.processed_file_path)) {
+      fs.unlinkSync(music.processed_file_path);
+    }
+
+    // Delete from database
+    db.prepare('DELETE FROM music_generations WHERE id = ?').run(id);
+    return true;
+  },
 };

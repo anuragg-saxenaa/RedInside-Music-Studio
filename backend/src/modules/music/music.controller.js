@@ -1,6 +1,7 @@
 import { MusicService } from './music.service.js';
 import { JobModel } from '../../queue/jobs.service.js';
 import { addMusicJob } from '../../queue/workers/music.worker.js';
+import { ProjectModel } from '../../database/models/project.model.js';
 import logger from '../../utils/logger.js';
 import storage from '../../utils/storage.util.js';
 import fs from 'fs';
@@ -23,6 +24,20 @@ export const MusicController = {
         return res.status(400).json({
           error: 'lyricsId or audioUrl is required for non-instrumental music',
         });
+      }
+
+      const validModels = ['music-2.6', 'music-cover'];
+      const resolvedModel = model || 'music-2.6';
+      if (!validModels.includes(resolvedModel)) {
+        return res.status(400).json({
+          error: `Invalid model "${resolvedModel}". Must be one of: ${validModels.join(', ')}`,
+        });
+      }
+
+      // Validate project exists
+      const project = ProjectModel.findById(projectId);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
       }
 
       // Create job record in DB
@@ -112,9 +127,12 @@ export const MusicController = {
 
       const fileBuffer = storage.readFile(filePath);
 
+      const ext = path.extname(filePath).toLowerCase();
+      const contentType = ext === '.wav' ? 'audio/wav' : 'audio/mpeg';
+      const downloadExt = ext === '.wav' ? 'wav' : 'mp3';
       res.set({
-        'Content-Type': 'audio/mpeg',
-        'Content-Disposition': `attachment; filename="music-v${music.version}.mp3"`,
+        'Content-Type': contentType,
+        'Content-Disposition': `attachment; filename="music-v${music.version}.${downloadExt}"`,
         'Content-Length': fileBuffer.length,
       });
 
@@ -137,6 +155,20 @@ export const MusicController = {
 
       const updated = await musicService.updateMusicMetadata(id, { title });
       res.json(updated);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async delete(req, res, next) {
+    try {
+      const { id } = req.params;
+      const music = await musicService.getMusic(id);
+      if (!music) {
+        return res.status(404).json({ error: 'Music not found' });
+      }
+      await musicService.deleteMusic(id);
+      res.json({ message: 'Music deleted successfully' });
     } catch (error) {
       next(error);
     }
