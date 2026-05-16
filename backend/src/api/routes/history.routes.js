@@ -8,6 +8,11 @@ export const HistoryRoutes = [
   },
   {
     method: 'get',
+    path: '/api/history/export/:projectId',
+    handler: HistoryController.exportProject,
+  },
+  {
+    method: 'get',
     path: '/api/history/:projectId',
     handler: HistoryController.getProjectHistory,
   },

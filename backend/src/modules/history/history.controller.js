@@ -1,5 +1,8 @@
 import historyService from './history.service.js';
 import logger from '../../utils/logger.js';
+import JSZip from 'jszip';
+import fs from 'fs';
+import path from 'path';
 
 export const HistoryController = {
   /**
@@ -110,6 +113,52 @@ export const HistoryController = {
       res.json(result);
     } catch (error) {
       logger.error('Error deleting version:', error);
+      next(error);
+    }
+  },
+
+  async exportProject(req, res, next) {
+    try {
+      const { projectId } = req.params;
+      if (!projectId) {
+        return res.status(400).json({ error: 'projectId is required' });
+      }
+
+      let history;
+      try {
+        history = await historyService.getProjectHistory(projectId);
+      } catch (err) {
+        if (err.statusCode === 404) {
+          return res.status(404).json({ error: 'Project not found' });
+        }
+        throw err;
+      }
+      const zip = new JSZip();
+
+      const addAudioFiles = (generations, folder) => {
+        for (const gen of generations || []) {
+          const filePath = gen.processed_file_path || gen.original_file_path || gen.file_path;
+          if (filePath && fs.existsSync(filePath)) {
+            const ext = path.extname(filePath) || '.mp3';
+            const name = `v${gen.version}${ext}`;
+            zip.folder(folder).file(name, fs.readFileSync(filePath));
+          }
+        }
+      };
+
+      addAudioFiles(history.music || [], 'music');
+      addAudioFiles(history.video || [], 'video');
+
+      const zipBuffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+
+      res.set({
+        'Content-Type': 'application/zip',
+        'Content-Disposition': `attachment; filename="project-${projectId}-export.zip"`,
+        'Content-Length': zipBuffer.length,
+      });
+      res.send(zipBuffer);
+    } catch (error) {
+      logger.error('Error exporting project:', error);
       next(error);
     }
   },
