@@ -1,6 +1,6 @@
 # Implementation Status — Honest Gap Analysis
 
-**Last verified:** 2026-05-15 (session 3)  
+**Last verified:** 2026-05-16 (session 4)  
 **E2E tests:** 140 passing, 0 skipped, 0 failing  
 **Backend:** real FFmpeg, real SQLite — no mocks
 
@@ -62,6 +62,11 @@
 | Music generation error message lost | `parseApiError(data.error)` where data.error is string → falls to catch-all "unexpected error" | Changed to `data.error \|\| 'Failed to start generation'` |
 | Style dropdown sent invalid model to API | Style items set `model` to `music-hip-hop` etc. — backend only accepts `music-2.6` or `music-cover` → job queued then failed silently | Separated `selectedStyle` state from `model`; style now appended to prompt as `[hip-hop style]` |
 | Invalid model accepted then failed in worker | Controller queued job (202) without model validation → user saw "Generation failed" after long wait | Added model validation in controller — returns 400 immediately for unknown models |
+| Not-found errors returned 500 across all services | 8+ services threw `new Error('X not found')` without `statusCode = 404`; catch blocks wrapped them losing statusCode | Added `err.statusCode = 404` everywhere; catch blocks preserve errors with statusCode set |
+| Error middleware used MiniMax API codes as HTTP status | `MinimaxError.statusCode` (1002, 1004, etc.) used directly as HTTP status → Node.js RangeError for values ≥1000 | Added mapping: 1002→429, 1004→401, 1008→402, 1026→422, 2013→400, 2049→401, rest→502 |
+| Audio file endpoint lacked range request support | Read entire file into buffer; no Accept-Ranges header → browser couldn't seek until fully buffered | Switched to `fs.createReadStream` with range request handling (206 Partial Content) |
+| Audio controller wrong param names | `getMetadata` read `req.params.path` (route is `/:id`); `getFile` read `req.params.path` (Express wildcard uses `[0]`) | Fixed to check correct param names with fallback |
+| masteredPath regex broke on non-mp3 output | `.replace('.mp3', '_mastered.wav')` silently did nothing for .wav/.flac output | Changed to `.replace(/\.[^.]+$/, '_mastered.wav')` |
 
 ## Known Non-Issues (by design)
 
