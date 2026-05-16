@@ -29,7 +29,9 @@ export class MusicService {
       if (lyricsId) {
         const lyrics = LyricsModel.findById(lyricsId);
         if (!lyrics) {
-          throw new Error(`Lyrics not found: ${lyricsId}`);
+          const err = new Error(`Lyrics not found: ${lyricsId}`);
+          err.statusCode = 404;
+          throw err;
         }
         lyricsContent = lyrics.content;
       } else if (!isInstrumental && !referenceAudioUrl && !filePath) {
@@ -183,7 +185,7 @@ export class MusicService {
     } catch (error) {
       logger.error('Failed to generate music', { projectId: params.projectId, error: error.message });
       // Preserve MinimaxError structure for frontend
-      if (error.name === 'MinimaxError') {
+      if (error.name === 'MinimaxError' || error.statusCode) {
         throw error;
       }
       throw new Error(`Music generation failed: ${error.message}`);
@@ -212,7 +214,9 @@ export class MusicService {
   async deleteMusic(musicId) {
     const music = MusicModel.findById(musicId);
     if (!music) {
-      throw new Error('Music not found');
+      const err = new Error('Music not found');
+      err.statusCode = 404;
+      throw err;
     }
     return MusicModel.delete(musicId);
   }

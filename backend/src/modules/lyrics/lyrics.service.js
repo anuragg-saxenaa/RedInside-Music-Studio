@@ -129,7 +129,9 @@ export class LyricsService {
       // Load existing lyrics
       const existingLyrics = LyricsModel.findById(lyricsId);
       if (!existingLyrics) {
-        throw new Error(`Lyrics not found: ${lyricsId}`);
+        const err = new Error(`Lyrics not found: ${lyricsId}`);
+        err.statusCode = 404;
+        throw err;
       }
 
       // Validate edit instruction
@@ -200,7 +202,7 @@ export class LyricsService {
     } catch (error) {
       logger.error('Failed to edit lyrics', { lyricsId, error: error.message });
       // Preserve MinimaxError structure for frontend
-      if (error.name === 'MinimaxError') {
+      if (error.name === 'MinimaxError' || error.statusCode) {
         throw error;
       }
       throw new Error(`Lyrics edit failed: ${error.message}`);
