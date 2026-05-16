@@ -122,7 +122,7 @@ export const AudioController = {
 
       // Run mastering on the processed file
       const masteringService = new AudioMasteringService(storage.storageDir);
-      const masteredPath = outputPath.replace('.mp3', '_mastered.wav');
+      const masteredPath = outputPath.replace(/\.[^.]+$/, '_mastered.wav');
 
       try {
         await masteringService.masterToSpotify(result.filePath, masteredPath);
@@ -383,7 +383,7 @@ export const AudioController = {
    */
   async getMetadata(req, res, next) {
     try {
-      const { path: filePath } = req.params;
+      const filePath = req.params.id || req.params.path;
 
       if (!filePath) {
         return res.status(400).json({
@@ -407,7 +407,7 @@ export const AudioController = {
    */
   async getFile(req, res, next) {
     try {
-      const { path: filePath } = req.params;
+      const filePath = req.params[0] || req.params.path;
 
       if (!filePath) {
         return res.status(400).json({

@@ -135,7 +135,9 @@ export const MusicModel = {
   delete(id) {
     const music = this.findById(id);
     if (!music) {
-      throw new Error('Music not found');
+      const err = new Error('Music not found');
+      err.statusCode = 404;
+      throw err;
     }
 
     // Delete files from disk
