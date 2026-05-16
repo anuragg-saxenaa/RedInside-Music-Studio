@@ -201,10 +201,10 @@ test.describe('Music Player - Track List and Controls', () => {
     const trackRow = page.locator('[data-testid="track-row"]').first();
     await expect(trackRow).toBeVisible({ timeout: 5000 });
     await trackRow.hover();
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(500);
 
-    const downloadBtn = page.locator('button[title="Download"]').first();
-    await expect(downloadBtn).toBeVisible();
+    const downloadBtn = trackRow.locator('button[title="Download"]');
+    await expect(downloadBtn).toBeVisible({ timeout: 3000 });
   });
 
   test('Your Songs heading shows in music step', async ({ page }) => {
