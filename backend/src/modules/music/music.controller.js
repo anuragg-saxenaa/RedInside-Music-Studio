@@ -125,18 +125,40 @@ export const MusicController = {
         });
       }
 
-      const fileBuffer = storage.readFile(filePath);
-
       const ext = path.extname(filePath).toLowerCase();
       const contentType = ext === '.wav' ? 'audio/wav' : 'audio/mpeg';
       const downloadExt = ext === '.wav' ? 'wav' : 'mp3';
-      res.set({
-        'Content-Type': contentType,
-        'Content-Disposition': `attachment; filename="music-v${music.version}.${downloadExt}"`,
-        'Content-Length': fileBuffer.length,
-      });
 
-      res.send(fileBuffer);
+      const stat = fs.statSync(filePath);
+      const fileSize = stat.size;
+      const rangeHeader = req.headers.range;
+
+      if (rangeHeader) {
+        // Support HTTP range requests for proper audio seeking
+        const parts = rangeHeader.replace(/bytes=/, '').split('-');
+        const start = parseInt(parts[0], 10);
+        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+        const chunkSize = end - start + 1;
+
+        res.set({
+          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+          'Accept-Ranges': 'bytes',
+          'Content-Length': chunkSize,
+          'Content-Type': contentType,
+        });
+        res.status(206);
+
+        const fileStream = fs.createReadStream(filePath, { start, end });
+        fileStream.pipe(res);
+      } else {
+        res.set({
+          'Content-Type': contentType,
+          'Accept-Ranges': 'bytes',
+          'Content-Disposition': `inline; filename="music-v${music.version}.${downloadExt}"`,
+          'Content-Length': fileSize,
+        });
+        fs.createReadStream(filePath).pipe(res);
+      }
     } catch (error) {
       logger.error('Error serving audio file:', error);
       next(error);
