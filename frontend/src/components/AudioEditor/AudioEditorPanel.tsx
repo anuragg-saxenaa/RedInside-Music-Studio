@@ -26,6 +26,19 @@ const defaultOperations: AudioOperations = {
   fadeOutEnabled: false,
   fadeOutDuration: 1.0,
   reverse: false,
+  normalizeEnabled: false,
+  normalizeTargetLUFS: -14,
+  reverbEnabled: false,
+  reverbRoomScale: 50,
+  reverbDamping: 50,
+  reverbWetLevel: 0.3,
+  echoEnabled: false,
+  echoDelay: 0.3,
+  echoDecay: 0.5,
+  bassBoostEnabled: false,
+  bassBoostGainDb: 6,
+  pitchShiftEnabled: false,
+  pitchShiftSemitones: 0,
 };
 
 export default function AudioEditorPanel({
@@ -245,6 +258,21 @@ export default function AudioEditorPanel({
     }
     if (operations.reverse) {
       ops.push({ type: 'reverse' });
+    }
+    if (operations.normalizeEnabled) {
+      ops.push({ type: 'normalize', targetLUFS: operations.normalizeTargetLUFS } as any);
+    }
+    if (operations.bassBoostEnabled) {
+      ops.push({ type: 'bassBoost', gainDb: operations.bassBoostGainDb } as any);
+    }
+    if (operations.pitchShiftEnabled && operations.pitchShiftSemitones !== 0) {
+      ops.push({ type: 'pitchShift', semitones: operations.pitchShiftSemitones } as any);
+    }
+    if (operations.reverbEnabled) {
+      ops.push({ type: 'reverb', roomScale: operations.reverbRoomScale, damping: operations.reverbDamping, wetLevel: operations.reverbWetLevel } as any);
+    }
+    if (operations.echoEnabled) {
+      ops.push({ type: 'echo', delay: operations.echoDelay, decay: operations.echoDecay } as any);
     }
     return ops;
   };

@@ -42,6 +42,21 @@ export class AudioService {
         case 'reverse':
           processor.reverse();
           break;
+        case 'normalize':
+          processor.normalize(op.targetLUFS);
+          break;
+        case 'reverb':
+          processor.reverb(op.roomScale, op.damping, op.wetLevel);
+          break;
+        case 'echo':
+          processor.echo(op.delay, op.decay);
+          break;
+        case 'bassBoost':
+          processor.bassBoost(op.gainDb);
+          break;
+        case 'pitchShift':
+          processor.pitchShift(op.semitones);
+          break;
         default:
           logger.warn('Unknown operation type', { type: op.type });
       }
@@ -135,6 +150,41 @@ export class AudioService {
     return new AudioProcessor(inputPath)
       .reverse()
       .export(outputPath, options);
+  }
+
+  async normalizeAudio(inputPath, outputPath, options = {}) {
+    const { targetLUFS = -14, ...exportOptions } = options;
+    return new AudioProcessor(inputPath)
+      .normalize(targetLUFS)
+      .export(outputPath, exportOptions);
+  }
+
+  async applyReverb(inputPath, outputPath, options = {}) {
+    const { roomScale = 50, damping = 50, wetLevel = 0.3, ...exportOptions } = options;
+    return new AudioProcessor(inputPath)
+      .reverb(roomScale, damping, wetLevel)
+      .export(outputPath, exportOptions);
+  }
+
+  async applyEcho(inputPath, outputPath, options = {}) {
+    const { delay = 0.3, decay = 0.5, ...exportOptions } = options;
+    return new AudioProcessor(inputPath)
+      .echo(delay, decay)
+      .export(outputPath, exportOptions);
+  }
+
+  async applyBassBoost(inputPath, outputPath, options = {}) {
+    const { gainDb = 6, ...exportOptions } = options;
+    return new AudioProcessor(inputPath)
+      .bassBoost(gainDb)
+      .export(outputPath, exportOptions);
+  }
+
+  async applyPitchShift(inputPath, outputPath, options = {}) {
+    const { semitones = 0, ...exportOptions } = options;
+    return new AudioProcessor(inputPath)
+      .pitchShift(semitones)
+      .export(outputPath, exportOptions);
   }
 
   /**

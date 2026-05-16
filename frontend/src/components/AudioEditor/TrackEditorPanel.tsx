@@ -74,6 +74,19 @@ export default function TrackEditorPanel({ track, onUpdate, onRemove }: TrackEdi
           fadeOutEnabled: settings.fadeOut > 0,
           fadeOutDuration: settings.fadeOut,
           reverse: settings.reverse,
+          normalizeEnabled: false,
+          normalizeTargetLUFS: -14,
+          reverbEnabled: false,
+          reverbRoomScale: 50,
+          reverbDamping: 50,
+          reverbWetLevel: 0.3,
+          echoEnabled: false,
+          echoDelay: 0.3,
+          echoDecay: 0.5,
+          bassBoostEnabled: false,
+          bassBoostGainDb: 6,
+          pitchShiftEnabled: false,
+          pitchShiftSemitones: 0,
         }}
         onChange={(ops) => {
           setSettings({

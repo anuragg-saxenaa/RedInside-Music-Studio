@@ -10,6 +10,19 @@ export interface AudioOperations {
   fadeOutEnabled: boolean
   fadeOutDuration: number
   reverse: boolean
+  normalizeEnabled: boolean
+  normalizeTargetLUFS: number
+  reverbEnabled: boolean
+  reverbRoomScale: number
+  reverbDamping: number
+  reverbWetLevel: number
+  echoEnabled: boolean
+  echoDelay: number
+  echoDecay: number
+  bassBoostEnabled: boolean
+  bassBoostGainDb: number
+  pitchShiftEnabled: boolean
+  pitchShiftSemitones: number
 }
 
 interface ControlsSidebarProps {
@@ -325,6 +338,86 @@ export default function ControlsSidebar({
               </div>
               <span style={{ color: operations.reverse ? '#E63946' : '#888' }}>REVERSE</span>
             </div>
+          </div>
+
+          {/* Normalize */}
+          <div style={styles.effectRow}>
+            <div style={styles.toggleLabel} onClick={() => onChange({ ...operations, normalizeEnabled: !operations.normalizeEnabled })}>
+              <div style={{ ...styles.toggleSwitch, background: operations.normalizeEnabled ? 'linear-gradient(180deg, #00D26A 0%, #00AA50 100%)' : '#2A2A2A', boxShadow: operations.normalizeEnabled ? '0 0 12px rgba(0, 210, 106, 0.4)' : 'inset 0 1px 2px rgba(0,0,0,0.5)' }}>
+                <div style={{ ...styles.toggleKnob, transform: operations.normalizeEnabled ? 'translateX(14px)' : 'translateX(0)' }} />
+              </div>
+              <span style={{ color: operations.normalizeEnabled ? '#00D26A' : '#888' }}>NORMALIZE</span>
+            </div>
+            {operations.normalizeEnabled && (
+              <div style={styles.effectInput}>
+                <input type="number" min="-24" max="-6" step="1" value={operations.normalizeTargetLUFS} onChange={(e) => onChange({ ...operations, normalizeTargetLUFS: parseFloat(e.target.value) || -14 })} style={styles.smallInput} />
+                <span style={styles.unitLabel}>LUFS</span>
+              </div>
+            )}
+          </div>
+
+          {/* Bass Boost */}
+          <div style={styles.effectRow}>
+            <div style={styles.toggleLabel} onClick={() => onChange({ ...operations, bassBoostEnabled: !operations.bassBoostEnabled })}>
+              <div style={{ ...styles.toggleSwitch, background: operations.bassBoostEnabled ? 'linear-gradient(180deg, #FFB800 0%, #CC9200 100%)' : '#2A2A2A', boxShadow: operations.bassBoostEnabled ? '0 0 12px rgba(255, 184, 0, 0.4)' : 'inset 0 1px 2px rgba(0,0,0,0.5)' }}>
+                <div style={{ ...styles.toggleKnob, transform: operations.bassBoostEnabled ? 'translateX(14px)' : 'translateX(0)' }} />
+              </div>
+              <span style={{ color: operations.bassBoostEnabled ? '#FFB800' : '#888' }}>BASS BOOST</span>
+            </div>
+            {operations.bassBoostEnabled && (
+              <div style={styles.effectInput}>
+                <input type="number" min="1" max="15" step="1" value={operations.bassBoostGainDb} onChange={(e) => onChange({ ...operations, bassBoostGainDb: parseFloat(e.target.value) || 6 })} style={styles.smallInput} />
+                <span style={styles.unitLabel}>DB</span>
+              </div>
+            )}
+          </div>
+
+          {/* Pitch Shift */}
+          <div style={styles.effectRow}>
+            <div style={styles.toggleLabel} onClick={() => onChange({ ...operations, pitchShiftEnabled: !operations.pitchShiftEnabled })}>
+              <div style={{ ...styles.toggleSwitch, background: operations.pitchShiftEnabled ? 'linear-gradient(180deg, #AA44FF 0%, #8822DD 100%)' : '#2A2A2A', boxShadow: operations.pitchShiftEnabled ? '0 0 12px rgba(170, 68, 255, 0.4)' : 'inset 0 1px 2px rgba(0,0,0,0.5)' }}>
+                <div style={{ ...styles.toggleKnob, transform: operations.pitchShiftEnabled ? 'translateX(14px)' : 'translateX(0)' }} />
+              </div>
+              <span style={{ color: operations.pitchShiftEnabled ? '#AA44FF' : '#888' }}>PITCH SHIFT</span>
+            </div>
+            {operations.pitchShiftEnabled && (
+              <div style={styles.effectInput}>
+                <input type="number" min="-12" max="12" step="1" value={operations.pitchShiftSemitones} onChange={(e) => onChange({ ...operations, pitchShiftSemitones: parseFloat(e.target.value) || 0 })} style={styles.smallInput} />
+                <span style={styles.unitLabel}>ST</span>
+              </div>
+            )}
+          </div>
+
+          {/* Reverb */}
+          <div style={styles.effectRow}>
+            <div style={styles.toggleLabel} onClick={() => onChange({ ...operations, reverbEnabled: !operations.reverbEnabled })}>
+              <div style={{ ...styles.toggleSwitch, background: operations.reverbEnabled ? 'linear-gradient(180deg, #4488FF 0%, #2266DD 100%)' : '#2A2A2A', boxShadow: operations.reverbEnabled ? '0 0 12px rgba(68, 136, 255, 0.4)' : 'inset 0 1px 2px rgba(0,0,0,0.5)' }}>
+                <div style={{ ...styles.toggleKnob, transform: operations.reverbEnabled ? 'translateX(14px)' : 'translateX(0)' }} />
+              </div>
+              <span style={{ color: operations.reverbEnabled ? '#4488FF' : '#888' }}>REVERB</span>
+            </div>
+            {operations.reverbEnabled && (
+              <div style={styles.effectInput}>
+                <input type="number" min="0" max="100" step="10" value={operations.reverbRoomScale} onChange={(e) => onChange({ ...operations, reverbRoomScale: parseFloat(e.target.value) || 50 })} style={styles.smallInput} />
+                <span style={styles.unitLabel}>%</span>
+              </div>
+            )}
+          </div>
+
+          {/* Echo */}
+          <div style={styles.effectRow}>
+            <div style={styles.toggleLabel} onClick={() => onChange({ ...operations, echoEnabled: !operations.echoEnabled })}>
+              <div style={{ ...styles.toggleSwitch, background: operations.echoEnabled ? 'linear-gradient(180deg, #FF6644 0%, #DD4422 100%)' : '#2A2A2A', boxShadow: operations.echoEnabled ? '0 0 12px rgba(255, 102, 68, 0.4)' : 'inset 0 1px 2px rgba(0,0,0,0.5)' }}>
+                <div style={{ ...styles.toggleKnob, transform: operations.echoEnabled ? 'translateX(14px)' : 'translateX(0)' }} />
+              </div>
+              <span style={{ color: operations.echoEnabled ? '#FF6644' : '#888' }}>ECHO</span>
+            </div>
+            {operations.echoEnabled && (
+              <div style={styles.effectInput}>
+                <input type="number" min="0.1" max="1.0" step="0.1" value={operations.echoDelay} onChange={(e) => onChange({ ...operations, echoDelay: parseFloat(e.target.value) || 0.3 })} style={styles.smallInput} />
+                <span style={styles.unitLabel}>S</span>
+              </div>
+            )}
           </div>
         </div>
       </Section>

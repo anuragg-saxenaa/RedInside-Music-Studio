@@ -495,4 +495,50 @@ export const AudioController = {
       next(error);
     }
   },
+
+  async normalize(req, res, next) {
+    try {
+      const { inputPath, outputPath, targetLUFS, format, bitrate } = req.body;
+      if (!inputPath || !outputPath) return res.status(400).json({ error: 'inputPath and outputPath are required' });
+      const result = await audioService.normalizeAudio(inputPath, outputPath, { targetLUFS, format, bitrate });
+      res.json({ message: 'Audio normalized successfully', ...result });
+    } catch (error) { next(error); }
+  },
+
+  async reverb(req, res, next) {
+    try {
+      const { inputPath, outputPath, roomScale, damping, wetLevel, format, bitrate } = req.body;
+      if (!inputPath || !outputPath) return res.status(400).json({ error: 'inputPath and outputPath are required' });
+      const result = await audioService.applyReverb(inputPath, outputPath, { roomScale, damping, wetLevel, format, bitrate });
+      res.json({ message: 'Reverb applied successfully', ...result });
+    } catch (error) { next(error); }
+  },
+
+  async echo(req, res, next) {
+    try {
+      const { inputPath, outputPath, delay, decay, format, bitrate } = req.body;
+      if (!inputPath || !outputPath) return res.status(400).json({ error: 'inputPath and outputPath are required' });
+      const result = await audioService.applyEcho(inputPath, outputPath, { delay, decay, format, bitrate });
+      res.json({ message: 'Echo applied successfully', ...result });
+    } catch (error) { next(error); }
+  },
+
+  async bassBoost(req, res, next) {
+    try {
+      const { inputPath, outputPath, gainDb, format, bitrate } = req.body;
+      if (!inputPath || !outputPath) return res.status(400).json({ error: 'inputPath and outputPath are required' });
+      const result = await audioService.applyBassBoost(inputPath, outputPath, { gainDb, format, bitrate });
+      res.json({ message: 'Bass boost applied successfully', ...result });
+    } catch (error) { next(error); }
+  },
+
+  async pitchShift(req, res, next) {
+    try {
+      const { inputPath, outputPath, semitones, format, bitrate } = req.body;
+      if (!inputPath || !outputPath) return res.status(400).json({ error: 'inputPath and outputPath are required' });
+      if (typeof semitones !== 'number') return res.status(400).json({ error: 'semitones must be a number' });
+      const result = await audioService.applyPitchShift(inputPath, outputPath, { semitones, format, bitrate });
+      res.json({ message: 'Pitch shifted successfully', ...result });
+    } catch (error) { next(error); }
+  },
 };

@@ -37,6 +37,31 @@ export const AudioRoutes = [
     handler: AudioController.reverse,
   },
   {
+    method: 'post',
+    path: '/api/audio/normalize',
+    handler: AudioController.normalize,
+  },
+  {
+    method: 'post',
+    path: '/api/audio/reverb',
+    handler: AudioController.reverb,
+  },
+  {
+    method: 'post',
+    path: '/api/audio/echo',
+    handler: AudioController.echo,
+  },
+  {
+    method: 'post',
+    path: '/api/audio/bass-boost',
+    handler: AudioController.bassBoost,
+  },
+  {
+    method: 'post',
+    path: '/api/audio/pitch-shift',
+    handler: AudioController.pitchShift,
+  },
+  {
     method: 'get',
     path: '/api/audio/:id/metadata',
     handler: AudioController.getMetadata,

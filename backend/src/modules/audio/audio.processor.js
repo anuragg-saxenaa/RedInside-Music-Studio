@@ -107,6 +107,34 @@ export class AudioProcessor {
     return this;
   }
 
+  normalize(targetLUFS = -14) {
+    this._operations.push({ type: 'normalize', targetLUFS });
+    return this;
+  }
+
+  reverb(roomScale = 50, damping = 50, wetLevel = 0.3) {
+    this._operations.push({ type: 'reverb', roomScale, damping, wetLevel });
+    return this;
+  }
+
+  echo(delay = 0.3, decay = 0.5) {
+    this._operations.push({ type: 'echo', delay, decay });
+    return this;
+  }
+
+  bassBoost(gainDb = 6) {
+    this._operations.push({ type: 'bassBoost', gainDb });
+    return this;
+  }
+
+  pitchShift(semitones) {
+    if (typeof semitones !== 'number' || semitones < -12 || semitones > 12) {
+      throw new Error('semitones must be a number between -12 and 12');
+    }
+    this._operations.push({ type: 'pitchShift', semitones });
+    return this;
+  }
+
   /**
    * Build FFmpeg command from operations
    * @param {string} outputPath - Output file path
@@ -148,10 +176,38 @@ export class AudioProcessor {
         }
 
         case 'reverse':
-          // Reverse must be FIRST before trim because trim does seekInput
-          // But filters are applied in order, so we need to handle this
-          // We'll reverse at the very start by applying areverse first
           break;
+
+        case 'normalize':
+          this._filters.push(`loudnorm=I=${op.targetLUFS}:TP=-1.5:LRA=11`);
+          break;
+
+        case 'reverb': {
+          const wet = Math.min(1, Math.max(0, op.wetLevel));
+          const dry = 1 - wet;
+          this._filters.push(`aecho=${dry}:${wet}:${Math.round(op.roomScale * 5)}:${1 - op.damping / 100}`);
+          break;
+        }
+
+        case 'echo':
+          this._filters.push(`aecho=0.8:0.9:${Math.round(op.delay * 1000)}:${op.decay}`);
+          break;
+
+        case 'bassBoost': {
+          const freq = 100;
+          const gain = op.gainDb;
+          this._filters.push(`equalizer=f=${freq}:width_type=o:width=2:g=${gain}`);
+          break;
+        }
+
+        case 'pitchShift': {
+          const ratio = Math.pow(2, op.semitones / 12);
+          const tempo = 1 / ratio;
+          if (tempo >= 0.5 && tempo <= 2.0) {
+            this._filters.push(`asetrate=44100*${ratio},atempo=${tempo}`);
+          }
+          break;
+        }
       }
     }
 
