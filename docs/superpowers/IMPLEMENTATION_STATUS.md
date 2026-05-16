@@ -1,6 +1,6 @@
 # Implementation Status — Honest Gap Analysis
 
-**Last verified:** 2026-05-16 (session 5)  
+**Last verified:** 2026-05-16 (session 6)  
 **E2E tests:** 140 passing, 0 skipped, 0 failing  
 **Backend:** real FFmpeg, real SQLite — no mocks
 
@@ -22,6 +22,7 @@
 | History API (project history, chains) | ✅ Working | ✅ Tested |
 | Viral toolkit (trends, templates, hook analysis) | ✅ Working | ✅ Tested |
 | Video generation (queued, MiniMax async) | ✅ Working | ✅ Tested |
+| History export (GET /api/history/export/:projectId) | ✅ Fixed | ✅ Tested |
 
 ## Phase 2: Production Studio (Extended Spec)
 
@@ -35,6 +36,11 @@
 | AudioEditorInline (below track, fade/trim/reverse) | ✅ Fixed | ✅ Tested |
 | PlaybackBar (seek by seconds from real duration) | ✅ Fixed | ⚠️ Browser behavior only |
 | Delete music | ✅ Working | ✅ Tested |
+| Video step in Studio workflow | ✅ Fixed | ✅ UI (VideoPreview wired) |
+| VoiceDesign receives projectId | ✅ Fixed | ✅ Passes projectId to API |
+| `current_video_version` in projects table | ✅ Fixed | ✅ Migration 010 |
+| Settings table in DB | ✅ Fixed | ✅ Migration 010 |
+| ffmpeg_operations audit table | ✅ Fixed | ✅ Migration 010 |
 
 ## Bugs Fixed This Session
 
@@ -71,6 +77,11 @@
 | Upload via mastering doesn't increment project version | `mastering.controller.js` created `MusicModel` record but skipped `ProjectModel.incrementVersion` — `current_music_version` stayed 0 on reload | Added `ProjectModel.incrementVersion(projectId, 'music')` in both process and saveToMusic paths |
 | Express route shadowing in history routes | `GET /api/history/:projectId` registered before `GET /api/history/chain/:id` — literal `chain` matched as `:projectId` | Moved `chain/:id` before `/:projectId` |
 | Express route shadowing in video routes | `GET /api/video/poll/:taskId` registered after `GET /api/video/:id` — literal `poll` matched as `:id` | Moved `poll/:taskId` before `/:id` |
+| Video step missing from Studio | Studio only had lyrics/music/artwork/voice/export — VideoPreview component existed but wasn't wired | Added 'video' step to WorkflowStepper and Studio.tsx with VideoPreview |
+| VoiceDesign no props | `<VoiceDesign />` had no props interface — `projectId` never passed | Added `projectId` prop to VoiceDesign, passed from Studio |
+| `current_video_version` missing from schema | Column absent from projects table; video service called `incrementVersion('music')` for videos | Migration 010 adds column; fixed service to use `'video'` type |
+| History export missing | No `GET /api/history/export/:projectId` endpoint — spec required it | Implemented: zips all music/video files for project |
+| Express route shadowing in history export | `export/:projectId` added after `/:projectId` — would be shadowed | Placed export route before param route in registration order |
 
 ## Known Non-Issues (by design)
 
