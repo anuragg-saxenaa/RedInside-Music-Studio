@@ -49,7 +49,9 @@ export class VideoService {
       if (musicId) {
         const music = MusicModel.findById(musicId);
         if (!music) {
-          throw new Error(`Music not found: ${musicId}`);
+          const err = new Error(`Music not found: ${musicId}`);
+          err.statusCode = 404;
+          throw err;
         }
         // Use processed file if available, otherwise original
         musicFilePath = music.processed_file_path || music.original_file_path;
@@ -132,6 +134,9 @@ export class VideoService {
       };
     } catch (error) {
       logger.error('Failed to start video generation', { projectId: params.projectId, error: error.message });
+      if (error.name === 'MinimaxError' || error.statusCode) {
+        throw error;
+      }
       throw new Error(`Video generation failed: ${error.message}`);
     }
   }

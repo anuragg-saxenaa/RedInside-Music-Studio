@@ -126,7 +126,9 @@ export class FFmpegService {
     const music = MusicModel.findById(musicId);
 
     if (!music) {
-      throw new Error(`Music not found: ${musicId}`);
+      const err = new Error(`Music not found: ${musicId}`);
+      err.statusCode = 404;
+      throw err;
     }
 
     if (!originalFilePath && music.original_file_path) {

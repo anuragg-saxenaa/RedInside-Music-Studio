@@ -176,7 +176,9 @@ export class ViralToolkitService {
       // Validate lyrics exists
       const lyrics = LyricsModel.findById(lyricsId);
       if (!lyrics) {
-        throw new Error(`Lyrics not found: ${lyricsId}`);
+        const err = new Error(`Lyrics not found: ${lyricsId}`);
+        err.statusCode = 404;
+        throw err;
       }
 
       // Create optimization record

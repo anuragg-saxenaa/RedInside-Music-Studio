@@ -212,7 +212,9 @@ export class LyricsService {
   async getLyricsVersions(lyricsId) {
     const lyrics = LyricsModel.findById(lyricsId);
     if (!lyrics) {
-      throw new Error(`Lyrics not found: ${lyricsId}`);
+      const err = new Error(`Lyrics not found: ${lyricsId}`);
+      err.statusCode = 404;
+      throw err;
     }
     return LyricsModel.findByProject(lyrics.project_id);
   }
@@ -220,7 +222,9 @@ export class LyricsService {
   async getLyricsDiff(lyricsId, version) {
     const lyrics = LyricsModel.findById(lyricsId);
     if (!lyrics) {
-      throw new Error(`Lyrics not found: ${lyricsId}`);
+      const err = new Error(`Lyrics not found: ${lyricsId}`);
+      err.statusCode = 404;
+      throw err;
     }
 
     // Find the target version
@@ -228,7 +232,9 @@ export class LyricsService {
     const targetVersion = versions.find(v => v.version === parseInt(version, 10));
 
     if (!targetVersion) {
-      throw new Error(`Version ${version} not found for lyrics ${lyricsId}`);
+      const err = new Error(`Version ${version} not found for lyrics ${lyricsId}`);
+      err.statusCode = 404;
+      throw err;
     }
 
     return {

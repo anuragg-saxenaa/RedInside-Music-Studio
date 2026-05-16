@@ -18,7 +18,9 @@ export class HistoryService {
 
     const project = ProjectModel.findById(projectId);
     if (!project) {
-      throw new Error(`Project not found: ${projectId}`);
+      const err = new Error(`Project not found: ${projectId}`);
+      err.statusCode = 404;
+      throw err;
     }
 
     logger.info('Getting project history', { projectId });
@@ -134,13 +136,13 @@ export class HistoryService {
     let generation;
     if (type === 'lyrics') {
       generation = LyricsModel.findById(generationId);
-      if (!generation) throw new Error(`Lyrics not found: ${generationId}`);
+      if (!generation) { const err = new Error(`Lyrics not found: ${generationId}`); err.statusCode = 404; throw err; }
     } else if (type === 'music') {
       generation = MusicModel.findById(generationId);
-      if (!generation) throw new Error(`Music not found: ${generationId}`);
+      if (!generation) { const err = new Error(`Music not found: ${generationId}`); err.statusCode = 404; throw err; }
     } else if (type === 'video') {
       generation = VideoModel.findById(generationId);
-      if (!generation) throw new Error(`Video not found: ${generationId}`);
+      if (!generation) { const err = new Error(`Video not found: ${generationId}`); err.statusCode = 404; throw err; }
     }
 
     // Get next version number for regeneration
@@ -227,7 +229,9 @@ export class HistoryService {
     }
 
     if (!gen1 || !gen2) {
-      throw new Error('One or both generations not found');
+      const err = new Error('One or both generations not found');
+      err.statusCode = 404;
+      throw err;
     }
 
     // Build comparison result
