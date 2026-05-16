@@ -1,6 +1,6 @@
 # Implementation Status — Honest Gap Analysis
 
-**Last verified:** 2026-05-16 (session 4)  
+**Last verified:** 2026-05-16 (session 5)  
 **E2E tests:** 140 passing, 0 skipped, 0 failing  
 **Backend:** real FFmpeg, real SQLite — no mocks
 
@@ -67,6 +67,10 @@
 | Audio file endpoint lacked range request support | Read entire file into buffer; no Accept-Ranges header → browser couldn't seek until fully buffered | Switched to `fs.createReadStream` with range request handling (206 Partial Content) |
 | Audio controller wrong param names | `getMetadata` read `req.params.path` (route is `/:id`); `getFile` read `req.params.path` (Express wildcard uses `[0]`) | Fixed to check correct param names with fallback |
 | masteredPath regex broke on non-mp3 output | `.replace('.mp3', '_mastered.wav')` silently did nothing for .wav/.flac output | Changed to `.replace(/\.[^.]+$/, '_mastered.wav')` |
+| Upload flow never unlocks Artwork/Voice/Export steps | `handleUploadNew` called `fetchMusicList()` but not `onMusicGenerated()` — `hasMusic` stayed false | Replaced with direct fetch + `onMusicGenerated(musicList[0])` call |
+| Upload via mastering doesn't increment project version | `mastering.controller.js` created `MusicModel` record but skipped `ProjectModel.incrementVersion` — `current_music_version` stayed 0 on reload | Added `ProjectModel.incrementVersion(projectId, 'music')` in both process and saveToMusic paths |
+| Express route shadowing in history routes | `GET /api/history/:projectId` registered before `GET /api/history/chain/:id` — literal `chain` matched as `:projectId` | Moved `chain/:id` before `/:projectId` |
+| Express route shadowing in video routes | `GET /api/video/poll/:taskId` registered after `GET /api/video/:id` — literal `poll` matched as `:id` | Moved `poll/:taskId` before `/:id` |
 
 ## Known Non-Issues (by design)
 
