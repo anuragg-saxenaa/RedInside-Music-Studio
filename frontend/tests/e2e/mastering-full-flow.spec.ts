@@ -206,40 +206,49 @@ test.describe('Mastering Full Flow - No Skips', () => {
   });
 
   test('5. ZIP download flow', async ({ page }) => {
-    await createProjectWithMusic(page);
+    const { projectName } = await createProjectWithMusic(page);
 
     await page.reload();
     await page.waitForLoadState('networkidle');
 
     // Navigate to Export
-    const projectCard = page.locator('[role="button"]').filter({ hasText: /Mastering Test/ }).first();
-    if (await projectCard.isVisible().catch(() => false)) {
-      await projectCard.click();
-    }
+    const projectCard = page.locator('[role="button"]').filter({ hasText: projectName }).first();
+    await expect(projectCard).toBeVisible({ timeout: 5000 });
+    await projectCard.click();
     await page.waitForTimeout(1500);
 
     const exportBtn = page.locator('button:has-text("Export")');
-    if (!(await exportBtn.isDisabled().catch(() => true))) {
-      await exportBtn.click();
-    }
+    await expect(exportBtn).toBeVisible({ timeout: 5000 });
+    await exportBtn.click({ force: true });
     await page.waitForTimeout(1000);
+
+    // Count pre-existing items (seeded music auto-loads into panel)
+    const fileItems = page.locator('[data-testid="file-item"]');
+    const initialCount = await fileItems.count();
 
     // Upload 2 files
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles([FIXTURE_PATH, FIXTURE_PATH]);
     await page.waitForTimeout(2000);
 
-    // Wait for files
-    const fileItems = page.locator('[data-testid="file-item"]');
-    await expect(fileItems).toHaveCount(2, { timeout: 10000 });
+    // Wait for 2 new files to appear (total = initialCount + 2)
+    await expect(fileItems).toHaveCount(initialCount + 2, { timeout: 10000 });
 
-    // Select both
-    await fileItems.first().click();
+    // Master all so ZIP has something to zip
+    const masterAllBtn = page.locator('button:has-text("Master All")');
+    await masterAllBtn.click();
+
+    // Wait for mastered status on newly uploaded files
+    await expect(page.locator('.tag-complete').first()).toBeVisible({ timeout: 180000 });
+    await page.waitForTimeout(2000);
+
+    // Select the 2 newly uploaded (and now mastered) files
+    await fileItems.nth(initialCount).click();
     await page.waitForTimeout(300);
-    await fileItems.nth(1).click();
+    await fileItems.nth(initialCount + 1).click();
     await page.waitForTimeout(300);
 
-    // Verify selection
+    // Verify selection (2 selected)
     const selectionInfo = page.locator('.stat:has-text("2")');
     await expect(selectionInfo).toBeVisible({ timeout: 3000 });
 

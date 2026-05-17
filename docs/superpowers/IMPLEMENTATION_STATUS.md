@@ -1,6 +1,6 @@
 # Implementation Status — Honest Gap Analysis
 
-**Last verified:** 2026-05-17 (session 13)  
+**Last verified:** 2026-05-17 (session 14)  
 **E2E tests:** 337 passing, 0 skipped, 0 failing (29 prod-user-flows + 308 contract/feature tests)  
 **Backend tests:** 157 passing, 0 failing (real HTTP, real FFmpeg, real SQLite — no mocks)  
 **Database:** clean (orphaned test projects cleaned each run via global-setup)
@@ -48,6 +48,14 @@
 | GET /api/music/settings (audio options) | ✅ Implemented | ✅ Tested |
 | GET /api/projects/:id/history alias | ✅ Implemented | ✅ Tested |
 | Audio effects in ControlsSidebar UI (normalize/reverb/echo/bassBoost/pitchShift) | ✅ Implemented | ✅ Backend routes tested |
+
+## Session 14 Bugs Fixed
+
+| Bug | Root Cause | Fix |
+|-----|-----------|-----|
+| `mastering-full-flow.spec.ts` ZIP test fails with count 3≠2 | Seeded music auto-loads into mastering panel (1 existing + 2 uploads = 3 items). Test hardcoded `toHaveCount(2)`. | Count initial items first, wait for `initialCount + 2` after upload |
+| ZIP test would fail on unmastered files | Tries to ZIP files that haven't been mastered yet — backend returns 404 | Added `Master All` + wait for mastered status before selecting and ZIPping |
+| `JSZip.length` empty-check always skipped | `JSZip` has no `.length` property — `zip.length === 0` is `undefined === 0` (false always). Empty ZIPs would be sent. | Changed to `Object.keys(zip.files).length === 0` |
 
 ## Session 13 Bugs Fixed
 

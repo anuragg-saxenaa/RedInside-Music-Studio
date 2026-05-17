@@ -356,7 +356,7 @@ export const MasteringController = {
         }
       }
 
-      if (zip.length === 0) {
+      if (Object.keys(zip.files).length === 0) {
         return res.status(404).json({ error: 'No mastered files found for specified IDs' });
       }
 
