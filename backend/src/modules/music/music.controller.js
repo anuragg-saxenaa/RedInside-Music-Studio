@@ -2,6 +2,7 @@ import { MusicService } from './music.service.js';
 import { JobModel } from '../../queue/jobs.service.js';
 import { addMusicJob } from '../../queue/workers/music.worker.js';
 import { ProjectModel } from '../../database/models/project.model.js';
+import { SettingsModel } from '../../database/models/settings.model.js';
 import logger from '../../utils/logger.js';
 import storage from '../../utils/storage.util.js';
 import fs from 'fs';
@@ -21,7 +22,8 @@ export const MusicController = {
       }
 
       const validModels = ['music-2.6', 'music-cover'];
-      const resolvedModel = model || 'music-2.6';
+      const defaultModel = SettingsModel.get('default_music_model')?.value || 'music-2.6';
+      const resolvedModel = model || defaultModel;
       if (!validModels.includes(resolvedModel)) {
         return res.status(400).json({
           error: `Invalid model "${resolvedModel}". Must be one of: ${validModels.join(', ')}`,

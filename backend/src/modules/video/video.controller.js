@@ -2,6 +2,7 @@ import { VideoService } from './video.service.js';
 import { JobModel } from '../../queue/jobs.service.js';
 import { addVideoJob } from '../../queue/workers/video.worker.js';
 import { ProjectModel } from '../../database/models/project.model.js';
+import { SettingsModel } from '../../database/models/settings.model.js';
 import logger from '../../utils/logger.js';
 import storage from '../../utils/storage.util.js';
 import fs from 'fs';
@@ -13,7 +14,8 @@ export const VideoController = {
   async generate(req, res, next) {
     try {
       const { projectId, musicId, prompt, duration, resolution } = req.body;
-      const model = req.body.model || 'MiniMax-Hailuo-02';
+      const defaultModel = SettingsModel.get('default_video_model')?.value || 'MiniMax-Hailuo-02';
+      const model = req.body.model || defaultModel;
 
       if (!projectId) {
         return res.status(400).json({

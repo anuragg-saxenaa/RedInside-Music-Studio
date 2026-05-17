@@ -2,6 +2,7 @@ import MinimaxClient from '../../utils/minimax.client.js';
 import { MusicModel } from '../../database/models/music.model.js';
 import { LyricsModel } from '../../database/models/lyrics.model.js';
 import { ProjectModel } from '../../database/models/project.model.js';
+import { SettingsModel } from '../../database/models/settings.model.js';
 import storage from '../../utils/storage.util.js';
 import config from '../../config/env.config.js';
 import logger from '../../utils/logger.js';
@@ -162,8 +163,9 @@ export class MusicService {
         format: 'mp3',
       });
 
-      // Auto-master the output to Spotify quality
-      if (musicRecord.original_file_path) {
+      // Auto-master to Spotify quality if setting enabled (default: true)
+      const autoMaster = SettingsModel.get('auto_ffmpeg_320kbps')?.value !== 'false';
+      if (autoMaster && musicRecord.original_file_path) {
         const masteringService = new AudioMasteringService(storage.getMastersDir(projectId));
         const masteredPath = musicRecord.original_file_path.replace(/\.[^.]+$/, '_spotify_master.wav');
 
