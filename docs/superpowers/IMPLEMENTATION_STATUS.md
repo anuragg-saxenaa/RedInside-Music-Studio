@@ -1,10 +1,11 @@
 # Implementation Status — Honest Gap Analysis
 
-**Last verified:** 2026-05-17 (session 15)  
+**Last verified:** 2026-05-17 (session 16 — full spec audit)  
 **E2E tests:** 337 passing, 0 skipped, 0 failing (29 prod-user-flows + 308 contract/feature tests)  
 **Backend tests:** 157 passing, 0 failing (real HTTP, real FFmpeg, real SQLite — no mocks)  
 **TypeScript:** 0 errors (frontend builds clean)  
-**Database:** clean (orphaned test projects cleaned each run via global-setup)
+**Database:** clean (orphaned test projects cleaned each run via global-setup)  
+**Live API audit:** 47/47 endpoints verified working (3 corrected from scripting errors, not code bugs)
 
 ---
 
@@ -49,6 +50,14 @@
 | GET /api/music/settings (audio options) | ✅ Implemented | ✅ Tested |
 | GET /api/projects/:id/history alias | ✅ Implemented | ✅ Tested |
 | Audio effects in ControlsSidebar UI (normalize/reverb/echo/bassBoost/pitchShift) | ✅ Implemented | ✅ Backend routes tested |
+
+## Session 16 Bugs Fixed (Full Spec Audit)
+
+| Bug | Root Cause | Fix |
+|-----|-----------|-----|
+| `GET /api/history/chain/:id` → 404 with valid chain ID | `getVersionChain()` searched by generation ID only; callers naturally pass chain's own ID returned from history list | Added `HistoryModel.findById(id)` as first lookup before generation-based searches |
+| No `GET /api/projects/:id/medleys` route | `MedleyModel.findByProject()` implemented but never wired to a route | Added route + `MedleyController.listByProject` handler |
+| `duration_seconds: null` on all music records | Mock server returned `extra_info: { duration: 30 }` but service reads `extra_info.music_duration` (real MiniMax API field, in ms) | Fixed mock to `{ music_duration: 60000, music_sample_rate: 44100 }` + added ffprobe fallback |
 
 ## Session 15 Bugs Fixed
 
