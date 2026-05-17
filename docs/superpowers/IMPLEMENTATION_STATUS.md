@@ -1,7 +1,7 @@
 # Implementation Status — Honest Gap Analysis
 
-**Last verified:** 2026-05-17 (session 12)  
-**E2E tests:** 334 passing, 0 skipped, 0 failing (29 prod-user-flows + 305 contract/feature tests)  
+**Last verified:** 2026-05-17 (session 13)  
+**E2E tests:** 337 passing, 0 skipped, 0 failing (29 prod-user-flows + 308 contract/feature tests)  
 **Backend tests:** 157 passing, 0 failing (real HTTP, real FFmpeg, real SQLite — no mocks)  
 **Database:** clean (orphaned test projects cleaned each run via global-setup)
 
@@ -48,6 +48,27 @@
 | GET /api/music/settings (audio options) | ✅ Implemented | ✅ Tested |
 | GET /api/projects/:id/history alias | ✅ Implemented | ✅ Tested |
 | Audio effects in ControlsSidebar UI (normalize/reverb/echo/bassBoost/pitchShift) | ✅ Implemented | ✅ Backend routes tested |
+
+## Session 13 Bugs Fixed
+
+| Bug | Root Cause | Fix |
+|-----|-----------|-----|
+| `generation_chains` always empty | `linkGeneration()` method existed in history.service.js but was NEVER called by any worker or controller — table always had 0 rows | lyrics.controller calls linkGeneration after generate; music.worker + video.worker call it after job completes |
+| `GET /api/history/chain/:id` useless | Endpoint worked but chains were always empty (see above) | Wired chain linking; now returns real lyrics→music→video chains |
+
+## Known Non-Issues (by design)
+
+| Item | Notes |
+|------|-------|
+| `viral.analyzeReferenceTrack()` | Documented placeholder — requires ACRCloud/AudD audio fingerprinting API (Phase 3). Returns placeholder object with correct shape. |
+| Auto-chain workflow mode | Spec §3.1 describes full auto mode (lyrics→music→video auto-trigger). Currently user triggers each step. `workflow_mode` column exists in DB but auto-chaining not implemented. Manual/hybrid is the working mode. |
+| Trends scraper | Returns curated static list — no live scraping |
+| Reference track analyzer | Placeholder — requires ACRCloud/AudD API (Phase 3) |
+| Auth middleware | Not implemented (Phase 3) |
+| MiniMax API tests | Require real key + credits — can't mock in contract tests |
+| Seek/fade UI browser behavior | Requires manual test — no audio playback automation |
+| Voice design fails | MiniMax account has insufficient balance for voice API — code correct, credits needed |
+| Music generation takes 60-180s | MiniMax async generation — expected, UI shows polling indicator |
 
 ## Bugs Fixed This Session
 
