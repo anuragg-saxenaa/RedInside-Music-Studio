@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { LyricsGeneration, MusicGeneration } from '../../types';
-import { parseApiError } from '../../utils/errors';
 import { registerAudioStop, stopAllRegisteredAudio } from '../../utils/audioControl';
 import { useWebSocket } from '../../hooks/useWebSocket';
 
@@ -32,6 +31,10 @@ export function subscribeToPlaybackState(callback: (playingId: string | null) =>
 
 export function setGlobalPlaylist(playlist: MusicGeneration[]) {
   globalPlaylist = playlist;
+}
+
+export function getGlobalPlaylist(): MusicGeneration[] {
+  return globalPlaylist;
 }
 
 // ============== ICONS (SVG, no emoji) ==============
@@ -315,7 +318,7 @@ interface AudioEditorInlineProps {
   onExportComplete?: (result: any) => void;
 }
 
-function AudioEditorInline({ audioUrl, trackId, onClose, onExportComplete }: AudioEditorInlineProps) {
+function AudioEditorInline({ audioUrl, trackId: _trackId, onClose, onExportComplete }: AudioEditorInlineProps) {
   const [peaks, setPeaks] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [duration, setDuration] = useState(0);
@@ -571,6 +574,14 @@ function AudioEditorInline({ audioUrl, trackId, onClose, onExportComplete }: Aud
     }
   };
 
+  if (loading) {
+    return (
+      <div style={{ padding: '40px', textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: '13px' }}>
+        Loading audio...
+      </div>
+    );
+  }
+
   return (
     <div style={{
       background: 'linear-gradient(180deg, rgba(30,30,30,0.95) 0%, rgba(15,15,15,0.98) 100%)',
@@ -749,7 +760,7 @@ interface TrackRowProps {
   onDelete: () => void;
 }
 
-function TrackRow({ music, isPlaying, isThisPlaying, onPlay, onEdit, onConvert, onDownload, onDelete }: TrackRowProps) {
+function TrackRow({ music, isPlaying: _isPlaying, isThisPlaying, onPlay, onEdit, onConvert, onDownload, onDelete }: TrackRowProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [converting, setConverting] = useState(false);
 

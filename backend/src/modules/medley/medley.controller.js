@@ -20,6 +20,8 @@ export class MedleyController {
       const medley = await medleyService.createMedley({ projectId, name, description });
       res.status(201).json(medley);
     } catch (error) {
+      const status = error.statusCode || 500;
+      if (status !== 500) return res.status(status).json({ error: error.message });
       logger.error('Failed to create medley', { error: error.message });
       res.status(500).json({ error: error.message });
     }

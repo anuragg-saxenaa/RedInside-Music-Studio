@@ -420,17 +420,17 @@ export default function AudioEditorPanel({
               <GridView
                 tracks={tracks}
                 selectedTrackId={trackId}
-                onSelectTrack={(id) => {}}
-                onReorderTracks={(from, to) => {}}
-                onUpdateTrack={(id, updates) => {}}
+                onSelectTrack={(_id) => {}}
+                onReorderTracks={(_from, _to) => {}}
+                onUpdateTrack={(_id, _updates) => {}}
               />
             ) : (
               <TimelineView
                 tracks={tracks}
                 selectedTrackId={trackId}
-                onSelectTrack={(id) => {}}
-                onReorderTracks={(from, to) => {}}
-                onUpdateTrack={(id, updates) => {}}
+                onSelectTrack={(_id) => {}}
+                onReorderTracks={(_from, _to) => {}}
+                onUpdateTrack={(_id, _updates) => {}}
               />
             )
           ) : (

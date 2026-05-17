@@ -1,5 +1,6 @@
 import { MedleyProcessor } from './medley.processor.js';
 import { MedleyModel } from '../../database/models/medley.model.js';
+import { ProjectModel } from '../../database/models/project.model.js';
 import storage from '../../utils/storage.util.js';
 import path from 'path';
 import fs from 'fs';
@@ -46,6 +47,13 @@ export class MedleyService {
     }
     if (!name) {
       throw new Error('Medley name is required');
+    }
+
+    const project = ProjectModel.findById(projectId);
+    if (!project) {
+      const err = new Error(`Project not found: ${projectId}`);
+      err.statusCode = 404;
+      throw err;
     }
 
     // Create storage directories

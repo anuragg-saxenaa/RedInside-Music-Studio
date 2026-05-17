@@ -550,7 +550,7 @@ export default function AudioMasteringPanel({ projectId, allMusic }: AudioMaster
                 <div className="file-info">
                   <div className="file-name">{file.filename}</div>
                   <div className="file-meta">
-                    <span className="meta-val">3:24</span>
+                    <span className="meta-val">{formatDuration(file.duration || 0)}</span>
                     <span>320 kbps</span>
                     <span>44.1 kHz</span>
                   </div>
@@ -563,6 +563,14 @@ export default function AudioMasteringPanel({ projectId, allMusic }: AudioMaster
                   title="Edit file"
                 >
                   ✎
+                </button>
+                <button
+                  className="edit-btn"
+                  onClick={(e) => { e.stopPropagation(); removeFile(file.id); }}
+                  title="Remove file"
+                  style={{ marginLeft: 2 }}
+                >
+                  ✕
                 </button>
               </div>
             );
@@ -599,9 +607,19 @@ export default function AudioMasteringPanel({ projectId, allMusic }: AudioMaster
           >
             Download ZIP
           </button>
+          <button
+            className="btn btn-ghost"
+            onClick={selectAll}
+            disabled={files.length === 0}
+          >
+            Select All
+          </button>
           <div className="spacer" />
+          {masteredCount > 0 && (
+            <span className="stat"><strong>{masteredCount}</strong> mastered</span>
+          )}
           {selectedCount > 0 && (
-            <span className="stat"><strong>{selectedCount}</strong> selected</span>
+            <span className="stat" style={{ marginLeft: 8 }}><strong>{selectedCount}</strong> selected</span>
           )}
           {selectedCount > 0 && (
             <button className="btn btn-ghost" onClick={clearSelection}>Clear</button>

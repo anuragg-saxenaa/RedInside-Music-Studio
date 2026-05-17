@@ -100,7 +100,7 @@ export default function CompactPlayer({
   title,
   model,
   artworkUrl,
-  isActive = false,
+  isActive: _isActive = false,
   onActivate,
 }: CompactPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -110,7 +110,7 @@ export default function CompactPlayer({
   const [isLoading, setIsLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const [isDragging] = useState(false);
 
   // Subscribe to global playback state
   useEffect(() => {
