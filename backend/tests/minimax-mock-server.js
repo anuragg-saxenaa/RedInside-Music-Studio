@@ -92,7 +92,7 @@ const server = http.createServer(async (req, res) => {
       data: {
         status: 2, // 2 = complete
         audio: `http://localhost:${PORT}/mock-audio-file`,
-        extra_info: { duration: 30 },
+        extra_info: { music_duration: 60000, music_sample_rate: 44100 },
       },
     });
   }

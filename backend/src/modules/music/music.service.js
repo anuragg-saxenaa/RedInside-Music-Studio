@@ -8,6 +8,7 @@ import config from '../../config/env.config.js';
 import logger from '../../utils/logger.js';
 import axios from 'axios';
 import fs from 'fs';
+import { execSync } from 'child_process';
 import { AudioMasteringService } from '../mastering/mastering.service.js';
 
 export class MusicService {
@@ -147,6 +148,21 @@ export class MusicService {
       const originalFilePath = storage.getMusicFilePath(projectId, version, 'original');
       storage.saveAudioFile(audioBuffer, originalFilePath);
 
+      // Resolve duration: API field (ms) → ffprobe fallback
+      let durationSeconds = response.extra_info?.music_duration
+        ? response.extra_info.music_duration / 1000
+        : null;
+      if (!durationSeconds) {
+        try {
+          const out = execSync(
+            `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${originalFilePath}"`,
+            { encoding: 'utf8' }
+          ).trim();
+          const parsed = parseFloat(out);
+          if (!isNaN(parsed)) durationSeconds = parsed;
+        } catch (_) { /* ffprobe unavailable — leave null */ }
+      }
+
       // Create database record
       const musicRecord = MusicModel.create({
         projectId,
@@ -157,7 +173,7 @@ export class MusicService {
         audioSettings,
         isInstrumental,
         originalFilePath,
-        durationSeconds: response.extra_info?.music_duration ? response.extra_info.music_duration / 1000 : null,
+        durationSeconds,
         sampleRate: response.extra_info?.music_sample_rate || 44100,
         bitrate: response.extra_info?.bitrate || 256000,
         format: 'mp3',
