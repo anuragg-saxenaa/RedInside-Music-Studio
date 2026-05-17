@@ -2,6 +2,11 @@ import { MedleyController } from '../../modules/medley/medley.controller.js';
 
 export const MedleyRoutes = [
   {
+    method: 'get',
+    path: '/api/projects/:projectId/medleys',
+    handler: MedleyController.listByProject,
+  },
+  {
     method: 'post',
     path: '/api/medley',
     handler: MedleyController.create,

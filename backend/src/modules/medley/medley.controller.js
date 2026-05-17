@@ -1,4 +1,6 @@
 import medleyService from './medley.service.js';
+import { MedleyModel } from '../../database/models/medley.model.js';
+import logger from '../../utils/logger.js';
 import fs from 'fs';
 
 export class MedleyController {
@@ -23,6 +25,21 @@ export class MedleyController {
       const status = error.statusCode || 500;
       if (status !== 500) return res.status(status).json({ error: error.message });
       logger.error('Failed to create medley', { error: error.message });
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  /**
+   * List all medleys for a project
+   * GET /api/projects/:projectId/medleys
+   */
+  static async listByProject(req, res) {
+    try {
+      const { projectId } = req.params;
+      const medleys = MedleyModel.findByProject(projectId);
+      res.json(medleys);
+    } catch (error) {
+      logger.error('Failed to list medleys', { error: error.message });
       res.status(500).json({ error: error.message });
     }
   }
@@ -222,5 +239,4 @@ export class MedleyController {
   }
 }
 
-import logger from '../../utils/logger.js';
 export default MedleyController;

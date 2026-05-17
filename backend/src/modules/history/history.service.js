@@ -37,8 +37,9 @@ export class HistoryService {
       throw new Error('Generation ID is required and must be a string');
     }
 
-    // Find which chain contains this generation
-    let chain = HistoryModel.findByLyricsId(generationId) ||
+    // Accept chain ID directly or generation ID contained in a chain
+    let chain = HistoryModel.findById(generationId) ||
+                HistoryModel.findByLyricsId(generationId) ||
                 HistoryModel.findByMusicId(generationId) ||
                 HistoryModel.findByVideoId(generationId);
 
