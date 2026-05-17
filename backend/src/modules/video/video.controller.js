@@ -92,6 +92,29 @@ export const VideoController = {
     }
   },
 
+  async getStatus(req, res, next) {
+    try {
+      const { id } = req.params;
+      const video = videoService.getVideo(id);
+
+      if (!video) {
+        return res.status(404).json({ error: 'Video not found' });
+      }
+
+      res.json({
+        id: video.id,
+        status: video.status,
+        progress: video.status === 'completed' ? 100 : video.status === 'failed' ? 0 : 50,
+        taskId: video.task_id,
+        fileId: video.file_id,
+        filePath: video.file_path,
+        errorMessage: video.error_message,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
   async getFile(req, res, next) {
     try {
       const { id } = req.params;

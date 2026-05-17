@@ -14,6 +14,15 @@ export const MusicRoutes = [
     handler: MusicController.generate,
   },
   {
+    // Spec §4.3: POST /api/music/cover — alias that calls generate with model=music-cover
+    method: 'post',
+    path: '/api/music/cover',
+    handler: (req, res, next) => {
+      req.body.model = 'music-cover';
+      return MusicController.generate(req, res, next);
+    },
+  },
+  {
     method: 'get',
     path: '/api/music/settings',
     handler: (req, res) => res.json({
@@ -34,6 +43,12 @@ export const MusicRoutes = [
   {
     method: 'get',
     path: '/api/music/:id/file',
+    handler: MusicController.getFile,
+  },
+  {
+    // Spec §4.3: GET /api/music/:id/download — alias for /file
+    method: 'get',
+    path: '/api/music/:id/download',
     handler: MusicController.getFile,
   },
   {

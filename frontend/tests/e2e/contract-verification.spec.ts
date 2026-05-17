@@ -904,3 +904,77 @@ test.describe('Mastering ZIP download', () => {
     expect(res.headers()['content-type']).toContain('zip');
   });
 });
+
+// ─── Spec gap coverage: missing spec endpoints now implemented ──────────────
+
+test.describe('Spec gap endpoints — previously missing (spec §4.3, §4.4)', () => {
+  let projectId = '';
+
+  test.afterAll(async ({ request }) => {
+    if (projectId) await deleteProject(request, projectId);
+  });
+
+  test('POST /api/music/cover — spec §4.3 — exists and validates (not 404)', async ({ request }) => {
+    const proj = await createProject(request, 'COVER_TEST');
+    projectId = proj.id;
+    // Must not return 404 (route missing) — should return 400 for missing lyricsId or 404 for bad projectId
+    const res = await request.post(`${API}/api/music/cover`, {
+      data: { projectId: 'nonexistent-proj' },
+    });
+    expect(res.status(), 'cover endpoint must exist (not 404 from missing route)').toBe(404);
+    const body = await res.json();
+    expect(body.error).toContain('Project not found');
+  });
+
+  test('GET /api/music/:id/download — spec §4.3 — alias for /file (not 404)', async ({ request }) => {
+    const res = await request.get(`${API}/api/music/nonexistent-id/download`);
+    expect(res.status(), '/download must exist as alias for /file').toBe(404);
+    const body = await res.json();
+    expect(body.error).toContain('Music not found');
+  });
+
+  test('GET /api/video/:id/status — spec §4.4 — exists and returns status object', async ({ request }) => {
+    const res = await request.get(`${API}/api/video/nonexistent-id/status`);
+    expect(res.status(), '/status endpoint must exist (not 404 from missing route)').toBe(404);
+    const body = await res.json();
+    expect(body.error).toContain('Video not found');
+  });
+
+  test('GET /api/video/:id/download — spec §4.4 — alias for /file (not 404)', async ({ request }) => {
+    const res = await request.get(`${API}/api/video/nonexistent-id/download`);
+    expect(res.status(), '/download must exist as alias for /file').toBe(404);
+    const body = await res.json();
+    expect(body.error).toContain('Video not found');
+  });
+});
+
+// ─── Error response quality — no stack trace exposure ──────────────────────
+
+test.describe('Error response quality — no stack traces in API responses', () => {
+  test('error responses must not include stack trace field', async ({ request }) => {
+    // history compare with bad IDs causes internal error — should NOT expose stack
+    const res = await request.post(`${API}/api/history/compare`, {
+      data: { id1: 'fake-id', id2: 'fake-id-2', type: 'lyrics' },
+    });
+    expect([400, 404, 500]).toContain(res.status());
+    const body = await res.json();
+    expect(body).not.toHaveProperty('stack', 'stack trace must not be in API responses');
+  });
+
+  test('404 responses must not include stack trace', async ({ request }) => {
+    const res = await request.get(`${API}/api/projects/definitely-nonexistent-id-xyz`);
+    expect(res.status()).toBe(404);
+    const body = await res.json();
+    expect(body).not.toHaveProperty('stack');
+    expect(body.error).toBeTruthy();
+  });
+
+  test('400 validation errors must not include stack trace', async ({ request }) => {
+    const res = await request.post(`${API}/api/projects`, {
+      data: { description: 'no name field' },
+    });
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body).not.toHaveProperty('stack');
+  });
+});

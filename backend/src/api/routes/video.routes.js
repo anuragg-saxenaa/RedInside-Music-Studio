@@ -17,8 +17,20 @@ export const VideoRoutes = [
     handler: VideoController.getById,
   },
   {
+    // Spec §4.4: GET /api/video/:id/status — check generation status from DB record
+    method: 'get',
+    path: '/api/video/:id/status',
+    handler: VideoController.getStatus,
+  },
+  {
     method: 'get',
     path: '/api/video/:id/file',
+    handler: VideoController.getFile,
+  },
+  {
+    // Spec §4.4: GET /api/video/:id/download — alias for /file
+    method: 'get',
+    path: '/api/video/:id/download',
     handler: VideoController.getFile,
   },
   {

@@ -30,10 +30,9 @@ export const errorMiddleware = (err, req, res, next) => {
     httpStatus = (code >= 100 && code <= 599) ? code : 500;
   }
 
-  // Build error response - preserve MinimaxError info for frontend
+  // Build error response — never expose stack traces to clients
   const errorResponse = {
     error: err.message || 'Internal Server Error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   };
 
   // Include MinimaxError-specific fields if present
