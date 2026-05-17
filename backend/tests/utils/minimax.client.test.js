@@ -9,9 +9,9 @@ test('should create client with API key', () => {
   assert.strictEqual(client.apiKey, 'test-key');
 });
 
-test('should build request headers', () => {
+test('should build request headers', async () => {
   const client = new MinimaxClient('test-key');
-  const headers = client.getHeaders();
+  const headers = await client.getHeaders();
   assert.strictEqual(headers.Authorization, 'Bearer test-key');
   assert.strictEqual(headers['Content-Type'], 'application/json');
 });
