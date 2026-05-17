@@ -1,8 +1,9 @@
 # Implementation Status — Honest Gap Analysis
 
-**Last verified:** 2026-05-17 (session 14)  
+**Last verified:** 2026-05-17 (session 15)  
 **E2E tests:** 337 passing, 0 skipped, 0 failing (29 prod-user-flows + 308 contract/feature tests)  
 **Backend tests:** 157 passing, 0 failing (real HTTP, real FFmpeg, real SQLite — no mocks)  
+**TypeScript:** 0 errors (frontend builds clean)  
 **Database:** clean (orphaned test projects cleaned each run via global-setup)
 
 ---
@@ -48,6 +49,20 @@
 | GET /api/music/settings (audio options) | ✅ Implemented | ✅ Tested |
 | GET /api/projects/:id/history alias | ✅ Implemented | ✅ Tested |
 | Audio effects in ControlsSidebar UI (normalize/reverb/echo/bassBoost/pitchShift) | ✅ Implemented | ✅ Backend routes tested |
+
+## Session 15 Bugs Fixed
+
+| Bug | Root Cause | Fix |
+|-----|-----------|-----|
+| `POST /api/medley` → 500 FOREIGN KEY error | No project existence check before medley insert — FK constraint fired as 500 | Added `ProjectModel.findById` validation; throws 404 instead |
+| Medley controller swallows statusCode | Controller hardcoded `res.status(500)` for all non-"not found" errors | Use `error.statusCode || 500` to propagate 404 from service |
+| TypeScript build broken (11 TS6133 errors) | Unused variables in 4 files — `tsc --noEmit` fails, `npm run build` would fail | Fixed: stub callback params → `_id/_from/_to/_updates`, wired `formatDuration`/`masteredCount`/`removeFile`/`selectAll` to UI, removed unused import, added `getGlobalPlaylist` getter, showed `loading` state before audio loads |
+| Hardcoded "3:24" duration in mastering panel | `formatDuration()` defined but not wired — all files showed "3:24" | Replaced hardcoded string with `formatDuration(file.duration)` |
+| `removeFile` button not wired | Function defined but no remove button in file row | Added ✕ button next to edit button, shown on hover |
+| `selectAll` not wired | Function defined but no button in action bar | Added "Select All" button in action bar |
+| `masteredCount` stat not shown | Variable computed but never rendered | Added "N mastered" stat in action bar |
+| `batch-mastering` ZIP test fails after JSZip fix | Test tried to ZIP unmastered files — accidentally passed before because empty ZIP was sent (broken check). After fix, backend correctly returns 404. | Added Master All + wait for mastered status before selecting and ZIPping |
+| `mastering-full-flow` ZIP test strict mode violation | My addition of masteredCount stat creates two `.stat:has-text("2")` elements | Narrowed selector to `.stat:has-text("2 selected")` |
 
 ## Session 14 Bugs Fixed
 
