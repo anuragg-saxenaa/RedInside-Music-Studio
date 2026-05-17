@@ -1,8 +1,8 @@
 # Implementation Status — Honest Gap Analysis
 
-**Last verified:** 2026-05-17 (session 11)  
+**Last verified:** 2026-05-17 (session 12)  
 **E2E tests:** 334 passing, 0 skipped, 0 failing (29 prod-user-flows + 305 contract/feature tests)  
-**Backend:** real FFmpeg, real SQLite — no mocks  
+**Backend tests:** 157 passing, 0 failing (real HTTP, real FFmpeg, real SQLite — no mocks)  
 **Database:** clean (orphaned test projects cleaned each run via global-setup)
 
 ---
@@ -113,6 +113,19 @@
 | Audio editor dblclick test failed | `[data-testid="track-row"]` has no `onDoubleClick` handler — editor opens via Edit button | Changed test from `trackRow.dblclick()` to hover + click `button[title="Edit"]` |
 | Hook Analyzer score locator syntax invalid | `'text=/^\\d+$/, [class*="score"]'` — comma-separated CSS selector invalid in Playwright | Fixed to `page.getByText('viral score', { exact: true })` which targets the visible label |
 | Play button test checked waveform-display | `[data-testid="waveform-display"]` lives in AudioEditorInline (only rendered when editor open) — not visible after clicking play on track list | Changed assertion to verify track row remains visible after play click |
+
+## Session 12 Bugs Fixed
+
+| Bug | Root Cause | Fix |
+|-----|-----------|-----|
+| Settings API key never propagated to services | `env.config.js` threw on startup without MINIMAX_API_KEY; services always read `process.env` directly, never settings DB | Made key optional in env.config.js; MinimaxClient.getEffectiveKey() now async, reads DB as last resort |
+| `default_music_model` setting ignored by music controller | Controller hardcoded `'music-2.6'` fallback without reading settings | Reads `SettingsModel.get('default_music_model')` when request omits model |
+| `default_video_model` setting ignored by video controller | Same pattern | Reads `SettingsModel.get('default_video_model')` when request omits model |
+| `auto_ffmpeg_320kbps` setting ignored by music service | Music service always ran mastering regardless of setting | Checks `SettingsModel.get('auto_ffmpeg_320kbps')` — skips mastering when `'false'` |
+| Spec endpoints missing: music/cover, music/download, video/status, video/download | Routes never added | Added all 4 routes (committed last session) |
+| Stack traces exposed in ALL API error responses | error.middleware.js conditionally included stack — dev mode = always exposed | Removed stack from all responses |
+| Backend getHeaders() test didn't await | `getHeaders()` made async but test called synchronously | Added `await` in minimax.client.test.js |
+| Missing backend integration tests for lyrics + music | No real HTTP integration tests for core workflows | Added lyrics.e2e.test.js (10 tests) + music.e2e.test.js (12 tests) |
 
 ## Session 10 Bugs Fixed
 
