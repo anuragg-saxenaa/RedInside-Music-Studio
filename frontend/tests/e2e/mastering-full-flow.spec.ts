@@ -249,7 +249,7 @@ test.describe('Mastering Full Flow - No Skips', () => {
     await page.waitForTimeout(300);
 
     // Verify selection (2 selected)
-    const selectionInfo = page.locator('.stat:has-text("2")');
+    const selectionInfo = page.locator('.stat:has-text("2 selected")');
     await expect(selectionInfo).toBeVisible({ timeout: 3000 });
 
     // Set up download listener

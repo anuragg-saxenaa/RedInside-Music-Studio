@@ -84,6 +84,12 @@ test('download ZIP of selected files', async ({ page }) => {
   // Hard assert: file must appear after upload — not a soft skip
   await expect(fileItems.first(), 'uploaded file must appear in file list within 10s').toBeVisible({ timeout: 10000 });
 
+  // Master the uploaded file so ZIP has something to include
+  const masterAllBtn = page.locator('button:has-text("Master All")');
+  await masterAllBtn.click();
+  await expect(page.locator('.tag-complete').first()).toBeVisible({ timeout: 180000 });
+  await page.waitForTimeout(1000);
+
   // Set up download listener before clicking
   const downloadPromise = page.waitForEvent('download');
 
