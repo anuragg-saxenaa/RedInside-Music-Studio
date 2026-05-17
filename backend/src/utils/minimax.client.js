@@ -11,8 +11,25 @@ class MinimaxClient {
     this.baseURL = baseURL;
   }
 
-  getHeaders() {
-    const key = process.env.MINIMAX_API_KEY || this.apiKey;
+  async getEffectiveKey() {
+    // Priority: shell env var → constructor key → settings DB
+    if (process.env.MINIMAX_API_KEY) return process.env.MINIMAX_API_KEY;
+    if (this.apiKey) return this.apiKey;
+    // Read from DB — allows Settings UI to set key without editing .env
+    try {
+      const { default: db } = await import('../database/connection.js');
+      const row = db.prepare('SELECT value FROM settings WHERE key = ?').get('minimax_api_key');
+      return row?.value || '';
+    } catch {
+      return '';
+    }
+  }
+
+  async getHeaders() {
+    const key = await this.getEffectiveKey();
+    if (!key) {
+      throw new Error('MiniMax API key not configured. Set MINIMAX_API_KEY in config/.env or via the Settings page.');
+    }
     return {
       'Authorization': `Bearer ${key}`,
       'Content-Type': 'application/json',
@@ -28,7 +45,7 @@ class MinimaxClient {
       const response = await axios({
         method,
         url,
-        headers: this.getHeaders(),
+        headers: await this.getHeaders(),
         data,
         timeout: 180000, // 180 second timeout for music generation
       });
@@ -139,13 +156,14 @@ class MinimaxClient {
 
   // Voice Clone Upload
   async uploadVoiceClone(filePath) {
+    const key = await this.getEffectiveKey();
     const formData = new FormData();
     formData.append('file', fs.createReadStream(filePath));
     formData.append('purpose', 'voice_clone');
 
     const response = await axios.post(`${this.baseURL}/v1/files/upload`, formData, {
       headers: {
-        'Authorization': `Bearer ${process.env.MINIMAX_API_KEY || this.apiKey}`,
+        'Authorization': `Bearer ${key}`,
         ...formData.getHeaders(),
       },
       maxBodyLength: Infinity,
@@ -156,13 +174,14 @@ class MinimaxClient {
 
   // Generic file upload for music cover
   async uploadFile(filePath) {
+    const key = await this.getEffectiveKey();
     const formData = new FormData();
     formData.append('file', fs.createReadStream(filePath));
     formData.append('purpose', 'music_cover');
 
     const response = await axios.post(`${this.baseURL}/v1/files/upload`, formData, {
       headers: {
-        'Authorization': `Bearer ${process.env.MINIMAX_API_KEY || this.apiKey}`,
+        'Authorization': `Bearer ${key}`,
         ...formData.getHeaders(),
       },
       maxBodyLength: Infinity,

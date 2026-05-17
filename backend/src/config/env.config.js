@@ -18,14 +18,6 @@ if (result.error && process.env.NODE_ENV !== 'test') {
   throw new Error(`Failed to load .env file: ${result.error.message}`);
 }
 
-function requireEnv(name) {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`${name} is required in environment configuration`);
-  }
-  return value;
-}
-
 function parsePort(value, defaultValue) {
   const parsed = parseInt(value || defaultValue, 10);
   if (isNaN(parsed) || parsed < 0 || parsed > 65535) {
@@ -36,7 +28,8 @@ function parsePort(value, defaultValue) {
 
 const config = {
   minimax: {
-    apiKey: requireEnv('MINIMAX_API_KEY'),
+    // Allow empty — MinimaxClient reads from settings DB at request time if this is empty
+    apiKey: process.env.MINIMAX_API_KEY || '',
     baseURL: process.env.MINIMAX_BASE_URL || 'https://api.minimax.io',
   },
   server: {
