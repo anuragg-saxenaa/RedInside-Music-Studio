@@ -978,3 +978,80 @@ test.describe('Error response quality — no stack traces in API responses', () 
     expect(body).not.toHaveProperty('stack');
   });
 });
+
+// ─── Generation Chains — auto-linked by workers ─────────────────────────────
+
+test.describe('Generation Chains — auto-linking via workers', () => {
+  let chainProjectId: string;
+  let chainLyricsId: string;
+
+  test.beforeAll(async ({ request }) => {
+    const proj = await request.post(`${API}/api/projects`, {
+      data: { name: 'chain-contract-test' },
+    });
+    chainProjectId = (await proj.json()).id;
+
+    const lyr = await request.post(`${API}/api/lyrics/generate`, {
+      data: { projectId: chainProjectId, prompt: 'chain test song' },
+    });
+    chainLyricsId = (await lyr.json()).id;
+  });
+
+  test.afterAll(async ({ request }) => {
+    if (chainProjectId) {
+      await request.delete(`${API}/api/projects/${chainProjectId}`);
+    }
+  });
+
+  test('lyrics generation creates chain entry with lyrics_id populated', async ({ request }) => {
+    const res = await request.get(`${API}/api/history/${chainProjectId}`);
+    expect(res.status()).toBe(200);
+    const history = await res.json();
+    expect(history.chains).toBeDefined();
+    expect(history.chains.length).toBeGreaterThan(0);
+    const chain = history.chains[0];
+    expect(chain.lyrics_id).toBe(chainLyricsId);
+    expect(chain.music_id).toBeNull();
+  });
+
+  test('GET /api/history/chain/:lyricsId returns full chain with lyrics linked', async ({ request }) => {
+    const res = await request.get(`${API}/api/history/chain/${chainLyricsId}`);
+    expect(res.status()).toBe(200);
+    const data = await res.json();
+    expect(data.chain).toBeTruthy();
+    expect(data.lyrics).toBeTruthy();
+    expect(data.lyrics.id).toBe(chainLyricsId);
+  });
+
+  test('music generation links into existing chain (lyrics_id + music_id both set)', async ({ request }) => {
+    // Generate music
+    const genRes = await request.post(`${API}/api/music/generate`, {
+      data: { projectId: chainProjectId, lyricsId: chainLyricsId },
+    });
+    expect(genRes.status()).toBe(202);
+    const { jobId } = await genRes.json();
+
+    // Poll until completed
+    let job;
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => setTimeout(r, 500));
+      const jr = await request.get(`${API}/api/jobs/${jobId}`);
+      job = await jr.json();
+      if (job.status === 'completed' || job.status === 'failed') break;
+    }
+    expect(job.status).toBe('completed');
+
+    // Verify chain has both lyrics_id and music_id
+    const histRes = await request.get(`${API}/api/history/${chainProjectId}`);
+    const history = await histRes.json();
+    const chain = history.chains[0];
+    expect(chain.lyrics_id).toBe(chainLyricsId);
+    expect(chain.music_id).toBeTruthy();
+
+    // GET /api/history/chain/:lyricsId should now return music too
+    const chainRes = await request.get(`${API}/api/history/chain/${chainLyricsId}`);
+    const chainData = await chainRes.json();
+    expect(chainData.music).toBeTruthy();
+    expect(chainData.lyrics).toBeTruthy();
+  });
+});

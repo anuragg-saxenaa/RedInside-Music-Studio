@@ -2,8 +2,11 @@ import { Worker } from 'bullmq';
 import { queues, getRedisConnection } from '../queue.config.js';
 import { JobModel } from '../jobs.service.js';
 import { VideoService } from '../../modules/video/video.service.js';
+import { HistoryService } from '../../modules/history/history.service.js';
 import logger from '../../utils/logger.js';
 import { broadcast } from '../../utils/ws.server.js';
+
+const historyService = new HistoryService();
 
 const videoService = new VideoService();
 const connection = getRedisConnection();
@@ -43,6 +46,13 @@ export const videoWorker = new Worker(
         const statusResult = await videoService.pollStatus(result.taskId);
 
         if (statusResult.status === 'completed') {
+          // Link into generation chain (music → video)
+          try {
+            await historyService.linkGeneration(projectId, { type: 'video', id: result.videoId });
+          } catch (linkErr) {
+            logger.warn('Failed to link video into generation chain', { error: linkErr.message });
+          }
+
           // Update job as completed
           JobModel.update(jobId, {
             status: 'completed',

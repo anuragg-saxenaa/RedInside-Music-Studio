@@ -1,9 +1,11 @@
 import { LyricsService } from './lyrics.service.js';
+import { HistoryService } from '../history/history.service.js';
 import { STYLE_PRESETS } from './presets.js';
 import { ProjectModel } from '../../database/models/project.model.js';
 import logger from '../../utils/logger.js';
 
 const lyricsService = new LyricsService();
+const historyService = new HistoryService();
 
 export const LyricsController = {
   async generate(req, res, next) {
@@ -30,6 +32,13 @@ export const LyricsController = {
         stylePreset,
         mode,
       });
+
+      // Link into generation chain (start of lyrics → music → video chain)
+      try {
+        await historyService.linkGeneration(projectId, { type: 'lyrics', id: result.id });
+      } catch (linkErr) {
+        logger.warn('Failed to link lyrics into generation chain', { error: linkErr.message });
+      }
 
       res.json(result);
     } catch (error) {

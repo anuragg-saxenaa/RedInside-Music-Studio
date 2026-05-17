@@ -2,9 +2,12 @@ import { Worker } from 'bullmq';
 import { queues, getRedisConnection } from '../queue.config.js';
 import { JobModel } from '../jobs.service.js';
 import { MusicService } from '../../modules/music/music.service.js';
+import { HistoryService } from '../../modules/history/history.service.js';
 import uploadService from '../../modules/upload/upload.service.js';
 import logger from '../../utils/logger.js';
 import { broadcast } from '../../utils/ws.server.js';
+
+const historyService = new HistoryService();
 
 const musicService = new MusicService();
 const connection = getRedisConnection();
@@ -46,6 +49,13 @@ export const musicWorker = new Worker(
         voice,
         language,
       });
+
+      // Link into generation chain (lyrics → music)
+      try {
+        await historyService.linkGeneration(projectId, { type: 'music', id: result.id });
+      } catch (linkErr) {
+        logger.warn('Failed to link music into generation chain', { error: linkErr.message });
+      }
 
       // Update job as completed
       JobModel.update(jobId, {
