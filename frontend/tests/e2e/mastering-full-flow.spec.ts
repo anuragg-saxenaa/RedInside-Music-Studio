@@ -51,7 +51,7 @@ test.describe('Mastering Full Flow - No Skips', () => {
     await page.waitForLoadState('networkidle');
 
     // Find and click our project - look for name containing "Mastering Test"
-    const projectCard = page.locator('button').filter({ hasText: /Mastering Test/ }).first();
+    const projectCard = page.locator('[role="button"]').filter({ hasText: /Mastering Test/ }).first();
     await expect(projectCard).toBeVisible({ timeout: 5000 });
     await projectCard.click();
 
@@ -85,7 +85,7 @@ test.describe('Mastering Full Flow - No Skips', () => {
     await page.waitForLoadState('networkidle');
 
     // Navigate to project
-    const projectCard = page.locator('button').filter({ hasText: /Mastering Test/ }).first();
+    const projectCard = page.locator('[role="button"]').filter({ hasText: /Mastering Test/ }).first();
     await projectCard.click();
     await page.waitForTimeout(1500);
 
@@ -114,7 +114,7 @@ test.describe('Mastering Full Flow - No Skips', () => {
     await page.waitForLoadState('networkidle');
 
     // Navigate to Export
-    const projectCard = page.locator('button').filter({ hasText: /Mastering Test/ }).first();
+    const projectCard = page.locator('[role="button"]').filter({ hasText: /Mastering Test/ }).first();
     if (await projectCard.isVisible().catch(() => false)) {
       await projectCard.click();
     }
@@ -154,7 +154,7 @@ test.describe('Mastering Full Flow - No Skips', () => {
     await page.waitForLoadState('networkidle');
 
     // Navigate to Export
-    const projectCard = page.locator('button').filter({ hasText: /Mastering Test/ }).first();
+    const projectCard = page.locator('[role="button"]').filter({ hasText: /Mastering Test/ }).first();
     if (await projectCard.isVisible().catch(() => false)) {
       await projectCard.click();
     }
@@ -212,7 +212,7 @@ test.describe('Mastering Full Flow - No Skips', () => {
     await page.waitForLoadState('networkidle');
 
     // Navigate to Export
-    const projectCard = page.locator('button').filter({ hasText: /Mastering Test/ }).first();
+    const projectCard = page.locator('[role="button"]').filter({ hasText: /Mastering Test/ }).first();
     if (await projectCard.isVisible().catch(() => false)) {
       await projectCard.click();
     }

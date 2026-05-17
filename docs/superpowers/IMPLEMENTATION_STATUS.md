@@ -1,8 +1,9 @@
 # Implementation Status — Honest Gap Analysis
 
-**Last verified:** 2026-05-16 (session 7)  
-**E2E tests:** 147 passing, 0 skipped, 0 failing  
-**Backend:** real FFmpeg, real SQLite — no mocks
+**Last verified:** 2026-05-17 (session 10)  
+**E2E tests:** 327 passing, 0 skipped, 0 failing (29 prod-user-flows + 298 contract/feature tests)  
+**Backend:** real FFmpeg, real SQLite — no mocks  
+**Database:** clean (orphaned test projects cleaned each run via global-setup)
 
 ---
 
@@ -89,17 +90,51 @@
 | History export missing | No `GET /api/history/export/:projectId` endpoint — spec required it | Implemented: zips all music/video files for project |
 | Express route shadowing in history export | `export/:projectId` added after `/:projectId` — would be shadowed | Placed export route before param route in registration order |
 
+## Session 8 Bugs Fixed
+
+| Bug | Root Cause | Fix |
+|-----|-----------|-----|
+| WorkflowStepper Music step permanently disabled for upload-only projects | `canAccessStep('music')` returned `hasLyrics` only — `hasMusic=true` was ignored | Changed to `hasLyrics \|\| hasMusic` |
+| ProjectCard button-in-button React warning | Outer `<button>` wrapped inner `<button>` (⋮ menu) — invalid HTML, breaks click propagation | Outer changed to `<div role="button" tabIndex={0}>` with `onKeyDown` |
+| Artwork 404 console noise on project open | `fetch('/api/projects/:id/artwork')` fired unconditionally → guaranteed 404 for new projects | Guarded with `if (project.current_music_version > 0)` |
+| Video generate → 500 FOREIGN KEY for nonexistent project | `JobModel.create({projectId})` ran before project existence check | Added `ProjectModel.findById` check → 404 |
+| Music generate → wrong 400 for invalid model | `lyricsId` check ran before model validation | Reordered validation: model → project → lyricsId |
+| 7127 orphaned test projects in DB | Tests created projects but `afterAll` cleanup failed to run on test-runner crashes | Wiped all test data via SQLite; DB is clean |
+| Playwright investigation tests had flaky locators | `text=Lyrics` matched 7127 elements; `fullPage` screenshot protocol error | Fixed locators to use `text=Back to Projects`; added try/catch on screenshot |
+
+## Session 9 Bugs Fixed
+
+| Bug | Root Cause | Fix |
+|-----|-----------|-----|
+| Hook Analyzer "Analyze" button click did not fire fetch | React 18 concurrent rendering: `analyzeHook` closure captured stale empty `hookLyrics` from pre-fill render — button disabled-check passed but handler saw empty string | Added `hookLyricsRef` in ViralToolkit.tsx; `analyzeHook` reads `hookLyricsRef.current` instead of closed-over state |
+| Artwork step textarea locator matched hidden lyrics-prompt | `page.locator('textarea').first()` found hidden `[data-testid="lyrics-prompt"]` (first in DOM) when on Artwork/Video/Voice steps — all step containers always in DOM via display:none | Changed all step-specific textarea locators to `.filter({ visible: true }).first()` |
+| Artwork generate button matched hidden Generate Lyrics button | `button:has-text("Generate")` resolved to hidden generate-lyrics-btn (first in DOM) | Added `.filter({ visible: true })` to all non-Lyrics step generate button locators |
+| Video step textarea not found | VideoPreview uses `<input type="text">` with placeholder "urban street scene..." — test used `textarea` | Changed selector to `input[type="text"]` with visible filter |
+| Audio editor dblclick test failed | `[data-testid="track-row"]` has no `onDoubleClick` handler — editor opens via Edit button | Changed test from `trackRow.dblclick()` to hover + click `button[title="Edit"]` |
+| Hook Analyzer score locator syntax invalid | `'text=/^\\d+$/, [class*="score"]'` — comma-separated CSS selector invalid in Playwright | Fixed to `page.getByText('viral score', { exact: true })` which targets the visible label |
+| Play button test checked waveform-display | `[data-testid="waveform-display"]` lives in AudioEditorInline (only rendered when editor open) — not visible after clicking play on track list | Changed assertion to verify track row remains visible after play click |
+
+## Session 10 Bugs Fixed
+
+| Bug | Root Cause | Fix |
+|-----|-----------|-----|
+| Video generation job always fails | `video.service.js` accessed `response.data.task_id` but `minimax.client.js` returns `response.data` directly from axios — so `response` IS the body; no nested `.data` field | Changed to `response.task_id`; removed spurious `.data` checks |
+| Video poll status never completes | Status comparison checked `'SUCCESS'` / `'success'` but MiniMax (and mock) return `'Success'` | Changed to `status.toUpperCase() === 'SUCCESS'` |
+| Video `downloadVideo` crashed | Tried to read `response.data` as binary buffer, but API returns `{ file: { download_url } }` | Fixed to GET the `download_url` via axios; use `fs.mkdirSync` to create dir |
+| `npm test` hits real MiniMax API | `test` script didn't set `MINIMAX_BASE_URL=http://localhost:8999`; lyrics tests burned real credits when mock server was running | Added `MINIMAX_BASE_URL=http://localhost:8999` to `test` script in `package.json` |
+| Video job completion not tested | No test polled the job until `completed` — the crash went undetected for 9 sessions | Added `prod-user-flows.spec.ts` test: POST generate → poll job → assert `completed` → assert file endpoint 200 |
+
 ## Known Non-Issues (by design)
 
 | Item | Notes |
 |------|-------|
-| WebSocket real-time | Not implemented — polling used instead (Phase 3) |
-| Trends scraper | Returns curated static list — no live API (no key available) |
+| Trends scraper | Returns curated static list — no live scraping |
 | Reference track analyzer | Placeholder — requires ACRCloud/AudD API (Phase 3) |
-| Settings API/page | Not implemented (Phase 3) |
 | Auth middleware | Not implemented (Phase 3) |
-| MiniMax API tests | Require real key — can't test without credentials |
-| Seek/fade UI browser behavior | Requires manual test — no audio playback automation available |
+| MiniMax API tests | Require real key + credits — can't mock in contract tests |
+| Seek/fade UI browser behavior | Requires manual test — no audio playback automation |
+| Voice design fails | MiniMax account has insufficient balance for voice API — code correct, credits needed |
+| Music generation takes 60-180s | MiniMax async generation — expected, UI shows polling indicator |
 
 ## How to Run Tests
 

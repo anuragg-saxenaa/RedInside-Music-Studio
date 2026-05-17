@@ -49,6 +49,7 @@ export const ViralController = {
 
       res.json({
         success: true,
+        ...analysis,
         data: analysis,
       });
     } catch (error) {
@@ -113,7 +114,13 @@ export const ViralController = {
         });
       }
 
-      const analysis = await viralService.analyzeReferenceTrack(url);
+      let analysis;
+      try {
+        analysis = await viralService.analyzeReferenceTrack(url);
+      } catch (svcError) {
+        // Service throws for unsupported URLs — return 422, not 500
+        return res.status(422).json({ success: false, error: svcError.message });
+      }
 
       res.json({
         success: true,
@@ -147,7 +154,7 @@ export const ViralController = {
         optimizationParams,
       });
 
-      res.status(201).json({
+      res.json({
         success: true,
         data: optimization,
       });

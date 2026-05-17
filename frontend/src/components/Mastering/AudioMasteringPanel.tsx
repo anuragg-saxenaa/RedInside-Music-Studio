@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import UploadZone from './UploadZone';
 import VUMeter from './VUMeter';
 import AudioEditorPanel from '../AudioEditor/AudioEditorPanel';
@@ -13,6 +13,7 @@ interface FileInfo {
   error?: string;
   filePath?: string;
   selected?: boolean;
+  musicId?: string;
 }
 
 interface AudioMasteringPanelProps {
@@ -20,11 +21,30 @@ interface AudioMasteringPanelProps {
   allMusic: any[];
 }
 
-export default function AudioMasteringPanel({ projectId, allMusic: _allMusic }: AudioMasteringPanelProps) {
+export default function AudioMasteringPanel({ projectId, allMusic }: AudioMasteringPanelProps) {
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [vuLevel, setVuLevel] = useState(0);
   const [editingFile, setEditingFile] = useState<FileInfo | null>(null);
   const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!allMusic || allMusic.length === 0) return;
+    setFiles(prev => {
+      const existingMusicIds = new Set(prev.filter(f => f.musicId).map(f => f.musicId));
+      const newTracks: FileInfo[] = allMusic
+        .filter((m: any) => !existingMusicIds.has(m.id))
+        .map((m: any) => ({
+          id: m.id,
+          filename: m.title || `Version ${m.version}`,
+          status: 'idle' as const,
+          progress: 0,
+          duration: m.duration_seconds,
+          musicId: m.id,
+        }));
+      const uploadedFiles = prev.filter(f => !f.musicId);
+      return [...newTracks, ...uploadedFiles];
+    });
+  }, [allMusic]);
 
   const handleUploadComplete = (uploadedFiles: Array<{ id: string; filename: string; originalPath?: string }>) => {
     setFiles(prev => [...prev, ...uploadedFiles.map(f => ({ id: f.id, filename: f.filename, status: 'idle' as const, progress: 0, filePath: f.originalPath }))]);
@@ -44,10 +64,13 @@ export default function AudioMasteringPanel({ projectId, allMusic: _allMusic }: 
     }, 150);
 
     try {
+      const body = file.musicId
+        ? { musicId: file.musicId, projectId, preset: 'spotify' }
+        : { fileId, projectId, preset: 'spotify', saveToProject: true };
       const response = await fetch('/api/mastering/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileId, projectId, preset: 'spotify', saveToProject: true }),
+        body: JSON.stringify(body),
       });
 
       clearInterval(vuInterval);

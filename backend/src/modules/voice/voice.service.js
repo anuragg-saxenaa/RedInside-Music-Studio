@@ -1,5 +1,10 @@
 import * as MinimaxClientModule from '../../utils/minimax.client.js';
 import config from '../../config/env.config.js';
+import db from '../../database/connection.js';
+import { nanoid } from 'nanoid';
+import fs from 'fs';
+import path from 'path';
+
 const MinimaxClient = MinimaxClientModule.default;
 
 export class VoiceService {
@@ -20,7 +25,7 @@ export class VoiceService {
 
   async listVoices() {
     const result = await this.minimax.getVoiceList();
-    return result.data?.voices || [];
+    return result.data?.voices || result.voices || [];
   }
 
   async deleteVoice(voiceId) {
@@ -28,12 +33,30 @@ export class VoiceService {
     return result.base_resp.status_code === 0;
   }
 
-  async cloneVoice({ projectId, name, audioUrl }) {
-    return {
-      id: Date.now(),
-      projectId,
-      name,
-      voiceId: audioUrl,
-    };
+  async cloneVoice({ projectId, name, audioFilePath }) {
+    if (!audioFilePath || !fs.existsSync(audioFilePath)) {
+      throw new Error('audioFilePath is required and must exist on disk');
+    }
+
+    // Upload audio to MiniMax for voice cloning
+    const uploadResult = await this.minimax.uploadVoiceClone(audioFilePath);
+    if (!uploadResult.file?.file_id) {
+      throw new Error('Voice clone upload failed: no file_id returned');
+    }
+
+    const fileId = uploadResult.file.file_id;
+    const id = nanoid();
+
+    // Persist to voice_clones table
+    db.prepare(`
+      INSERT INTO voice_clones (id, project_id, name, file_id, filename, created_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'))
+    `).run(id, projectId, name, fileId, path.basename(audioFilePath));
+
+    return { id, projectId, name, voiceId: fileId };
+  }
+
+  listClones(projectId) {
+    return db.prepare('SELECT * FROM voice_clones WHERE project_id = ? ORDER BY created_at DESC').all(projectId);
   }
 }

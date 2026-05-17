@@ -91,6 +91,7 @@ export const ProjectModel = {
   },
 
   delete(id) {
+    db.prepare('DELETE FROM voice_clones WHERE project_id = ?').run(id);
     db.prepare('DELETE FROM projects WHERE id = ?').run(id);
   },
 };

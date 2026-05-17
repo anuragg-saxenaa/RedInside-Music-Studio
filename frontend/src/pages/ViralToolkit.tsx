@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface Trend {
   topic: string;
@@ -29,6 +29,8 @@ export default function ViralToolkit() {
   const [hookAnalysis, setHookAnalysis] = useState<HookAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Ref ensures analyzeHook always reads the latest hookLyrics regardless of React 18 render batching
+  const hookLyricsRef = useRef(hookLyrics);
 
   useEffect(() => {
     if (activeTab === 'trends' && trends.length === 0) fetchTrends();
@@ -61,8 +63,11 @@ export default function ViralToolkit() {
     }
   };
 
+  hookLyricsRef.current = hookLyrics;
+
   const analyzeHook = async () => {
-    if (!hookLyrics.trim()) return;
+    const lyrics = hookLyricsRef.current;
+    if (!lyrics.trim()) return;
     setLoading(true);
     setError(null);
     setHookAnalysis(null);
@@ -70,7 +75,7 @@ export default function ViralToolkit() {
       const res = await fetch('/api/viral/analyze-hook', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lyrics: hookLyrics }),
+        body: JSON.stringify({ lyrics }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Analysis failed');

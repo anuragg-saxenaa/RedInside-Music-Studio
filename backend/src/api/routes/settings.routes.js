@@ -41,7 +41,24 @@ const SettingsController = {
       rows.forEach(({ key, value, updated_at }) => {
         result[key] = { value: maskValue(key, value), updated_at };
       });
-      res.json({ data: result, message: 'Settings updated. API key changes take effect after server restart.' });
+      if (updates.minimax_api_key) {
+        process.env.MINIMAX_API_KEY = updates.minimax_api_key;
+      }
+      res.json({ data: result, message: 'Settings updated.' });
+    } catch (err) { next(err); }
+  },
+
+  updateKey(req, res, next) {
+    try {
+      const { key } = req.params;
+      const { value } = req.body;
+      if (value === undefined) return res.status(400).json({ error: 'value is required' });
+      const ALLOWED = new Set(['minimax_api_key', 'default_workflow_mode', 'auto_ffmpeg_320kbps', 'default_music_model', 'default_video_model']);
+      if (!ALLOWED.has(key)) return res.status(400).json({ error: `Unknown setting: ${key}` });
+      const rows = SettingsModel.setMany({ [key]: value });
+      const row = rows[0];
+      if (key === 'minimax_api_key') process.env.MINIMAX_API_KEY = value;
+      res.json({ data: { ...row, value: maskValue(row.key, row.value) }, message: 'Setting updated.' });
     } catch (err) { next(err); }
   },
 };
@@ -50,4 +67,5 @@ export const SettingsRoutes = [
   { method: 'get', path: '/api/settings', handler: SettingsController.getAll },
   { method: 'get', path: '/api/settings/:key', handler: SettingsController.get },
   { method: 'patch', path: '/api/settings', handler: SettingsController.update },
+  { method: 'patch', path: '/api/settings/:key', handler: SettingsController.updateKey },
 ];

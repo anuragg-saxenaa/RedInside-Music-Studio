@@ -16,7 +16,7 @@ function convertMasteringUrlToPath(url) {
     const uploadDir = storage.getUploadDir(projectId);
     try {
       const files = fs.readdirSync(uploadDir);
-      const file = files.find(f => f.startsWith(fileId));
+      const file = files.find(f => f.startsWith(fileId) && f.match(/\.(mp3|wav|flac|m4a|ogg|aac)$/i));
       if (file) {
         return path.join(uploadDir, file);
       }
@@ -54,6 +54,59 @@ async function convertMusicUrlToPath(url) {
 }
 
 /**
+ * Resolve inputPath from either:
+ *   - trackId + projectId  (uploaded audio via /api/upload)
+ *   - musicId              (generated music)
+ *   - inputPath            (raw filesystem path — legacy)
+ */
+async function resolveInputPath(body) {
+  const { trackId, musicId, projectId, inputPath } = body;
+
+  // Raw filesystem path — use directly
+  if (inputPath && !inputPath.startsWith('/api/')) {
+    return inputPath;
+  }
+
+  // Resolve uploaded track (trackId + projectId)
+  if (trackId && projectId) {
+    const audioDir = path.join(storage.getProjectDir(projectId), 'audio');
+    try {
+      const files = fs.readdirSync(audioDir);
+      const file = files.find(f => f.startsWith(trackId));
+      if (file) return path.join(audioDir, file);
+    } catch (_) {}
+    return null;
+  }
+
+  // Resolve generated music by musicId
+  if (musicId) {
+    try {
+      const { MusicModel } = await import('../../database/models/music.model.js');
+      const music = MusicModel.findById(musicId);
+      if (music) {
+        const fp = music.processed_file_path || music.original_file_path;
+        if (fp && fs.existsSync(fp)) return fp;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // URL-based paths (legacy)
+  if (inputPath && inputPath.startsWith('/api/mastering/')) {
+    return convertMasteringUrlToPath(inputPath);
+  }
+  if (inputPath && inputPath.startsWith('/api/music/')) {
+    return convertMusicUrlToPath(inputPath);
+  }
+
+  return null;
+}
+
+function tempOut(ext) {
+  return `/tmp/audio_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext || 'mp3'}`;
+}
+
+/**
  * AudioController - HTTP handlers for audio processing
  */
 export const AudioController = {
@@ -63,7 +116,7 @@ export const AudioController = {
    */
   async process(req, res, next) {
     try {
-      let { inputPath, operations, outputPath, options } = req.body;
+      let { inputPath, operations, options } = req.body;
 
       if (!inputPath || !operations || !Array.isArray(operations)) {
         return res.status(400).json({
@@ -71,11 +124,9 @@ export const AudioController = {
         });
       }
 
-      if (!outputPath) {
-        return res.status(400).json({
-          error: 'outputPath is required',
-        });
-      }
+      // Generate outputPath server-side to prevent path traversal
+      const outputFormat = options?.format || 'mp3';
+      const outputPath = `/tmp/processed_${Date.now()}.${outputFormat}`;
 
       // Convert HTTP URL to filesystem path for mastering uploads
       if (inputPath.startsWith('/api/mastering/')) {
@@ -158,35 +209,28 @@ export const AudioController = {
   /**
    * Trim audio
    * POST /api/audio/trim
+   * Accepts: trackId+projectId | musicId | inputPath; startTime/startSec; endTime/endSec
    */
   async trim(req, res, next) {
     try {
-      const { inputPath, startSec, endSec, outputPath, format, bitrate } = req.body;
-
-      if (!inputPath || typeof startSec !== 'number' || typeof endSec !== 'number') {
-        return res.status(400).json({
-          error: 'inputPath, startSec, and endSec are required',
-        });
+      const resolvedPath = await resolveInputPath(req.body);
+      if (!resolvedPath) {
+        return res.status(400).json({ error: 'Could not resolve audio source. Provide trackId+projectId, musicId, or inputPath' });
       }
 
-      if (!outputPath) {
-        return res.status(400).json({
-          error: 'outputPath is required',
-        });
+      const startSec = req.body.startSec ?? req.body.startTime ?? 0;
+      const endSec = req.body.endSec ?? req.body.endTime;
+      if (endSec == null || typeof endSec !== 'number') {
+        return res.status(400).json({ error: 'endSec (or endTime) is required' });
       }
 
-      const result = await audioService.trimAudio(
-        inputPath,
-        startSec,
-        endSec,
-        outputPath,
-        { format, bitrate }
-      );
-
-      res.json({
-        message: 'Audio trimmed successfully',
-        ...result,
+      const outputPath = req.body.outputPath || tempOut(req.body.format || 'mp3');
+      const result = await audioService.trimAudio(resolvedPath, startSec, endSec, outputPath, {
+        format: req.body.format,
+        bitrate: req.body.bitrate,
       });
+
+      res.json({ message: 'Audio trimmed successfully', ...result });
     } catch (error) {
       next(error);
     }
@@ -195,40 +239,30 @@ export const AudioController = {
   /**
    * Change audio speed
    * POST /api/audio/speed
+   * Accepts: speed | tempoFactor
    */
   async changeSpeed(req, res, next) {
     try {
-      const { inputPath, tempoFactor, outputPath, format, bitrate } = req.body;
-
-      if (!inputPath || typeof tempoFactor !== 'number') {
-        return res.status(400).json({
-          error: 'inputPath and tempoFactor are required',
-        });
+      const resolvedPath = await resolveInputPath(req.body);
+      if (!resolvedPath) {
+        return res.status(400).json({ error: 'Could not resolve audio source. Provide trackId+projectId, musicId, or inputPath' });
       }
 
+      const tempoFactor = req.body.tempoFactor ?? req.body.speed;
+      if (typeof tempoFactor !== 'number') {
+        return res.status(400).json({ error: 'speed (or tempoFactor) must be a number' });
+      }
       if (tempoFactor <= 0 || tempoFactor > 10) {
-        return res.status(400).json({
-          error: 'tempoFactor must be between 0.01 and 10',
-        });
+        return res.status(400).json({ error: 'tempoFactor must be between 0.01 and 10' });
       }
 
-      if (!outputPath) {
-        return res.status(400).json({
-          error: 'outputPath is required',
-        });
-      }
-
-      const result = await audioService.changeSpeed(
-        inputPath,
-        tempoFactor,
-        outputPath,
-        { format, bitrate }
-      );
-
-      res.json({
-        message: 'Audio speed changed successfully',
-        ...result,
+      const outputPath = req.body.outputPath || tempOut(req.body.format || 'mp3');
+      const result = await audioService.changeSpeed(resolvedPath, tempoFactor, outputPath, {
+        format: req.body.format,
+        bitrate: req.body.bitrate,
       });
+
+      res.json({ message: 'Audio speed changed successfully', ...result });
     } catch (error) {
       next(error);
     }
@@ -240,31 +274,23 @@ export const AudioController = {
    */
   async adjustVolume(req, res, next) {
     try {
-      const { inputPath, gain, outputPath, format, bitrate } = req.body;
-
-      if (!inputPath || typeof gain !== 'number') {
-        return res.status(400).json({
-          error: 'inputPath and gain are required',
-        });
+      const resolvedPath = await resolveInputPath(req.body);
+      if (!resolvedPath) {
+        return res.status(400).json({ error: 'Could not resolve audio source. Provide trackId+projectId, musicId, or inputPath' });
       }
 
-      if (!outputPath) {
-        return res.status(400).json({
-          error: 'outputPath is required',
-        });
+      const gain = req.body.gain ?? req.body.level;
+      if (typeof gain !== 'number') {
+        return res.status(400).json({ error: 'gain must be a number' });
       }
 
-      const result = await audioService.adjustVolume(
-        inputPath,
-        gain,
-        outputPath,
-        { format, bitrate }
-      );
-
-      res.json({
-        message: 'Audio volume adjusted successfully',
-        ...result,
+      const outputPath = req.body.outputPath || tempOut(req.body.format || 'mp3');
+      const result = await audioService.adjustVolume(resolvedPath, gain, outputPath, {
+        format: req.body.format,
+        bitrate: req.body.bitrate,
       });
+
+      res.json({ message: 'Audio volume adjusted successfully', ...result });
     } catch (error) {
       next(error);
     }
@@ -276,31 +302,19 @@ export const AudioController = {
    */
   async fadeIn(req, res, next) {
     try {
-      const { inputPath, durationSec, outputPath, format, bitrate } = req.body;
-
-      if (!inputPath || typeof durationSec !== 'number') {
-        return res.status(400).json({
-          error: 'inputPath and durationSec are required',
-        });
+      const resolvedPath = await resolveInputPath(req.body);
+      if (!resolvedPath) {
+        return res.status(400).json({ error: 'Could not resolve audio source. Provide trackId+projectId, musicId, or inputPath' });
       }
 
-      if (!outputPath) {
-        return res.status(400).json({
-          error: 'outputPath is required',
-        });
-      }
-
-      const result = await audioService.fadeIn(
-        inputPath,
-        durationSec,
-        outputPath,
-        { format, bitrate }
-      );
-
-      res.json({
-        message: 'Fade in added successfully',
-        ...result,
+      const durationSec = req.body.durationSec ?? req.body.duration ?? 2;
+      const outputPath = req.body.outputPath || tempOut(req.body.format || 'mp3');
+      const result = await audioService.fadeIn(resolvedPath, durationSec, outputPath, {
+        format: req.body.format,
+        bitrate: req.body.bitrate,
       });
+
+      res.json({ message: 'Fade in added successfully', ...result });
     } catch (error) {
       next(error);
     }
@@ -312,31 +326,19 @@ export const AudioController = {
    */
   async fadeOut(req, res, next) {
     try {
-      const { inputPath, durationSec, outputPath, format, bitrate } = req.body;
-
-      if (!inputPath || typeof durationSec !== 'number') {
-        return res.status(400).json({
-          error: 'inputPath and durationSec are required',
-        });
+      const resolvedPath = await resolveInputPath(req.body);
+      if (!resolvedPath) {
+        return res.status(400).json({ error: 'Could not resolve audio source. Provide trackId+projectId, musicId, or inputPath' });
       }
 
-      if (!outputPath) {
-        return res.status(400).json({
-          error: 'outputPath is required',
-        });
-      }
-
-      const result = await audioService.fadeOut(
-        inputPath,
-        durationSec,
-        outputPath,
-        { format, bitrate }
-      );
-
-      res.json({
-        message: 'Fade out added successfully',
-        ...result,
+      const durationSec = req.body.durationSec ?? req.body.duration ?? 2;
+      const outputPath = req.body.outputPath || tempOut(req.body.format || 'mp3');
+      const result = await audioService.fadeOut(resolvedPath, durationSec, outputPath, {
+        format: req.body.format,
+        bitrate: req.body.bitrate,
       });
+
+      res.json({ message: 'Fade out added successfully', ...result });
     } catch (error) {
       next(error);
     }
@@ -348,30 +350,18 @@ export const AudioController = {
    */
   async reverse(req, res, next) {
     try {
-      const { inputPath, outputPath, format, bitrate } = req.body;
-
-      if (!inputPath) {
-        return res.status(400).json({
-          error: 'inputPath is required',
-        });
+      const resolvedPath = await resolveInputPath(req.body);
+      if (!resolvedPath) {
+        return res.status(400).json({ error: 'Could not resolve audio source. Provide trackId+projectId, musicId, or inputPath' });
       }
 
-      if (!outputPath) {
-        return res.status(400).json({
-          error: 'outputPath is required',
-        });
-      }
-
-      const result = await audioService.reverseAudio(
-        inputPath,
-        outputPath,
-        { format, bitrate }
-      );
-
-      res.json({
-        message: 'Audio reversed successfully',
-        ...result,
+      const outputPath = req.body.outputPath || tempOut(req.body.format || 'mp3');
+      const result = await audioService.reverseAudio(resolvedPath, outputPath, {
+        format: req.body.format,
+        bitrate: req.body.bitrate,
       });
+
+      res.json({ message: 'Audio reversed successfully', ...result });
     } catch (error) {
       next(error);
     }
@@ -383,18 +373,34 @@ export const AudioController = {
    */
   async getMetadata(req, res, next) {
     try {
-      const filePath = req.params.id || req.params.path;
+      const idOrPath = req.params.id || req.params.path;
 
-      if (!filePath) {
-        return res.status(400).json({
-          error: 'File path is required',
-        });
+      if (!idOrPath) {
+        return res.status(400).json({ error: 'Music ID or file path is required' });
       }
 
-      // URL decode the path
-      const decodedPath = decodeURIComponent(filePath);
-      const metadata = await audioService.getMetadata(decodedPath);
+      // Try to resolve as music ID first, then fall back to file path
+      let filePath = decodeURIComponent(idOrPath);
 
+      // If it looks like a music ID (not an absolute path), look up in DB
+      if (!filePath.startsWith('/')) {
+        const { MusicModel } = await import('../../database/models/music.model.js');
+        const music = MusicModel.findById(filePath);
+        if (!music) {
+          return res.status(404).json({ error: 'Music not found' });
+        }
+        const fp = music.processed_file_path || music.original_file_path;
+        if (!fp || !fs.existsSync(fp)) {
+          return res.status(404).json({ error: 'Audio file not available' });
+        }
+        filePath = fp;
+      }
+
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+
+      const metadata = await audioService.getMetadata(filePath);
       res.json(metadata);
     } catch (error) {
       next(error);
@@ -498,46 +504,76 @@ export const AudioController = {
 
   async normalize(req, res, next) {
     try {
-      const { inputPath, outputPath, targetLUFS, format, bitrate } = req.body;
-      if (!inputPath || !outputPath) return res.status(400).json({ error: 'inputPath and outputPath are required' });
-      const result = await audioService.normalizeAudio(inputPath, outputPath, { targetLUFS, format, bitrate });
+      const resolvedPath = await resolveInputPath(req.body);
+      if (!resolvedPath) return res.status(400).json({ error: 'Could not resolve audio source. Provide trackId+projectId, musicId, or inputPath' });
+      const outputPath = req.body.outputPath || tempOut(req.body.format || 'mp3');
+      const result = await audioService.normalizeAudio(resolvedPath, outputPath, {
+        targetLUFS: req.body.targetLUFS,
+        format: req.body.format,
+        bitrate: req.body.bitrate,
+      });
       res.json({ message: 'Audio normalized successfully', ...result });
     } catch (error) { next(error); }
   },
 
   async reverb(req, res, next) {
     try {
-      const { inputPath, outputPath, roomScale, damping, wetLevel, format, bitrate } = req.body;
-      if (!inputPath || !outputPath) return res.status(400).json({ error: 'inputPath and outputPath are required' });
-      const result = await audioService.applyReverb(inputPath, outputPath, { roomScale, damping, wetLevel, format, bitrate });
+      const resolvedPath = await resolveInputPath(req.body);
+      if (!resolvedPath) return res.status(400).json({ error: 'Could not resolve audio source. Provide trackId+projectId, musicId, or inputPath' });
+      const outputPath = req.body.outputPath || tempOut(req.body.format || 'mp3');
+      // accept level as alias for wetLevel
+      const wetLevel = req.body.wetLevel ?? req.body.level;
+      const result = await audioService.applyReverb(resolvedPath, outputPath, {
+        roomScale: req.body.roomScale,
+        damping: req.body.damping,
+        wetLevel,
+        format: req.body.format,
+        bitrate: req.body.bitrate,
+      });
       res.json({ message: 'Reverb applied successfully', ...result });
     } catch (error) { next(error); }
   },
 
   async echo(req, res, next) {
     try {
-      const { inputPath, outputPath, delay, decay, format, bitrate } = req.body;
-      if (!inputPath || !outputPath) return res.status(400).json({ error: 'inputPath and outputPath are required' });
-      const result = await audioService.applyEcho(inputPath, outputPath, { delay, decay, format, bitrate });
+      const resolvedPath = await resolveInputPath(req.body);
+      if (!resolvedPath) return res.status(400).json({ error: 'Could not resolve audio source. Provide trackId+projectId, musicId, or inputPath' });
+      const outputPath = req.body.outputPath || tempOut(req.body.format || 'mp3');
+      const result = await audioService.applyEcho(resolvedPath, outputPath, {
+        delay: req.body.delay,
+        decay: req.body.decay,
+        format: req.body.format,
+        bitrate: req.body.bitrate,
+      });
       res.json({ message: 'Echo applied successfully', ...result });
     } catch (error) { next(error); }
   },
 
   async bassBoost(req, res, next) {
     try {
-      const { inputPath, outputPath, gainDb, format, bitrate } = req.body;
-      if (!inputPath || !outputPath) return res.status(400).json({ error: 'inputPath and outputPath are required' });
-      const result = await audioService.applyBassBoost(inputPath, outputPath, { gainDb, format, bitrate });
+      const resolvedPath = await resolveInputPath(req.body);
+      if (!resolvedPath) return res.status(400).json({ error: 'Could not resolve audio source. Provide trackId+projectId, musicId, or inputPath' });
+      const outputPath = req.body.outputPath || tempOut(req.body.format || 'mp3');
+      const result = await audioService.applyBassBoost(resolvedPath, outputPath, {
+        gainDb: req.body.gainDb,
+        format: req.body.format,
+        bitrate: req.body.bitrate,
+      });
       res.json({ message: 'Bass boost applied successfully', ...result });
     } catch (error) { next(error); }
   },
 
   async pitchShift(req, res, next) {
     try {
-      const { inputPath, outputPath, semitones, format, bitrate } = req.body;
-      if (!inputPath || !outputPath) return res.status(400).json({ error: 'inputPath and outputPath are required' });
-      if (typeof semitones !== 'number') return res.status(400).json({ error: 'semitones must be a number' });
-      const result = await audioService.applyPitchShift(inputPath, outputPath, { semitones, format, bitrate });
+      const resolvedPath = await resolveInputPath(req.body);
+      if (!resolvedPath) return res.status(400).json({ error: 'Could not resolve audio source. Provide trackId+projectId, musicId, or inputPath' });
+      if (typeof req.body.semitones !== 'number') return res.status(400).json({ error: 'semitones must be a number' });
+      const outputPath = req.body.outputPath || tempOut(req.body.format || 'mp3');
+      const result = await audioService.applyPitchShift(resolvedPath, outputPath, {
+        semitones: req.body.semitones,
+        format: req.body.format,
+        bitrate: req.body.bitrate,
+      });
       res.json({ message: 'Pitch shifted successfully', ...result });
     } catch (error) { next(error); }
   },

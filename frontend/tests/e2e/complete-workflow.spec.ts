@@ -19,7 +19,7 @@ async function seedProjectWithMusic(page: Page): Promise<{ id: string; name: str
 async function navigateToExport(page: Page, projectName: string) {
   await page.goto('/');
   await page.waitForLoadState('networkidle');
-  const projectCard = page.locator('button').filter({ hasText: projectName }).first();
+  const projectCard = page.locator('[role="button"]').filter({ hasText: projectName }).first();
   await expect(projectCard).toBeVisible({ timeout: 5000 });
   await projectCard.click();
   await page.waitForTimeout(1500);
@@ -32,7 +32,7 @@ async function navigateToExport(page: Page, projectName: string) {
 async function navigateToProject(page: Page, projectName: string) {
   await page.goto('/');
   await page.waitForLoadState('networkidle');
-  const projectCard = page.locator('button').filter({ hasText: projectName }).first();
+  const projectCard = page.locator('[role="button"]').filter({ hasText: projectName }).first();
   await expect(projectCard).toBeVisible({ timeout: 5000 });
   await projectCard.click();
   await page.waitForTimeout(1500);
@@ -55,47 +55,35 @@ test.describe('Complete Music Creation Workflow E2E', () => {
     await expect(uploadZone).toBeVisible({ timeout: 10000 });
   });
 
-  test('3. Upload -> Edit -> Preview -> Export complete flow', async ({ page }) => {
-    if (!fs.existsSync(FIXTURE_PATH)) {
-      test.skip('No test audio fixture at ' + FIXTURE_PATH);
-      return;
-    }
-
+  test('3. Upload -> dblclick -> audio editor opens -> export dropdown works', async ({ page }) => {
     const project = await seedProjectWithMusic(page);
     await navigateToExport(page, project.name);
 
-    const uploadZone = page.locator('[data-testid="upload-zone"]');
-    await expect(uploadZone).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="upload-zone"]')).toBeVisible({ timeout: 10000 });
 
-    const fileInput = page.locator('input[type="file"]');
-    await fileInput.setInputFiles(FIXTURE_PATH);
-    await page.waitForTimeout(3000);
+    await page.locator('input[type="file"]').setInputFiles(FIXTURE_PATH);
 
+    // File MUST appear after upload
     const fileItem = page.locator('[data-testid="file-item"]').last();
-    const hasFile = await fileItem.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasFile) {
-      test.skip('File item not visible after upload');
-      return;
-    }
+    await expect(fileItem, 'File must appear in list after upload').toBeVisible({ timeout: 10000 });
+
     await fileItem.dblclick();
     await page.waitForTimeout(1500);
 
-    const audioEditor = page.locator('text=AUDIO EDITOR');
-    if (await audioEditor.isVisible({ timeout: 5000 }).catch(() => false)) {
-      const previewBtn = page.locator('button:has-text("PREVIEW")').first();
-      if (await previewBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await previewBtn.click();
-        await page.waitForTimeout(500);
-      }
+    // Audio editor MUST open — this is the core feature
+    await expect(page.locator('text=AUDIO EDITOR'), 'Audio editor must open after dblclick').toBeVisible({ timeout: 5000 });
 
-      const exportButton = page.locator('button:has-text("EXPORT")').first();
-      if (await exportButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await exportButton.click();
-        await page.waitForTimeout(3000);
-      }
-    }
+    // Export dropdown MUST be present
+    const exportDropdown = page.locator('[data-testid="export-dropdown-btn"]');
+    await expect(exportDropdown).toBeVisible({ timeout: 3000 });
 
-    expect(hasFile).toBeTruthy();
+    // Open dropdown and verify format options
+    await exportDropdown.click();
+    await page.waitForTimeout(500);
+    await expect(
+      page.locator('button').filter({ hasText: '320kbps' }).first(),
+      'MP3 320kbps format option must appear'
+    ).toBeVisible({ timeout: 2000 });
   });
 
   test('4. Audio Processing Backend API - all operations work', async ({ page }) => {
@@ -160,9 +148,9 @@ test.describe('Complete Music Creation Workflow E2E', () => {
 
     const music = musicList[0];
 
-    // Download the file
+    // Download the file — seeded music MUST have a file
     const downloadRes = await page.request.get(`http://localhost:3000/api/music/${music.id}/file`);
-    expect([200, 404]).toContain(downloadRes.status());
+    expect(downloadRes.status(), 'Music file from seeded project must be downloadable').toBe(200);
 
     if (downloadRes.status() === 200) {
       const buffer = await downloadRes.body();
@@ -264,14 +252,18 @@ test.describe('Backend Audio Processing API', () => {
 });
 
 test.describe('Frontend Component Rendering', () => {
-  test('VU meter renders with data-testid', async ({ page }) => {
+  test('VU meter element exists in DOM on export step', async ({ page }) => {
     const project = await seedProjectWithMusic(page);
     await navigateToExport(page, project.name);
 
-    // VU meter may or may not be visible depending on whether audio is playing
+    // The upload zone must be present — this confirms we're on the right step
+    await expect(page.locator('[data-testid="upload-zone"]')).toBeVisible({ timeout: 10000 });
+
+    // VU meter is rendered in the AudioMasteringPanel — verify it exists in DOM
     const vuMeter = page.locator('[data-testid="vu-meter"]');
     const count = await vuMeter.count();
-    expect(count).toBeGreaterThanOrEqual(0);
+    // Must have exactly 1 VU meter on the mastering panel
+    expect(count, 'VU meter must exist on mastering step').toBeGreaterThan(0);
   });
 
   test('upload zone accepts files', async ({ page }) => {

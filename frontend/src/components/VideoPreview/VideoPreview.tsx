@@ -130,7 +130,7 @@ export default function VideoPreview({ projectId, selectedMusic, onVideoGenerate
               {selectedMusic.title || `Version ${selectedMusic.version}`}
             </div>
             <div style={{ color: '#666666', fontSize: '12px', marginTop: '4px' }}>
-              {selectedMusic.duration_seconds ? `${Math.round(selectedMusic.duration_seconds / 1000)}s` : ''} • {selectedMusic.model}
+              {selectedMusic.duration_seconds ? `${Math.round(selectedMusic.duration_seconds)}s` : ''} • {selectedMusic.model}
             </div>
           </div>
         )}

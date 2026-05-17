@@ -278,6 +278,21 @@ export class AudioProcessor {
         // Directory may already exist
       }
 
+      // Resolve fadeOut filter: need input duration to compute start time
+      if (this._fadeOutDuration != null) {
+        try {
+          const metadata = await this._getMetadata(this.inputPath);
+          const trimOp = this._operations.find(op => op.type === 'trim');
+          const effectiveDuration = trimOp
+            ? trimOp.endSec - trimOp.startSec
+            : metadata.duration;
+          const fadeStart = Math.max(0, effectiveDuration - this._fadeOutDuration);
+          this._filters.push(`afade=t=out:st=${fadeStart}:d=${this._fadeOutDuration}`);
+        } catch (e) {
+          logger.warn('Could not resolve fadeOut duration, skipping', { error: e.message });
+        }
+      }
+
       let command = this._buildCommand(outputPath);
 
       // Set format and bitrate

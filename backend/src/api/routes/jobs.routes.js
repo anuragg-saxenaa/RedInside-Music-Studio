@@ -109,4 +109,9 @@ export const JobsRoutes = [
     path: '/api/projects/:projectId/jobs',
     handler: JobsController.getByProject,
   },
+  {
+    method: 'get',
+    path: '/api/jobs/project/:projectId',
+    handler: JobsController.getByProject,
+  },
 ];

@@ -359,8 +359,11 @@ function ProjectCard({ project, onClick, onDelete, onRename, index }: {
   const hasMusic = project.current_music_version > 0;
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); }}
       style={{
         width: '100%',
         textAlign: 'left',
@@ -524,7 +527,7 @@ function ProjectCard({ project, onClick, onDelete, onRename, index }: {
           to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
-    </button>
+    </div>
   );
 }
 

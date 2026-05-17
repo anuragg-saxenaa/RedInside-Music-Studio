@@ -12,8 +12,9 @@ class MinimaxClient {
   }
 
   getHeaders() {
+    const key = process.env.MINIMAX_API_KEY || this.apiKey;
     return {
-      'Authorization': `Bearer ${this.apiKey}`,
+      'Authorization': `Bearer ${key}`,
       'Content-Type': 'application/json',
     };
   }
@@ -144,7 +145,7 @@ class MinimaxClient {
 
     const response = await axios.post(`${this.baseURL}/v1/files/upload`, formData, {
       headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
+        'Authorization': `Bearer ${process.env.MINIMAX_API_KEY || this.apiKey}`,
         ...formData.getHeaders(),
       },
       maxBodyLength: Infinity,
@@ -161,7 +162,7 @@ class MinimaxClient {
 
     const response = await axios.post(`${this.baseURL}/v1/files/upload`, formData, {
       headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
+        'Authorization': `Bearer ${process.env.MINIMAX_API_KEY || this.apiKey}`,
         ...formData.getHeaders(),
       },
       maxBodyLength: Infinity,

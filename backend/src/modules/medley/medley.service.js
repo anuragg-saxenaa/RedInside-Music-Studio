@@ -2,7 +2,37 @@ import { MedleyProcessor } from './medley.processor.js';
 import { MedleyModel } from '../../database/models/medley.model.js';
 import storage from '../../utils/storage.util.js';
 import path from 'path';
+import fs from 'fs';
 import logger from '../../utils/logger.js';
+
+async function resolveTrackFilePath(sourceFilePath) {
+  if (!sourceFilePath) return null;
+  if (sourceFilePath.startsWith('/api/music/')) {
+    const match = sourceFilePath.match(/^\/api\/music\/([^/]+)\/file$/);
+    if (match) {
+      const { MusicModel } = await import('../../database/models/music.model.js');
+      const music = MusicModel.findById(match[1]);
+      if (music) {
+        const fp = music.processed_file_path || music.original_file_path;
+        if (fp && fs.existsSync(fp)) return fp;
+      }
+    }
+    return null;
+  }
+  if (sourceFilePath.startsWith('/api/mastering/')) {
+    const match = sourceFilePath.match(/^\/api\/mastering\/([^/]+)\/file\/([^/]+)$/);
+    if (match) {
+      const uploadDir = storage.getUploadDir(match[2]);
+      try {
+        const files = fs.readdirSync(uploadDir);
+        const file = files.find(f => f.startsWith(match[1]));
+        if (file) return path.join(uploadDir, file);
+      } catch (_) {}
+    }
+    return null;
+  }
+  return fs.existsSync(sourceFilePath) ? sourceFilePath : null;
+}
 
 export class MedleyService {
   /**
@@ -227,7 +257,13 @@ export class MedleyService {
     const processor = new MedleyProcessor();
 
     for (const track of medley.tracks) {
-      processor.addTrack(track.source_file_path, {
+      const resolvedPath = await resolveTrackFilePath(track.source_file_path);
+      if (!resolvedPath) {
+        const err = new Error(`Track file not found or not accessible: ${track.source_file_path}`);
+        err.statusCode = 400;
+        throw err;
+      }
+      processor.addTrack(resolvedPath, {
         trimStart: track.trim_start,
         trimEnd: track.trim_end,
         speed: track.speed,

@@ -1,15 +1,19 @@
 import { VideoService } from './video.service.js';
 import { JobModel } from '../../queue/jobs.service.js';
 import { addVideoJob } from '../../queue/workers/video.worker.js';
+import { ProjectModel } from '../../database/models/project.model.js';
 import logger from '../../utils/logger.js';
 import storage from '../../utils/storage.util.js';
+import fs from 'fs';
+import path from 'path';
 
 const videoService = new VideoService();
 
 export const VideoController = {
   async generate(req, res, next) {
     try {
-      const { projectId, musicId, prompt, model, duration, resolution } = req.body;
+      const { projectId, musicId, prompt, duration, resolution } = req.body;
+      const model = req.body.model || 'MiniMax-Hailuo-02';
 
       if (!projectId) {
         return res.status(400).json({
@@ -17,10 +21,9 @@ export const VideoController = {
         });
       }
 
-      if (!model) {
-        return res.status(400).json({
-          error: 'model is required (MiniMax-Hailuo-2.3 or MiniMax-Hailuo-02)',
-        });
+      const project = ProjectModel.findById(projectId);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
       }
 
       // Create job record in DB
@@ -102,15 +105,36 @@ export const VideoController = {
         return res.status(404).json({ error: 'Video file not available yet' });
       }
 
-      const fileBuffer = storage.readFile(video.file_path);
+      const filePath = video.file_path;
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'Video file not found on disk' });
+      }
 
-      res.set({
-        'Content-Type': 'video/mp4',
-        'Content-Disposition': `attachment; filename="video-v${video.version}.mp4"`,
-        'Content-Length': fileBuffer.length,
-      });
+      const fileSize = fs.statSync(filePath).size;
+      const rangeHeader = req.headers.range;
 
-      res.send(fileBuffer);
+      if (rangeHeader) {
+        const parts = rangeHeader.replace(/bytes=/, '').split('-');
+        const start = parseInt(parts[0], 10);
+        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+        const chunkSize = end - start + 1;
+
+        res.writeHead(206, {
+          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+          'Accept-Ranges': 'bytes',
+          'Content-Length': chunkSize,
+          'Content-Type': 'video/mp4',
+        });
+        fs.createReadStream(filePath, { start, end }).pipe(res);
+      } else {
+        res.writeHead(200, {
+          'Accept-Ranges': 'bytes',
+          'Content-Length': fileSize,
+          'Content-Type': 'video/mp4',
+          'Content-Disposition': `inline; filename="video-v${video.version}.mp4"`,
+        });
+        fs.createReadStream(filePath).pipe(res);
+      }
     } catch (error) {
       next(error);
     }
@@ -121,6 +145,13 @@ export const VideoController = {
       const { taskId } = req.params;
       if (!taskId) {
         return res.status(400).json({ error: 'taskId is required' });
+      }
+
+      // Validate task exists in DB before hitting MiniMax
+      const { VideoModel } = await import('./video.model.js');
+      const video = VideoModel.findByTaskId(taskId);
+      if (!video) {
+        return res.status(404).json({ error: 'Video task not found' });
       }
 
       const result = await videoService.pollStatus(taskId);

@@ -617,6 +617,7 @@ function AudioEditorInline({ audioUrl, trackId, onClose, onExportComplete }: Aud
       {/* Waveform */}
       <div style={{ padding: '20px' }}>
         <div
+          data-testid="waveform-display"
           ref={containerRef}
           style={{
             position: 'relative', background: 'rgba(0,0,0,0.4)',
@@ -780,6 +781,7 @@ function TrackRow({ music, isPlaying, isThisPlaying, onPlay, onEdit, onConvert, 
     >
       {/* Play button */}
       <button
+        data-testid="play-button"
         onClick={(e) => { e.stopPropagation(); onPlay(); }}
         style={{
           width: '36px', height: '36px', borderRadius: '50%', border: 'none',
@@ -1293,7 +1295,7 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: currentTrack ? '100px' : '24px' }}>
+    <div data-testid="music-player" style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: currentTrack ? '100px' : '24px' }}>
 
       {/* Top Bar - Create New */}
       <div style={{
@@ -1397,10 +1399,12 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
             )}
 
             {pollingJobId && (
+              <div data-testid="job-status">
               <GenerationProgressIndicator
                 jobId={pollingJobId}
                 onCancel={handleCancelGeneration}
               />
+              </div>
             )}
 
             <button

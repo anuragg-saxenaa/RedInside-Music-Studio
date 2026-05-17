@@ -4,8 +4,16 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Preserve shell environment variables BEFORE dotenv overwrites them
+const SHELL_MINIMAX_BASE_URL = process.env.MINIMAX_BASE_URL;
+
 // Load .env from config directory with error handling
 const result = dotenv.config({ path: path.resolve(__dirname, '../../../config/.env') });
+
+// Restore shell MINIMAX_BASE_URL if it was set (allows dev:mock to override .env)
+if (SHELL_MINIMAX_BASE_URL) {
+  process.env.MINIMAX_BASE_URL = SHELL_MINIMAX_BASE_URL;
+}
 if (result.error && process.env.NODE_ENV !== 'test') {
   throw new Error(`Failed to load .env file: ${result.error.message}`);
 }

@@ -27,7 +27,7 @@ export default function WorkflowStepper({ currentStep, onStepChange, hasLyrics, 
 
   const canAccessStep = (step: typeof STEPS[number]['key']) => {
     if (step === 'lyrics') return true;
-    if (step === 'music') return hasLyrics;
+    if (step === 'music') return hasLyrics || hasMusic;
     if (step === 'artwork') return hasMusic;
     if (step === 'video') return hasMusic;
     if (step === 'voice') return hasMusic;

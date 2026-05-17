@@ -136,8 +136,41 @@ cd frontend && npx playwright test
 # Both must pass before PR
 ```
 
+## MiniMax API Mock (Avoid Burning Credits)
+
+The real MiniMax API costs credits and has rate limits. Use the built-in mock server for local E2E testing of generate flows:
+
+```bash
+# Terminal 1: Start backend pointing to mock (REQUIRED — Playwright will hard-abort if backend uses real API)
+cd backend && npm run dev:mock
+
+# Terminal 2: Start frontend
+cd frontend && npm run dev
+
+# Terminal 3: Run tests (Playwright auto-starts mock server at port 8999)
+cd frontend && npx playwright test
+```
+
+> **Note**: `playwright.config.ts` auto-starts `minimax-mock-server.js` at port 8999 before any tests run (`reuseExistingServer: true`). The global setup will **hard abort** the entire test run if backend is connected to the real MiniMax API — protecting your daily credit limits.
+
+The mock server (`backend/tests/minimax-mock-server.js`) returns realistic fake responses for all MiniMax endpoints:
+- `POST /v1/lyrics_generation` → returns sample Hindi/English lyrics
+- `POST /v1/music_generation` → returns status:2 (complete) with local audio URL
+- `POST /v1/video_generation` → returns mock task_id
+- All other endpoints → success responses
+
+**When to use mock vs real API:**
+- Development & E2E tests → always use mock
+- Manual QA of actual music quality → use real API
+- CI/CD → use mock (never burn credits in CI)
+
 ## The One Rule
 
 **If your test has `mock`, `stub`, `spy`, or `fake` in the request/response path, it's not a real integration test.**
 
 Real integration tests use real HTTP. Everything else is a guess.
+
+**Exception**: MiniMax API mock is acceptable because:
+1. It tests the full stack (frontend → backend → mock → backend → frontend)
+2. It doesn't test AI model quality (not the point of E2E tests)
+3. The backend code path is identical; only the external API response is mocked

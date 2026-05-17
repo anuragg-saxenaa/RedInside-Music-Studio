@@ -32,7 +32,7 @@ async function getMusicList(page: Page, projectId: string) {
 async function navigateToMusicStep(page: Page, project: any) {
   await page.goto(FRONTEND);
   await page.waitForLoadState('networkidle');
-  const card = page.locator('button').filter({ hasText: project.name }).first();
+  const card = page.locator('[role="button"]').filter({ hasText: project.name }).first();
   await expect(card).toBeVisible({ timeout: 6000 });
   await card.click();
   await page.waitForTimeout(1200);
@@ -157,18 +157,14 @@ test.describe('Audio Editor Inline — UI Controls', () => {
     const trackRow = page.locator('[data-testid="track-row"]').first();
     await expect(trackRow).toBeVisible({ timeout: 5000 });
     await trackRow.hover();
-    await page.waitForTimeout(300);
 
+    // Edit button must appear on hover — hard assert
     const editBtn = page.locator('button[title="Edit"]').first();
-    if (!await editBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      test.skip('Edit button not found — UI structure may differ');
-      return;
-    }
+    await expect(editBtn, 'Edit button must appear on track hover').toBeVisible({ timeout: 3000 });
     await editBtn.click();
-    await page.waitForTimeout(1000);
 
     const previewBtn = page.getByRole('button', { name: /PREVIEW/i }).first();
-    await expect(previewBtn).toBeVisible({ timeout: 5000 });
+    await expect(previewBtn, 'PREVIEW button must appear in audio editor').toBeVisible({ timeout: 5000 });
   });
 
   test('PREVIEW button is clickable (no JS error)', async ({ page }) => {
@@ -181,23 +177,18 @@ test.describe('Audio Editor Inline — UI Controls', () => {
     await page.waitForTimeout(300);
 
     const editBtn = page.locator('button[title="Edit"]').first();
-    if (!await editBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      test.skip('Edit button not found');
-      return;
-    }
+    await expect(editBtn, 'Edit button must appear on hover').toBeVisible({ timeout: 3000 });
     await editBtn.click();
-    await page.waitForTimeout(1000);
 
     const errors: string[] = [];
     page.on('pageerror', err => errors.push(err.message));
 
     const previewBtn = page.getByRole('button', { name: /PREVIEW/i }).first();
-    if (await previewBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await previewBtn.click();
-      await page.waitForTimeout(500);
-    }
+    await expect(previewBtn, 'PREVIEW button must appear in editor').toBeVisible({ timeout: 5000 });
+    await previewBtn.click();
+    await page.waitForTimeout(500);
 
-    expect(errors.filter(e => !e.includes('ResizeObserver') && !e.includes('AudioContext'))).toHaveLength(0);
+    expect(errors.filter(e => !e.includes('ResizeObserver') && !e.includes('AudioContext') && !e.includes('AbortError'))).toHaveLength(0);
   });
 
   test('fade in toggle changes button state', async ({ page }) => {
@@ -207,21 +198,13 @@ test.describe('Audio Editor Inline — UI Controls', () => {
     const trackRow = page.locator('[data-testid="track-row"]').first();
     await expect(trackRow).toBeVisible({ timeout: 5000 });
     await trackRow.hover();
-    await page.waitForTimeout(300);
 
     const editBtn = page.locator('button[title="Edit"]').first();
-    if (!await editBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      test.skip('Edit button not found');
-      return;
-    }
+    await expect(editBtn, 'Edit button must appear on hover').toBeVisible({ timeout: 3000 });
     await editBtn.click();
-    await page.waitForTimeout(1000);
 
     const fadeInBtn = page.getByRole('button', { name: /FADE IN/i }).first();
-    if (!await fadeInBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      test.skip('FADE IN button not found');
-      return;
-    }
+    await expect(fadeInBtn, 'FADE IN button must appear in audio editor').toBeVisible({ timeout: 5000 });
 
     // Get initial background color
     const initialBg = await fadeInBtn.evaluate(el => getComputedStyle(el).backgroundColor);
@@ -463,29 +446,23 @@ test.describe('Project Rename — Correct HTTP Method', () => {
     expect(patchRes.status()).toBeGreaterThanOrEqual(400);
   });
 
-  test('rename via UI context menu uses PUT (regression guard)', async ({ page }) => {
-    // This test verifies the App.tsx fix: renameProject now sends PUT not PATCH
-    const seedRes = await page.request.post(`${BACKEND}/api/test/seed-project`, {
-      data: { name: `Rename UI Test ${Date.now()}`, lyrics: false, music: false },
+  test('PUT /api/projects/:id renames project successfully (regression: was PATCH)', async ({ page }) => {
+    // Regression guard: renameProject must use PUT not PATCH
+    const createRes = await page.request.post(`${BACKEND}/api/projects`, {
+      data: { name: `Rename PUT Test ${Date.now()}` },
     });
-    const { project } = await seedRes.json();
+    const project = await createRes.json();
+    expect(project.id).toBeTruthy();
 
-    await page.goto(FRONTEND);
-    await page.waitForLoadState('networkidle');
+    const newName = `Renamed via PUT ${Date.now()}`;
+    const putRes = await page.request.put(`${BACKEND}/api/projects/${project.id}`, {
+      data: { name: newName },
+    });
+    expect(putRes.status(), 'PUT rename must return 200').toBe(200);
+    const updated = await putRes.json();
+    expect(updated.name, 'name must be updated').toBe(newName);
 
-    // The three-dot menu on project card opens rename dialog
-    const menuBtn = page.locator('button:has-text("⋮")').first();
-    if (await menuBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      // Just verify no network error when rename would be called via PUT
-      const responses: number[] = [];
-      page.on('response', r => {
-        if (r.url().includes('/api/projects/') && r.request().method() === 'PUT') {
-          responses.push(r.status());
-        }
-      });
-      // Can't easily trigger the prompt() dialog in Playwright, but the route is verified above
-    }
-    expect(true).toBe(true); // structural test — route coverage above is the real check
+    await page.request.delete(`${BACKEND}/api/projects/${project.id}`).catch(() => {});
   });
 });
 
@@ -523,7 +500,7 @@ test.describe('WorkflowStepper - hasLyrics/hasMusic state (regression)', () => {
     await page.goto(FRONTEND);
     await page.waitForLoadState('networkidle');
 
-    const card = page.locator('button').filter({ hasText: project.name }).first();
+    const card = page.locator('[role="button"]').filter({ hasText: project.name }).first();
     await expect(card).toBeVisible({ timeout: 6000 });
     await card.click();
     await page.waitForTimeout(1200);

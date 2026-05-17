@@ -39,12 +39,25 @@ export class VoiceController {
 
   async clone(req, res) {
     try {
-      const { projectId, name, audioUrl } = req.body;
+      const { projectId, name, audioFilePath } = req.body;
       if (!projectId || !name) {
         return res.status(400).json({ error: 'projectId and name are required' });
       }
-      const result = await this.service.cloneVoice({ projectId, name, audioUrl });
+      if (!audioFilePath) {
+        return res.status(400).json({ error: 'audioFilePath is required' });
+      }
+      const result = await this.service.cloneVoice({ projectId, name, audioFilePath });
       res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async listClones(req, res) {
+    try {
+      const { projectId } = req.params;
+      const clones = this.service.listClones(projectId);
+      res.json(clones);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

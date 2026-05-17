@@ -96,12 +96,12 @@ export class VideoService {
 
       logger.info('MiniMax response received', { responseKeys: Object.keys(response || {}) });
 
-      // Validate response
-      if (!response || !response.data) {
-        throw new Error('Invalid response from MiniMax API: missing data field');
+      // Validate response — client returns axios response.data directly (no extra .data nesting)
+      if (!response) {
+        throw new Error('Invalid response from MiniMax API: empty response');
       }
 
-      const taskId = response.data.task_id;
+      const taskId = response.task_id;
       if (!taskId) {
         throw new Error('Invalid response: task_id not found');
       }
@@ -156,11 +156,12 @@ export class VideoService {
     try {
       const response = await this.client.queryVideoStatus(taskId);
 
-      if (!response || !response.data) {
+      if (!response) {
         throw new Error('Invalid response from MiniMax API');
       }
 
-      const statusData = response.data;
+      // Client returns axios response.data directly — no nested .data
+      const statusData = response;
       const status = statusData.status;
 
       // Find video record by task_id
@@ -177,7 +178,7 @@ export class VideoService {
       let filePath = null;
       let errorMessage = null;
 
-      if (status === 'SUCCESS' || status === 'success') {
+      if (status && status.toUpperCase() === 'SUCCESS') {
         ourStatus = 'completed';
         progress = 100;
         fileId = statusData.file_id;
@@ -190,7 +191,7 @@ export class VideoService {
           await this.downloadVideo(fileId, outputPath);
           filePath = outputPath;
         }
-      } else if (status === 'FAIL' || status === 'failed') {
+      } else if (status && (status.toUpperCase() === 'FAIL' || status.toUpperCase() === 'FAILED')) {
         ourStatus = 'failed';
         errorMessage = statusData.error_message || 'Video generation failed';
       } else {
@@ -242,28 +243,25 @@ export class VideoService {
     try {
       const response = await this.client.retrieveFile(fileId);
 
-      if (!response || !response.data) {
+      // Client returns axios response.data — response.file.download_url has the URL
+      if (!response || !response.file) {
         throw new Error('Invalid response from MiniMax file retrieve API');
       }
 
-      // Response contains video data - save it
-      let videoBuffer;
-      if (Buffer.isBuffer(response.data)) {
-        videoBuffer = response.data;
-      } else if (typeof response.data === 'string') {
-        videoBuffer = Buffer.from(response.data, 'base64');
-      } else {
-        throw new Error('Unexpected response format from file retrieve API');
+      const downloadUrl = response.file.download_url;
+      if (!downloadUrl) {
+        throw new Error('No download_url in file retrieve response');
       }
 
-      // Ensure directory exists
+      // Download video from URL
+      const videoResponse = await axios.get(downloadUrl, { responseType: 'arraybuffer' });
+      const videoBuffer = Buffer.from(videoResponse.data);
+
+      // Ensure output directory exists
+      const fs = await import('fs');
       const dir = outputPath.substring(0, outputPath.lastIndexOf('/'));
-      if (!storage.readFile(dir)) {
-        // Create directory if it doesn't exist
-        storage.saveAudioFile(videoBuffer, outputPath);
-      } else {
-        storage.saveAudioFile(videoBuffer, outputPath);
-      }
+      fs.default.mkdirSync(dir, { recursive: true });
+      fs.default.writeFileSync(outputPath, videoBuffer);
 
       logger.info('Video downloaded successfully', { fileId, size: videoBuffer.length });
 

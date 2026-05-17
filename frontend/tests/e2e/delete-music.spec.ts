@@ -77,7 +77,7 @@ test.describe('Delete Music - UI Integration', () => {
     await page.waitForLoadState('networkidle');
 
     // Navigate to the seeded project by name (seed endpoint returns stale version=0, navigate by name)
-    const projectCard = page.locator('button').filter({ hasText: project.name }).first();
+    const projectCard = page.locator('[role="button"]').filter({ hasText: project.name }).first();
     await expect(projectCard).toBeVisible({ timeout: 5000 });
     await projectCard.click();
     await page.waitForTimeout(1500);

@@ -132,7 +132,7 @@ export const ProjectsController = {
       }
 
       if (!foundPath) {
-        return res.status(404).json({ error: 'Artwork not found' });
+        return res.status(204).send();
       }
 
       res.sendFile(foundPath);
@@ -256,7 +256,7 @@ export const ProjectsController = {
         }
       }
 
-      return res.status(404).json({ error: 'Artwork not found' });
+      return res.status(204).send();
     } catch (error) {
       next(error);
     }

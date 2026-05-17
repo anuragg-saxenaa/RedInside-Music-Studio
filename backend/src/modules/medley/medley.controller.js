@@ -1,4 +1,5 @@
 import medleyService from './medley.service.js';
+import fs from 'fs';
 
 export class MedleyController {
   /**
@@ -83,14 +84,29 @@ export class MedleyController {
   /**
    * Add track to medley
    * POST /api/medley/:id/tracks
+   * Accepts: sourceFilePath (raw path) OR musicId (resolved via MusicModel)
    */
   static async addTrack(req, res) {
     try {
       const { id } = req.params;
-      const { sourceFilePath, trimStart, trimEnd, speed, volume, fadeIn, fadeOut, durationSeconds } = req.body;
+      let { sourceFilePath, musicId, trimStart, trimEnd, speed, volume, fadeIn, fadeOut, durationSeconds } = req.body;
+
+      // Resolve musicId to filesystem path if sourceFilePath not provided
+      if (!sourceFilePath && musicId) {
+        try {
+          const { MusicModel } = await import('../../database/models/music.model.js');
+          const music = MusicModel.findById(musicId);
+          if (music) {
+            const fp = music.processed_file_path || music.original_file_path;
+            if (fp && fs.existsSync(fp)) {
+              sourceFilePath = fp;
+            }
+          }
+        } catch (_) {}
+      }
 
       if (!sourceFilePath) {
-        return res.status(400).json({ error: 'Source file path is required' });
+        return res.status(400).json({ error: 'Source file path is required (provide sourceFilePath or a valid musicId)' });
       }
 
       const track = await medleyService.addTrack(id, {

@@ -135,7 +135,7 @@ export default function Settings() {
               </div>
               {settings.minimax_api_key?.value && (
                 <div style={{ color: '#666', fontSize: '11px', marginTop: '6px' }}>
-                  Current: {settings.minimax_api_key.value} — API key changes require server restart
+                  Current: {settings.minimax_api_key.value} — new key takes effect immediately
                 </div>
               )}
             </div>

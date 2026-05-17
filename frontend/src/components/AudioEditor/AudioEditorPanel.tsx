@@ -283,12 +283,10 @@ export default function AudioEditorPanel({
 
     try {
       const outputFormat = format === 'mp3-320' ? 'mp3' : format;
-      const outputPath = `/tmp/processed_${Date.now()}.${outputFormat}`;
 
       const payload = {
         inputPath: audioUrl,
         operations: buildOperationsArray(),
-        outputPath,
         options: {
           format: outputFormat,
           bitrate: format === 'mp3-320' ? '320k' : undefined,

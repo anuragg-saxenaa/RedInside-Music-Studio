@@ -39,16 +39,18 @@ export default function Studio({ project, onBack }: StudioProps) {
         .then(list => { if (Array.isArray(list) && list.length > 0) setSelectedLyrics(list[0]); })
         .catch(() => {});
     }
-    // Load existing artwork if available
-    fetch(`/api/projects/${project.id}/artwork`)
-      .then(res => res.ok ? res.blob() : null)
-      .then(blob => {
-        if (blob) {
-          const url = URL.createObjectURL(blob);
-          setArtworkUrl(url);
-        }
-      })
-      .catch(() => {});
+    // Load existing artwork if project has music (no artwork without music)
+    if (project.current_music_version > 0) {
+      fetch(`/api/projects/${project.id}/artwork`)
+        .then(res => (res.ok && res.status !== 204) ? res.blob() : null)
+        .then(blob => {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            setArtworkUrl(url);
+          }
+        })
+        .catch(() => {});
+    }
   }, [project.id, project.current_music_version, refreshKey]);
 
   const fetchMusicList = () => {
@@ -56,7 +58,8 @@ export default function Studio({ project, onBack }: StudioProps) {
       .then(res => res.json())
       .then(musicList => {
         setAllMusicList(musicList);
-        if (currentStep === 'export' && !selectedMusic && musicList.length > 0) {
+        // Auto-select first track for video/export whenever selectedMusic is unset
+        if (!selectedMusic && musicList.length > 0) {
           setSelectedMusic(musicList[0]);
         }
       })
@@ -82,7 +85,7 @@ export default function Studio({ project, onBack }: StudioProps) {
   useEffect(() => {
     if (currentStep === 'artwork' && selectedMusic) {
       fetch(`/api/projects/${project.id}/artwork/${selectedMusic.id}`)
-        .then(res => res.ok ? res.blob() : null)
+        .then(res => (res.ok && res.status !== 204) ? res.blob() : null)
         .then(blob => {
           if (blob) {
             setArtworkUrl(URL.createObjectURL(blob));

@@ -433,6 +433,7 @@ export default function ControlsSidebar({
 
         <div style={styles.exportContainer}>
           <button
+            data-testid="export-dropdown-btn"
             onClick={() => setShowExportMenu(!showExportMenu)}
             disabled={isExporting}
             style={{

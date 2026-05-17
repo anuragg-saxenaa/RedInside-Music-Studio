@@ -24,6 +24,8 @@ export const MasteringController = {
         const ext = path.extname(file.originalname);
         const uploadPath = path.join(uploadDir, `${fileId}${ext}`);
         fs.writeFileSync(uploadPath, file.buffer);
+        // Store original filename so process can use it as title
+        fs.writeFileSync(path.join(uploadDir, `${fileId}.meta.json`), JSON.stringify({ originalName: file.originalname }));
 
         // Get duration using ffprobe
         let duration = 0;
@@ -51,7 +53,48 @@ export const MasteringController = {
 
   async process(req, res, next) {
     try {
-      const { fileIds, fileId, projectId, preset, saveToProject } = req.body;
+      const { fileIds, fileId, musicId, musicIds, projectId, preset, saveToProject } = req.body;
+
+      // Handle musicId(s) - look up audio files from existing music DB records
+      if (musicId || musicIds) {
+        const { MusicModel } = await import('../../database/models/music.model.js');
+        const ids = Array.isArray(musicIds) ? musicIds : [musicId];
+        const results = [];
+        const errors = [];
+
+        for (const mId of ids) {
+          try {
+            const music = MusicModel.findById(mId);
+            if (!music) {
+              errors.push({ musicId: mId, error: 'Music not found' });
+              continue;
+            }
+
+            const inputPath = music.processed_file_path || music.original_file_path;
+            if (!inputPath || !fs.existsSync(inputPath)) {
+              errors.push({ musicId: mId, error: 'Audio file not found on disk' });
+              continue;
+            }
+
+            const pid = projectId || music.project_id;
+            const mastersDir = storage.getMastersDir(pid);
+            if (!fs.existsSync(mastersDir)) fs.mkdirSync(mastersDir, { recursive: true });
+
+            const outputPath = path.join(mastersDir, `${mId}_spotify_master.wav`);
+            const service = new AudioMasteringService(mastersDir);
+            await service.masterToSpotify(inputPath, outputPath);
+
+            results.push({ musicId: mId, status: 'success', masteredPath: outputPath });
+          } catch (err) {
+            errors.push({ musicId: mId, error: err.message });
+          }
+        }
+
+        if (ids.length === 1 && results.length === 1 && errors.length === 0) {
+          return res.json({ success: true, masteredPath: results[0].masteredPath });
+        }
+        return res.json({ results, errors });
+      }
 
       // Handle single ID or array - support both fileId and fileIds
       const isSingle = !fileIds;
@@ -69,7 +112,7 @@ export const MasteringController = {
       for (const fileId of ids) {
         try {
           const files = fs.readdirSync(uploadDir);
-          const inputFile = files.find(f => f.startsWith(fileId));
+          const inputFile = files.find(f => f.startsWith(fileId) && f.match(/\.(mp3|wav|flac|m4a|ogg|aac)$/i));
 
           if (!inputFile) {
             errors.push({ fileId, error: 'File not found' });
@@ -97,7 +140,12 @@ export const MasteringController = {
               version,
               originalFilePath: inputPath,
               processedFilePath: outputPath,
-              title: inputFile,
+              title: (() => {
+              try {
+                const meta = JSON.parse(fs.readFileSync(path.join(uploadDir, `${fileId}.meta.json`), 'utf8'));
+                return meta.originalName || inputFile;
+              } catch { return inputFile; }
+            })(),
               model: 'upload',
               durationSeconds: inputDuration,
             });

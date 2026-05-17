@@ -44,7 +44,13 @@ app.use((req, res, next) => {
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  const minimaxBase = process.env.MINIMAX_BASE_URL || 'https://api.minimax.io';
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    minimax: minimaxBase.includes('localhost') ? 'mock' : 'real',
+    minimaxHost: new URL(minimaxBase).host,
+  });
 });
 
 // Project routes

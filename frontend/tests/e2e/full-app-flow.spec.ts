@@ -28,7 +28,7 @@ async function seedProjectWithMusic(page: Page): Promise<{ id: string; name: str
 async function navigateToExport(page: Page, projectName: string) {
   await page.goto('/');
   await page.waitForLoadState('networkidle');
-  const projectCard = page.locator('button').filter({ hasText: projectName }).first();
+  const projectCard = page.locator('[role="button"]').filter({ hasText: projectName }).first();
   await expect(projectCard).toBeVisible({ timeout: 5000 });
   await projectCard.click();
   await page.waitForTimeout(1500);

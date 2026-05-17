@@ -20,12 +20,6 @@ export const MusicController = {
         });
       }
 
-      if (!lyricsId && !isInstrumental && !audioUrl) {
-        return res.status(400).json({
-          error: 'lyricsId or audioUrl is required for non-instrumental music',
-        });
-      }
-
       const validModels = ['music-2.6', 'music-cover'];
       const resolvedModel = model || 'music-2.6';
       if (!validModels.includes(resolvedModel)) {
@@ -38,6 +32,12 @@ export const MusicController = {
       const project = ProjectModel.findById(projectId);
       if (!project) {
         return res.status(404).json({ error: 'Project not found' });
+      }
+
+      if (!lyricsId && !isInstrumental && !audioUrl) {
+        return res.status(400).json({
+          error: 'lyricsId or audioUrl is required for non-instrumental music',
+        });
       }
 
       // Create job record in DB

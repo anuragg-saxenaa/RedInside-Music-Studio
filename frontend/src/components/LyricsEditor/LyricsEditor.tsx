@@ -144,7 +144,7 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
             <label style={{ display: 'block', color: '#A0A0A0', fontSize: '12px', marginBottom: '8px', fontWeight: 500 }}>
               Style Preset
             </label>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div data-testid="style-select" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               {Object.values(presets).map(preset => (
                 <button
                   key={preset.key}
@@ -186,6 +186,7 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
               Prompt
             </label>
             <textarea
+              data-testid="lyrics-prompt"
               value={prompt}
               onChange={e => setPrompt(e.target.value)}
               placeholder="Write a viral desi rap about..."
@@ -216,6 +217,7 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
           ) : null}
 
           <button
+            data-testid="generate-lyrics-btn"
             onClick={generateLyrics}
             disabled={generating}
             style={{
@@ -240,7 +242,7 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
 
       {/* History Section */}
       {lyricsHistory.length > 0 && !editMode && (
-        <div>
+        <div data-testid="lyrics-output">
           <h4 style={{ color: '#FFFFFF', fontSize: '14px', fontWeight: 600, marginBottom: '12px', fontFamily: 'Outfit, sans-serif' }}>
             Previous Versions
           </h4>
@@ -248,6 +250,7 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
             {lyricsHistory.map(lyrics => (
               <div
                 key={lyrics.id}
+                data-testid="lyrics-history-item"
                 style={{
                   backgroundColor: '#1E1E1E',
                   padding: '16px',
