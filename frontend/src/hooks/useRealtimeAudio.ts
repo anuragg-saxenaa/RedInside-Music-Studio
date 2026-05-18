@@ -7,6 +7,7 @@ interface UseRealtimeAudioOptions {
   isPlaying: boolean;
   onEnded?: () => void;
   onTimeUpdate?: (time: number) => void;
+  onDurationDetected?: (duration: number) => void;
 }
 
 export function useRealtimeAudio({
@@ -15,6 +16,7 @@ export function useRealtimeAudio({
   isPlaying,
   onEnded,
   onTimeUpdate,
+  onDurationDetected,
 }: UseRealtimeAudioOptions) {
   const ctxRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
@@ -43,7 +45,10 @@ export function useRealtimeAudio({
         const resp = await fetch(audioUrl);
         const arrayBuf = await resp.arrayBuffer();
         const decoded = await ctx.decodeAudioData(arrayBuf);
-        if (!cancelled) bufferRef.current = decoded;
+        if (!cancelled) {
+          bufferRef.current = decoded;
+          onDurationDetected?.(decoded.duration);
+        }
       } catch (e) {
         console.error('useRealtimeAudio: failed to decode audio', e);
       }
