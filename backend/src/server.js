@@ -18,6 +18,7 @@ import { JobsRoutes } from './api/routes/jobs.routes.js';
 import { ProjectsController } from './api/routes/projects.routes.js';
 import { MedleyRoutes } from './api/routes/medley.routes.js';
 import { AudioRoutes } from './api/routes/audio.routes.js';
+import { DownloaderRoutes } from './api/routes/downloader.routes.js';
 import { FfmpegRoutes } from './api/routes/ffmpeg.routes.js';
 import { LyricsController } from './modules/lyrics/lyrics.controller.js';
 
@@ -94,6 +95,10 @@ MedleyRoutes.forEach(route => {
 });
 
 AudioRoutes.forEach(route => {
+  app[route.method](route.path, route.handler);
+});
+
+DownloaderRoutes.forEach(route => {
   app[route.method](route.path, route.handler);
 });
 
