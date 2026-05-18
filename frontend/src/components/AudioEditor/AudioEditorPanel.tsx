@@ -39,6 +39,10 @@ const defaultOperations: AudioOperations = {
   bassBoostGainDb: 6,
   pitchShiftEnabled: false,
   pitchShiftSemitones: 0,
+  vocalRemovalEnabled: false,
+  vocalRemovalJobId: null,
+  vocalRemovalEngine: null,
+  vocalRemovalInstrumentalId: null,
 };
 
 export default function AudioEditorPanel({
