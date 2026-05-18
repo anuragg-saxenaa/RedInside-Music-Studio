@@ -311,9 +311,15 @@ export const MasteringController = {
           duration = parseFloat(result.trim()) || 0;
         } catch (e) {}
 
+        let filename = f;
+        try {
+          const meta = JSON.parse(fs.readFileSync(path.join(uploadDir, `${fileId}.meta.json`), 'utf8'));
+          if (meta.originalName) filename = meta.originalName;
+        } catch (e) {}
+
         return {
           id: fileId,
-          filename: f,
+          filename,
           originalPath: fullPath,
           masteredPath: masterPath,
           duration,
