@@ -28,6 +28,9 @@ build/
 coverage/
 .nyc_output/
 
+# Redis
+dump.rdb
+
 # Temp
 *.tmp
 tmp/
@@ -49,3 +52,9 @@ Thumbs.db
 *.swp
 *.swo
 .worktrees/
+
+# Claude Code workspace
+.claude/
+
+# Playwright test results (screenshots, traces)
+frontend/test-results/

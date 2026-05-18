@@ -1,6 +1,6 @@
 interface WorkflowStepperProps {
-  currentStep: 'lyrics' | 'music' | 'artwork' | 'video' | 'voice' | 'export';
-  onStepChange: (step: 'lyrics' | 'music' | 'artwork' | 'video' | 'voice' | 'export') => void;
+  currentStep: 'lyrics' | 'music' | 'artwork' | 'video' | 'voice' | 'medley' | 'export';
+  onStepChange: (step: 'lyrics' | 'music' | 'artwork' | 'video' | 'voice' | 'medley' | 'export') => void;
   hasLyrics: boolean;
   hasMusic: boolean;
   hasArtwork?: boolean;
@@ -12,10 +12,11 @@ const STEPS = [
   { key: 'artwork', label: 'Artwork' },
   { key: 'video', label: 'Video' },
   { key: 'voice', label: 'Voice' },
+  { key: 'medley', label: 'Medley' },
   { key: 'export', label: 'Export/Master' },
 ] as const;
 
-export default function WorkflowStepper({ currentStep, onStepChange, hasLyrics, hasMusic }: WorkflowStepperProps) {
+export default function WorkflowStepper({ currentStep, onStepChange, hasLyrics: _hasLyrics, hasMusic: _hasMusic }: WorkflowStepperProps) {
   const getStepState = (step: typeof STEPS[number]['key']) => {
     const stepIndex = STEPS.findIndex(s => s.key === step);
     const currentIndex = STEPS.findIndex(s => s.key === currentStep);
@@ -25,14 +26,8 @@ export default function WorkflowStepper({ currentStep, onStepChange, hasLyrics, 
     return 'pending';
   };
 
-  const canAccessStep = (step: typeof STEPS[number]['key']) => {
-    if (step === 'lyrics') return true;
-    if (step === 'music') return hasLyrics || hasMusic;
-    if (step === 'artwork') return hasMusic;
-    if (step === 'video') return hasMusic;
-    if (step === 'voice') return hasMusic;
-    if (step === 'export') return hasMusic;
-    return false;
+  const canAccessStep = (_step: typeof STEPS[number]['key']) => {
+    return true;
   };
 
   return (
@@ -67,6 +62,7 @@ export default function WorkflowStepper({ currentStep, onStepChange, hasLyrics, 
         return (
           <div key={step.key} style={{ display: 'flex', alignItems: 'center' }}>
             <button
+              data-testid={`step-${step.key}`}
               onClick={() => canAccess && onStepChange(step.key)}
               disabled={!canAccess}
               style={getButtonStyle()}

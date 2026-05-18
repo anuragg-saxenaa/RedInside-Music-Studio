@@ -15,10 +15,17 @@
 - ✅ Job queue system (BullMQ)
 - ✅ Basic history/version tracking
 - ✅ Minimal React frontend for testing
-- ❌ Video generation (Phase 2)
-- ❌ Viral toolkit (Phase 2)
-- ❌ Advanced FFmpeg tools (Phase 2)
-- ❌ Full UI (Phase 3)
+
+**Phase 2 Scope (completed):**
+- ✅ Video generation module + routes
+- ✅ Viral toolkit module + routes
+- ✅ Advanced FFmpeg tools (`POST /api/ffmpeg/convert-bitrate`, `POST /api/ffmpeg/merge`)
+- ✅ Full workflow UI (Studio with 7 steps: Lyrics → Music → Artwork → Video → Voice → Medley → Export/Master)
+- ✅ Medley module + UI (`MedleyPanel` component, drag-to-reorder, export)
+- ✅ Mastering, Upload, Voice Design, Artwork Generator modules
+- ✅ WebSocket real-time updates
+- ✅ E2E tests: 31/31 passing (real-user-walkthrough.spec.ts)
+- ✅ Backend integration tests: 157+ passing
 
 ---
 

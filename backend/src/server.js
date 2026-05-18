@@ -18,6 +18,7 @@ import { JobsRoutes } from './api/routes/jobs.routes.js';
 import { ProjectsController } from './api/routes/projects.routes.js';
 import { MedleyRoutes } from './api/routes/medley.routes.js';
 import { AudioRoutes } from './api/routes/audio.routes.js';
+import { FfmpegRoutes } from './api/routes/ffmpeg.routes.js';
 import { LyricsController } from './modules/lyrics/lyrics.controller.js';
 
 // Import workers to initialize them
@@ -64,7 +65,7 @@ const projectRoutes = [
   { method: 'post', path: '/api/projects/:id/artwork', handler: ProjectsController.saveArtwork },
   { method: 'post', path: '/api/projects/:id/artwork/fetch-image', handler: ProjectsController.fetchImage },
   { method: 'get', path: '/api/projects/:id/artwork/:musicId', handler: ProjectsController.getMusicArtwork },
-  { method: 'get', path: '/api/projects/:id/history', handler: (req, res) => res.redirect(`/api/history/${req.params.id}`) },
+  { method: 'get', path: '/api/projects/:id/history', handler: (req, res, next) => { req.params.projectId = req.params.id; return import('./modules/history/history.controller.js').then(m => m.HistoryController.getProjectHistory(req, res, next)); } },
 ];
 
 // Register routes
@@ -89,6 +90,10 @@ MedleyRoutes.forEach(route => {
 });
 
 AudioRoutes.forEach(route => {
+  app[route.method](route.path, route.handler);
+});
+
+FfmpegRoutes.forEach(route => {
   app[route.method](route.path, route.handler);
 });
 

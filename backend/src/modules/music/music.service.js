@@ -148,9 +148,11 @@ export class MusicService {
       const originalFilePath = storage.getMusicFilePath(projectId, version, 'original');
       storage.saveAudioFile(audioBuffer, originalFilePath);
 
-      // Resolve duration: API field (ms) → ffprobe fallback
-      let durationSeconds = response.extra_info?.music_duration
-        ? response.extra_info.music_duration / 1000
+      // Resolve duration: API returns extra_info at top level (not inside data)
+      // music_duration is in ms → convert to seconds
+      const extraInfo = response.extra_info;
+      let durationSeconds = extraInfo?.music_duration
+        ? extraInfo.music_duration / 1000
         : null;
       if (!durationSeconds) {
         try {
@@ -174,8 +176,8 @@ export class MusicService {
         isInstrumental,
         originalFilePath,
         durationSeconds,
-        sampleRate: response.extra_info?.music_sample_rate || 44100,
-        bitrate: response.extra_info?.bitrate || 256000,
+        sampleRate: extraInfo?.music_sample_rate || 44100,
+        bitrate: extraInfo?.bitrate || 256000,
         format: 'mp3',
       });
 

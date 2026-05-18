@@ -8,6 +8,12 @@ import { ProjectModel } from '../../database/models/project.model.js';
 import storage from '../../utils/storage.util.js';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// Fixture is at backend/tests/fixtures/ — 3 dirs up from src/api/routes/
+const FIXTURE_DIR = path.resolve(__dirname, '../../../tests/fixtures');
 
 export const TestRoutes = [
   {
@@ -50,7 +56,7 @@ export const TestRoutes = [
           storage.createProjectDirs(project.id);
 
           // Copy test fixture as music file using storage paths
-          const fixtureSrc = path.join(process.cwd(), 'tests/fixtures/test-audio.mp3');
+          const fixtureSrc = path.join(FIXTURE_DIR, 'test-audio.mp3');
           const musicFilePath = storage.getMusicFilePath(project.id, 1, 'processed');
           if (fs.existsSync(fixtureSrc)) {
             fs.copyFileSync(fixtureSrc, musicFilePath);
@@ -105,7 +111,7 @@ export const TestRoutes = [
         const version = existingMusic.length > 0 ? Math.max(...existingMusic.map(m => m.version)) + 1 : 1;
 
         // Copy test fixture as music file using storage paths
-        const fixtureSrc = path.join(process.cwd(), 'tests/fixtures/test-audio.mp3');
+        const fixtureSrc = path.join(FIXTURE_DIR, 'test-audio.mp3');
         const musicFilePath = storage.getMusicFilePath(projectId, version, 'processed');
         if (fs.existsSync(fixtureSrc)) {
           fs.copyFileSync(fixtureSrc, musicFilePath);

@@ -76,9 +76,11 @@ export const MusicModel = {
       return row;
     }).filter(row => {
       // Orphan protection: only return records where at least one file exists on disk
-      const hasOriginal = row.original_file_path && fs.existsSync(row.original_file_path);
-      const hasProcessed = row.processed_file_path && fs.existsSync(row.processed_file_path);
-      return hasOriginal || hasProcessed;
+      // Skip URL-based paths (http://, https://) — they are valid remote URLs, not local files
+      const isUrlPath = (p) => p && (p.startsWith('http://') || p.startsWith('https://'));
+      const hasOriginal = !isUrlPath(row.original_file_path) && row.original_file_path && fs.existsSync(row.original_file_path);
+      const hasProcessed = !isUrlPath(row.processed_file_path) && row.processed_file_path && fs.existsSync(row.processed_file_path);
+      return hasOriginal || hasProcessed || isUrlPath(row.original_file_path) || isUrlPath(row.processed_file_path);
     });
   },
 

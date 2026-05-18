@@ -87,13 +87,14 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ── POST /v1/music_generation ──────────────────────────────────────────────
+  // extra_info is at TOP LEVEL (not inside data) — matching real MiniMax API spec §2.2
   else if (url === '/v1/music_generation') {
     body = success({
       data: {
         status: 2, // 2 = complete
         audio: `http://localhost:${PORT}/mock-audio-file`,
-        extra_info: { music_duration: 60000, music_sample_rate: 44100 },
       },
+      extra_info: { music_duration: 60000, music_sample_rate: 44100, bitrate: 256000 },
     });
   }
 

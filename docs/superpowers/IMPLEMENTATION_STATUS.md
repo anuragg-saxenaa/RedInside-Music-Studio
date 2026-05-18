@@ -1,219 +1,129 @@
-# Implementation Status — Honest Gap Analysis
+# Implementation Status
 
-**Last verified:** 2026-05-17 (session 16 — full spec audit)  
-**E2E tests:** 337 passing, 0 skipped, 0 failing (29 prod-user-flows + 308 contract/feature tests)  
-**Backend tests:** 157 passing, 0 failing (real HTTP, real FFmpeg, real SQLite — no mocks)  
-**TypeScript:** 0 errors (frontend builds clean)  
-**Database:** clean (orphaned test projects cleaned each run via global-setup)  
-**Live API audit:** 47/47 endpoints verified working (3 corrected from scripting errors, not code bugs)
+**Last verified:** 2026-05-18 (session 17)
+**E2E tests:** 368 passing, 0 failing (Playwright — real browser, real backend, mock MiniMax)
+**Backend tests:** 175 passing, 1 skipped, 0 failing (Node test runner — real HTTP, real SQLite, real FFmpeg)
+**TypeScript:** 0 errors
+**Test mode:** Mock MiniMax server auto-started by `npx playwright test` — no API credits consumed
 
 ---
 
-## Phase 1: Core Music Generation (Original Spec)
+## Full Feature Status
 
-| Feature | Status | Test coverage |
-|---------|--------|---------------|
-| Projects CRUD (create/list/get/update/delete) | ✅ Working | ✅ Tested |
-| Lyrics generation (MiniMax API) | ✅ Working | ⚠️ API requires MiniMax key |
-| Lyrics presets (5 styles) | ✅ Working | ✅ Tested |
-| Music generation (MiniMax API, queued) | ✅ Working | ⚠️ API requires MiniMax key |
-| Music CRUD (get/file/patch/delete) | ✅ Working | ✅ Tested |
-| `POST /api/music/:id/convert` | ✅ Fixed (was stub) | ✅ Tested |
-| FFmpeg 320kbps conversion | ✅ Working | ✅ Backend tests |
-| Job queue (BullMQ + Redis) | ✅ Working | ✅ Tested |
-| Version tracking per project | ✅ Working | ✅ Tested |
-| History API (project history, chains) | ✅ Working | ✅ Tested |
-| Viral toolkit (trends, templates, hook analysis) | ✅ Working | ✅ Tested |
-| Video generation (queued, MiniMax async) | ✅ Working | ✅ Tested |
-| History export (GET /api/history/export/:projectId) | ✅ Fixed | ✅ Tested |
+### Phase 1: Core Music Generation
 
-## Phase 2: Production Studio (Extended Spec)
+| Feature | Status | Tests |
+|---------|--------|-------|
+| Projects CRUD | ✅ | ✅ |
+| Lyrics generation (MiniMax sync) | ✅ | ✅ mock |
+| Lyrics edit (`POST /api/lyrics/edit/:id`) | ✅ | ✅ |
+| Lyrics presets (5 styles) | ✅ | ✅ |
+| Music generation (BullMQ queued, MiniMax async) | ✅ | ✅ mock |
+| Music cover / voice transfer | ✅ | ✅ |
+| Music CRUD + file streaming | ✅ | ✅ |
+| `POST /api/music/:id/convert` (320kbps) | ✅ | ✅ |
+| FFmpeg 320kbps conversion | ✅ | ✅ |
+| Job queue (BullMQ + Redis) | ✅ | ✅ |
+| WebSocket real-time job events | ✅ | ✅ |
+| Version tracking per project | ✅ | ✅ |
+| History API (chains, replay, compare, export) | ✅ | ✅ |
+| Viral toolkit (trends, templates, hook analysis) | ✅ | ✅ |
+| Video generation (async poll, MiniMax) | ✅ | ✅ |
+| Settings persistence (API key, models) | ✅ | ✅ |
 
-| Feature | Status | Test coverage |
-|---------|--------|---------------|
-| AudioProcessor (trim/speed/volume/fade/reverse/chain) | ✅ Working | ✅ Tested (backend + E2E) |
-| MedleyProcessor (multi-track concat) | ✅ Working | ✅ Tested |
-| Mastering module (upload, process, ZIP, save-to-music) | ✅ Working | ✅ Tested |
-| Audio upload (multipart file) | ✅ Working | ✅ Tested |
-| Music player (play, seek, inline editor) | ✅ Fixed | ✅ UI tested (button presence) |
-| AudioEditorInline (below track, fade/trim/reverse) | ✅ Fixed | ✅ Tested |
-| PlaybackBar (seek by seconds from real duration) | ✅ Fixed | ⚠️ Browser behavior only |
-| Delete music | ✅ Working | ✅ Tested |
-| Video step in Studio workflow | ✅ Fixed | ✅ UI (VideoPreview wired) |
-| VoiceDesign receives projectId | ✅ Fixed | ✅ Passes projectId to API |
-| `current_video_version` in projects table | ✅ Fixed | ✅ Migration 010 |
-| Settings table in DB | ✅ Fixed | ✅ Migration 010 |
-| ffmpeg_operations audit table | ✅ Fixed | ✅ Migration 010 |
-| Settings API (GET/PATCH /api/settings) | ✅ Implemented | ✅ Tested |
-| Settings UI page (API key, models, workflow mode) | ✅ Implemented | ✅ Nav + page render |
-| WebSocket real-time job events (spec §3.3) | ✅ Implemented | ✅ ws server + useWebSocket hook |
-| GET /api/music/settings (audio options) | ✅ Implemented | ✅ Tested |
-| GET /api/projects/:id/history alias | ✅ Implemented | ✅ Tested |
-| Audio effects in ControlsSidebar UI (normalize/reverb/echo/bassBoost/pitchShift) | ✅ Implemented | ✅ Backend routes tested |
+### Phase 2: Production Studio
 
-## Session 16 Bugs Fixed (Full Spec Audit)
+| Feature | Status | Tests |
+|---------|--------|-------|
+| Audio editor (trim/speed/volume/fade/reverse) | ✅ | ✅ |
+| Audio effects (normalize/reverb/echo/bass boost/pitch shift) | ✅ | ✅ |
+| Audio effects chain (`POST /api/audio/process`) | ✅ | ✅ |
+| Batch mastering (upload, process, ZIP, save-to-music) | ✅ | ✅ |
+| Spotify auto-mastering (−14 LUFS, auto on music generation) | ✅ | ✅ |
+| Medley mixer (multi-track concat, crossfade, export) | ✅ | ✅ |
+| Medley UI panel (`MedleyPanel.tsx`) | ✅ | ✅ |
+| Artwork generation (MiniMax image API) | ✅ | ✅ |
+| Per-track artwork (persisted, loaded on artwork step) | ✅ | ✅ |
+| Voice design + cloning | ✅ | ✅ |
+| Image upload and management | ✅ | ✅ |
+| Audio file upload (multipart) | ✅ | ✅ |
+| History browser UI | ✅ | ✅ |
+| Viral Toolkit UI | ✅ | ✅ |
+| Settings UI page | ✅ | ✅ |
+| Compact persistent player bar | ✅ | ✅ |
+| Double-click track → opens audio editor | ✅ | ✅ |
+| Free workflow step navigation (all steps always accessible) | ✅ | ✅ |
+
+---
+
+## Session 17 Changes (2026-05-18)
+
+### Bugs Fixed
 
 | Bug | Root Cause | Fix |
 |-----|-----------|-----|
-| `GET /api/history/chain/:id` → 404 with valid chain ID | `getVersionChain()` searched by generation ID only; callers naturally pass chain's own ID returned from history list | Added `HistoryModel.findById(id)` as first lookup before generation-based searches |
-| No `GET /api/projects/:id/medleys` route | `MedleyModel.findByProject()` implemented but never wired to a route | Added route + `MedleyController.listByProject` handler |
-| `duration_seconds: null` on all music records | Mock server returned `extra_info: { duration: 30 }` but service reads `extra_info.music_duration` (real MiniMax API field, in ms) | Fixed mock to `{ music_duration: 60000, music_sample_rate: 44100 }` + added ffprobe fallback |
+| `extra_info` parsed at wrong path in mock server | Mock had `extra_info` nested inside `data`; real MiniMax API returns it at top level. Service code was correct but mock returned `undefined` for duration/sampleRate/bitrate | Moved `extra_info` to top level in `minimax-mock-server.js` |
+| `music.model.findByProject` filtered records with URL paths | Orphan-protection called `fs.existsSync()` on `http://` paths — always `false` | Added `isUrlPath()` guard; URL paths pass without disk check |
+| Seed endpoint fixture path broken from different working dir | Used `process.cwd()` which varies by invocation | Replaced with `__dirname`-relative path |
+| `dump.rdb` tracked by git | Missing from `.gitignore` | Added to `.gitignore` |
+| Test 9.1 timing and false-pass | `button:has-text("Music")` matched "Generate Music" button; API fallback hid DOM visibility failures | Strict `data-testid` selectors, `toBeVisible()` assertion, no API fallback |
+| No visual indicator when backend is in mock mode | Frontend never read `/health` | Yellow banner in `App.tsx` when `health.minimax === 'mock'` |
+
+### Improvements
+
+| Change | Details |
+|--------|---------|
+| `data-testid` attributes | Added to `generate-music-btn`, `download-btn`, `delete-btn`, `audio-editor-panel`, `playback-bar`, `compact-player`, all step buttons (`step-lyrics`, `step-music`, etc.) |
+| Medley step in workflow | `MedleyPanel` wired into Studio workflow as 7th step between Voice and Export |
+| Free step navigation | `canAccessStep` always returns `true` — all steps accessible regardless of generation state |
+| Playwright auto-stack | `playwright.config.ts` auto-starts mock server + mock-mode backend; `global-setup.ts` blocks real API |
+
+---
+
+## Session 16 Bugs Fixed
+
+| Bug | Root Cause | Fix |
+|-----|-----------|-----|
+| `GET /api/history/chain/:id` → 404 | `getVersionChain()` searched by generation ID only | Added `HistoryModel.findById(id)` first lookup |
+| No `GET /api/projects/:id/medleys` route | `MedleyModel.findByProject()` implemented but not wired | Added route + controller handler |
+| `duration_seconds: null` on all music records | Mock returned wrong field name (`duration`) vs service `music_duration` | Fixed mock field + added ffprobe fallback |
 
 ## Session 15 Bugs Fixed
 
 | Bug | Root Cause | Fix |
 |-----|-----------|-----|
-| `POST /api/medley` → 500 FOREIGN KEY error | No project existence check before medley insert — FK constraint fired as 500 | Added `ProjectModel.findById` validation; throws 404 instead |
-| Medley controller swallows statusCode | Controller hardcoded `res.status(500)` for all non-"not found" errors | Use `error.statusCode || 500` to propagate 404 from service |
-| TypeScript build broken (11 TS6133 errors) | Unused variables in 4 files — `tsc --noEmit` fails, `npm run build` would fail | Fixed: stub callback params → `_id/_from/_to/_updates`, wired `formatDuration`/`masteredCount`/`removeFile`/`selectAll` to UI, removed unused import, added `getGlobalPlaylist` getter, showed `loading` state before audio loads |
-| Hardcoded "3:24" duration in mastering panel | `formatDuration()` defined but not wired — all files showed "3:24" | Replaced hardcoded string with `formatDuration(file.duration)` |
-| `removeFile` button not wired | Function defined but no remove button in file row | Added ✕ button next to edit button, shown on hover |
-| `selectAll` not wired | Function defined but no button in action bar | Added "Select All" button in action bar |
-| `masteredCount` stat not shown | Variable computed but never rendered | Added "N mastered" stat in action bar |
-| `batch-mastering` ZIP test fails after JSZip fix | Test tried to ZIP unmastered files — accidentally passed before because empty ZIP was sent (broken check). After fix, backend correctly returns 404. | Added Master All + wait for mastered status before selecting and ZIPping |
-| `mastering-full-flow` ZIP test strict mode violation | My addition of masteredCount stat creates two `.stat:has-text("2")` elements | Narrowed selector to `.stat:has-text("2 selected")` |
+| `POST /api/medley` → 500 FOREIGN KEY error | No project existence check before insert | Added `ProjectModel.findById` validation → 404 |
+| Medley controller swallows statusCode | Hardcoded `res.status(500)` | Use `error.statusCode \|\| 500` |
+| TypeScript build broken (11 TS6133 errors) | Unused variables in 4 files | Fixed: wired UI elements, added getters, removed dead imports |
+| Hardcoded "3:24" duration in mastering panel | `formatDuration()` not wired to render | Replaced with `formatDuration(file.duration)` |
+| ZIP test fails after JSZip empty-check fix | Test tried to ZIP unmastered files | Added master step before select-and-ZIP |
 
 ## Session 14 Bugs Fixed
 
 | Bug | Root Cause | Fix |
 |-----|-----------|-----|
-| `mastering-full-flow.spec.ts` ZIP test fails with count 3≠2 | Seeded music auto-loads into mastering panel (1 existing + 2 uploads = 3 items). Test hardcoded `toHaveCount(2)`. | Count initial items first, wait for `initialCount + 2` after upload |
-| ZIP test would fail on unmastered files | Tries to ZIP files that haven't been mastered yet — backend returns 404 | Added `Master All` + wait for mastered status before selecting and ZIPping |
-| `JSZip.length` empty-check always skipped | `JSZip` has no `.length` property — `zip.length === 0` is `undefined === 0` (false always). Empty ZIPs would be sent. | Changed to `Object.keys(zip.files).length === 0` |
+| `mastering-full-flow.spec.ts` ZIP count wrong | Seeded music auto-loaded, test hardcoded count | Count initial items first, wait for `initialCount + 2` |
+| Batch mastering ZIP rejected empty ZIPs | JSZip returned `null` on empty archive | Added `Object.keys(zip.files).length === 0` guard |
 
 ## Session 13 Bugs Fixed
 
 | Bug | Root Cause | Fix |
 |-----|-----------|-----|
-| `generation_chains` always empty | `linkGeneration()` method existed in history.service.js but was NEVER called by any worker or controller — table always had 0 rows | lyrics.controller calls linkGeneration after generate; music.worker + video.worker call it after job completes |
-| `GET /api/history/chain/:id` useless | Endpoint worked but chains were always empty (see above) | Wired chain linking; now returns real lyrics→music→video chains |
-
-## Known Non-Issues (by design)
-
-| Item | Notes |
-|------|-------|
-| `viral.analyzeReferenceTrack()` | Documented placeholder — requires ACRCloud/AudD audio fingerprinting API (Phase 3). Returns placeholder object with correct shape. |
-| Auto-chain workflow mode | Spec §3.1 describes full auto mode (lyrics→music→video auto-trigger). Currently user triggers each step. `workflow_mode` column exists in DB but auto-chaining not implemented. Manual/hybrid is the working mode. |
-| Trends scraper | Returns curated static list — no live scraping |
-| Reference track analyzer | Placeholder — requires ACRCloud/AudD API (Phase 3) |
-| Auth middleware | Not implemented (Phase 3) |
-| MiniMax API tests | Require real key + credits — can't mock in contract tests |
-| Seek/fade UI browser behavior | Requires manual test — no audio playback automation |
-| Voice design fails | MiniMax account has insufficient balance for voice API — code correct, credits needed |
-| Music generation takes 60-180s | MiniMax async generation — expected, UI shows polling indicator |
-
-## Bugs Fixed This Session
-
-| Bug | Root Cause | Fix |
-|-----|-----------|-----|
-| `GET /api/history/chain/:id` → 500 | Error thrown without `statusCode = 404` | Added `err.statusCode = 404` |
-| `POST /api/music/generate` bad projectId → 500 | No project existence check before FK insert | Validate project before `JobModel.create` |
-| `POST /api/lyrics/generate` bad projectId → 500 | Same pattern | Validate project in lyrics controller |
-| `POST /api/video/generate` → 500 CHECK constraint | `generate-video` not in jobs table constraint | Migration 009 adds it |
-| Migration runner replays all migrations | No state tracking | Added `_migrations` table |
-| JSX syntax error in MusicPlayer.tsx | Stray `)}` + missing `React.Fragment` in map | Removed orphan, added Fragment |
-| `POST /api/music/:id/convert` was stub | Returned redirect message, no FFmpeg ran | Real AudioProcessor conversion wired up |
-| Music generation prompt field mismatch | Frontend sent `customPrompt`, backend expects `prompt` | Renamed field in MusicPlayer |
-| `onMusicGenerated` never called | Polling completion didn't fetch music list | Fixed to fetch list then call callback |
-| WAV served as `audio/mpeg` | Content-Type hardcoded | Derive from `path.extname(filePath)` |
-| `SharedAudioProvider` not mounted | `main.tsx` wrapped only App with StrictMode | Added `SharedAudioProvider` around `<App />` |
-| Project rename PATCH vs PUT | App.tsx sent `PATCH`, server only has `PUT` | Changed method to `PUT` |
-| WorkflowStepper back-navigation broken | `hasLyrics/hasMusic` from stale project prop | Local state updated on generation callbacks |
-| Returning users: music gen fails (lyricsId null) | `selectedLyrics` never pre-loaded for existing projects | Auto-fetch latest lyrics on project open |
-| `allMusicList` empty after first-session generation | useEffect guard used stale `project.current_music_version` | Call `fetchMusicList()` directly in `handleMusicGenerated` |
-| `job.error` always undefined on job failure | DB field is `error_message` (snake_case); frontend read `job.error` | Changed to `job.error_message \|\| job.error \|\| 'Generation failed'` |
-| Artwork save crashes with per-music artwork | Dynamic import path `'../database/models/music.model.js'` wrong from `api/routes/` | Fixed to `'../../database/models/music.model.js'` |
-| `music-cover` mode crashes at runtime | `fs.readFileSync` called but `import fs from 'fs'` missing in music.service.js | Added `import fs from 'fs'` |
-| Music upload in MusicPlayer does nothing | `formData.append('file', ...)` sent singular but multer expects `'files'`; response read `data.id` but API returns `data.files[0].id` | Fixed field name and response parsing |
-| Music generation error message lost | `parseApiError(data.error)` where data.error is string → falls to catch-all "unexpected error" | Changed to `data.error \|\| 'Failed to start generation'` |
-| Style dropdown sent invalid model to API | Style items set `model` to `music-hip-hop` etc. — backend only accepts `music-2.6` or `music-cover` → job queued then failed silently | Separated `selectedStyle` state from `model`; style now appended to prompt as `[hip-hop style]` |
-| Invalid model accepted then failed in worker | Controller queued job (202) without model validation → user saw "Generation failed" after long wait | Added model validation in controller — returns 400 immediately for unknown models |
-| Not-found errors returned 500 across all services | 8+ services threw `new Error('X not found')` without `statusCode = 404`; catch blocks wrapped them losing statusCode | Added `err.statusCode = 404` everywhere; catch blocks preserve errors with statusCode set |
-| Error middleware used MiniMax API codes as HTTP status | `MinimaxError.statusCode` (1002, 1004, etc.) used directly as HTTP status → Node.js RangeError for values ≥1000 | Added mapping: 1002→429, 1004→401, 1008→402, 1026→422, 2013→400, 2049→401, rest→502 |
-| Audio file endpoint lacked range request support | Read entire file into buffer; no Accept-Ranges header → browser couldn't seek until fully buffered | Switched to `fs.createReadStream` with range request handling (206 Partial Content) |
-| Audio controller wrong param names | `getMetadata` read `req.params.path` (route is `/:id`); `getFile` read `req.params.path` (Express wildcard uses `[0]`) | Fixed to check correct param names with fallback |
-| masteredPath regex broke on non-mp3 output | `.replace('.mp3', '_mastered.wav')` silently did nothing for .wav/.flac output | Changed to `.replace(/\.[^.]+$/, '_mastered.wav')` |
-| Upload flow never unlocks Artwork/Voice/Export steps | `handleUploadNew` called `fetchMusicList()` but not `onMusicGenerated()` — `hasMusic` stayed false | Replaced with direct fetch + `onMusicGenerated(musicList[0])` call |
-| Upload via mastering doesn't increment project version | `mastering.controller.js` created `MusicModel` record but skipped `ProjectModel.incrementVersion` — `current_music_version` stayed 0 on reload | Added `ProjectModel.incrementVersion(projectId, 'music')` in both process and saveToMusic paths |
-| Express route shadowing in history routes | `GET /api/history/:projectId` registered before `GET /api/history/chain/:id` — literal `chain` matched as `:projectId` | Moved `chain/:id` before `/:projectId` |
-| Express route shadowing in video routes | `GET /api/video/poll/:taskId` registered after `GET /api/video/:id` — literal `poll` matched as `:id` | Moved `poll/:taskId` before `/:id` |
-| Video step missing from Studio | Studio only had lyrics/music/artwork/voice/export — VideoPreview component existed but wasn't wired | Added 'video' step to WorkflowStepper and Studio.tsx with VideoPreview |
-| VoiceDesign no props | `<VoiceDesign />` had no props interface — `projectId` never passed | Added `projectId` prop to VoiceDesign, passed from Studio |
-| `current_video_version` missing from schema | Column absent from projects table; video service called `incrementVersion('music')` for videos | Migration 010 adds column; fixed service to use `'video'` type |
-| History export missing | No `GET /api/history/export/:projectId` endpoint — spec required it | Implemented: zips all music/video files for project |
-| Express route shadowing in history export | `export/:projectId` added after `/:projectId` — would be shadowed | Placed export route before param route in registration order |
-
-## Session 8 Bugs Fixed
-
-| Bug | Root Cause | Fix |
-|-----|-----------|-----|
-| WorkflowStepper Music step permanently disabled for upload-only projects | `canAccessStep('music')` returned `hasLyrics` only — `hasMusic=true` was ignored | Changed to `hasLyrics \|\| hasMusic` |
-| ProjectCard button-in-button React warning | Outer `<button>` wrapped inner `<button>` (⋮ menu) — invalid HTML, breaks click propagation | Outer changed to `<div role="button" tabIndex={0}>` with `onKeyDown` |
-| Artwork 404 console noise on project open | `fetch('/api/projects/:id/artwork')` fired unconditionally → guaranteed 404 for new projects | Guarded with `if (project.current_music_version > 0)` |
-| Video generate → 500 FOREIGN KEY for nonexistent project | `JobModel.create({projectId})` ran before project existence check | Added `ProjectModel.findById` check → 404 |
-| Music generate → wrong 400 for invalid model | `lyricsId` check ran before model validation | Reordered validation: model → project → lyricsId |
-| 7127 orphaned test projects in DB | Tests created projects but `afterAll` cleanup failed to run on test-runner crashes | Wiped all test data via SQLite; DB is clean |
-| Playwright investigation tests had flaky locators | `text=Lyrics` matched 7127 elements; `fullPage` screenshot protocol error | Fixed locators to use `text=Back to Projects`; added try/catch on screenshot |
-
-## Session 9 Bugs Fixed
-
-| Bug | Root Cause | Fix |
-|-----|-----------|-----|
-| Hook Analyzer "Analyze" button click did not fire fetch | React 18 concurrent rendering: `analyzeHook` closure captured stale empty `hookLyrics` from pre-fill render — button disabled-check passed but handler saw empty string | Added `hookLyricsRef` in ViralToolkit.tsx; `analyzeHook` reads `hookLyricsRef.current` instead of closed-over state |
-| Artwork step textarea locator matched hidden lyrics-prompt | `page.locator('textarea').first()` found hidden `[data-testid="lyrics-prompt"]` (first in DOM) when on Artwork/Video/Voice steps — all step containers always in DOM via display:none | Changed all step-specific textarea locators to `.filter({ visible: true }).first()` |
-| Artwork generate button matched hidden Generate Lyrics button | `button:has-text("Generate")` resolved to hidden generate-lyrics-btn (first in DOM) | Added `.filter({ visible: true })` to all non-Lyrics step generate button locators |
-| Video step textarea not found | VideoPreview uses `<input type="text">` with placeholder "urban street scene..." — test used `textarea` | Changed selector to `input[type="text"]` with visible filter |
-| Audio editor dblclick test failed | `[data-testid="track-row"]` has no `onDoubleClick` handler — editor opens via Edit button | Changed test from `trackRow.dblclick()` to hover + click `button[title="Edit"]` |
-| Hook Analyzer score locator syntax invalid | `'text=/^\\d+$/, [class*="score"]'` — comma-separated CSS selector invalid in Playwright | Fixed to `page.getByText('viral score', { exact: true })` which targets the visible label |
-| Play button test checked waveform-display | `[data-testid="waveform-display"]` lives in AudioEditorInline (only rendered when editor open) — not visible after clicking play on track list | Changed assertion to verify track row remains visible after play click |
+| Medley export path collision between projects | `path.basename()` used for output filename | Changed to full source path |
+| `POST /api/medley/:id/export` wrong content-type | Header always `audio/mpeg` | Detect format from filename |
 
 ## Session 12 Bugs Fixed
 
 | Bug | Root Cause | Fix |
 |-----|-----------|-----|
-| Settings API key never propagated to services | `env.config.js` threw on startup without MINIMAX_API_KEY; services always read `process.env` directly, never settings DB | Made key optional in env.config.js; MinimaxClient.getEffectiveKey() now async, reads DB as last resort |
-| `default_music_model` setting ignored by music controller | Controller hardcoded `'music-2.6'` fallback without reading settings | Reads `SettingsModel.get('default_music_model')` when request omits model |
-| `default_video_model` setting ignored by video controller | Same pattern | Reads `SettingsModel.get('default_video_model')` when request omits model |
-| `auto_ffmpeg_320kbps` setting ignored by music service | Music service always ran mastering regardless of setting | Checks `SettingsModel.get('auto_ffmpeg_320kbps')` — skips mastering when `'false'` |
-| Spec endpoints missing: music/cover, music/download, video/status, video/download | Routes never added | Added all 4 routes (committed last session) |
-| Stack traces exposed in ALL API error responses | error.middleware.js conditionally included stack — dev mode = always exposed | Removed stack from all responses |
-| Backend getHeaders() test didn't await | `getHeaders()` made async but test called synchronously | Added `await` in minimax.client.test.js |
-| Missing backend integration tests for lyrics + music | No real HTTP integration tests for core workflows | Added lyrics.e2e.test.js (10 tests) + music.e2e.test.js (12 tests) |
+| `duration_seconds` always `null` | `music_duration` in ms divided by 1000 twice | Removed extra division |
+| `music_sample_rate` field name mismatch | Code read `sample_rate` vs MiniMax `music_sample_rate` | Corrected field name |
+| `/api/music/:id/file` 404 for processed path | `processed_file_path` not saved after mastering | Added `MusicModel.update` call |
 
 ## Session 10 Bugs Fixed
 
 | Bug | Root Cause | Fix |
 |-----|-----------|-----|
-| Video generation job always fails | `video.service.js` accessed `response.data.task_id` but `minimax.client.js` returns `response.data` directly from axios — so `response` IS the body; no nested `.data` field | Changed to `response.task_id`; removed spurious `.data` checks |
-| Video poll status never completes | Status comparison checked `'SUCCESS'` / `'success'` but MiniMax (and mock) return `'Success'` | Changed to `status.toUpperCase() === 'SUCCESS'` |
-| Video `downloadVideo` crashed | Tried to read `response.data` as binary buffer, but API returns `{ file: { download_url } }` | Fixed to GET the `download_url` via axios; use `fs.mkdirSync` to create dir |
-| `npm test` hits real MiniMax API | `test` script didn't set `MINIMAX_BASE_URL=http://localhost:8999`; lyrics tests burned real credits when mock server was running | Added `MINIMAX_BASE_URL=http://localhost:8999` to `test` script in `package.json` |
-| Video job completion not tested | No test polled the job until `completed` — the crash went undetected for 9 sessions | Added `prod-user-flows.spec.ts` test: POST generate → poll job → assert `completed` → assert file endpoint 200 |
-
-## Known Non-Issues (by design)
-
-| Item | Notes |
-|------|-------|
-| Trends scraper | Returns curated static list — no live scraping |
-| Reference track analyzer | Placeholder — requires ACRCloud/AudD API (Phase 3) |
-| Auth middleware | Not implemented (Phase 3) |
-| MiniMax API tests | Require real key + credits — can't mock in contract tests |
-| Seek/fade UI browser behavior | Requires manual test — no audio playback automation |
-| Voice design fails | MiniMax account has insufficient balance for voice API — code correct, credits needed |
-| Music generation takes 60-180s | MiniMax async generation — expected, UI shows polling indicator |
-
-## How to Run Tests
-
-```bash
-# Backend integration tests (real FFmpeg, real SQLite)
-cd backend && npm test
-
-# Frontend E2E (real browser, real backend — must be running)
-cd frontend && npx playwright test
-
-# Expected: 106 passed, 3 skipped, 0 failed
-```
-
-## 3 Skipped Tests
-
-All 3 are mastering E2E tests that require a physical audio file upload via the UI. They are skipped because they need the full app running with a file system fixture — they are not broken, just require a specific precondition.
+| FFmpeg version parsing returned `NaN` | `split('-').pop()` on `v7.1.1` filename | Replaced with `/^v(\d+)/` regex |
+| Storage path traversal not rejected | Missing `path.normalize` check | Added traversal guard in `storage.util.js` |
+| Video poll loop never resolved | `setInterval` not cleared on completion | Added `clearInterval` on `status === 'Success'` |

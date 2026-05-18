@@ -8,13 +8,14 @@ import VoiceDesign from '../components/VoiceDesign/VoiceDesign';
 import WorkflowStepper from '../components/WorkflowControl/WorkflowStepper';
 import CompactPlayer from '../components/MusicPlayer/CompactPlayer';
 import AudioMasteringPanel from '../components/Mastering/AudioMasteringPanel';
+import MedleyPanel from '../components/Medley/MedleyPanel';
 
 interface StudioProps {
   project: Project;
   onBack: () => void;
 }
 
-type WorkflowStep = 'lyrics' | 'music' | 'artwork' | 'video' | 'voice' | 'export';
+type WorkflowStep = 'lyrics' | 'music' | 'artwork' | 'video' | 'voice' | 'medley' | 'export';
 
 export default function Studio({ project, onBack }: StudioProps) {
   const [currentStep, setCurrentStep] = useState<WorkflowStep>('lyrics');
@@ -69,7 +70,6 @@ export default function Studio({ project, onBack }: StudioProps) {
   const handleLyricsGenerated = (lyrics: LyricsGeneration) => {
     setSelectedLyrics(lyrics);
     setHasLyrics(true);
-    setCurrentStep('music');
   };
 
   const handleMusicGenerated = (music: MusicGeneration) => {
@@ -157,6 +157,12 @@ export default function Studio({ project, onBack }: StudioProps) {
           </div>
           <div style={{ display: currentStep === 'voice' ? 'block' : 'none' }}>
             <VoiceDesign projectId={project.id} />
+          </div>
+          <div style={{ display: currentStep === 'medley' ? 'block' : 'none' }}>
+            <MedleyPanel
+              projectId={project.id}
+              musicList={allMusicList}
+            />
           </div>
           <div style={{ display: currentStep === 'export' ? 'block' : 'none' }}>
             <AudioMasteringPanel

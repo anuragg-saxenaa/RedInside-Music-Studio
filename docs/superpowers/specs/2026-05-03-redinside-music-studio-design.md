@@ -158,8 +158,10 @@ redinside-music-studio/
 │   │   │   │   ├── HookOptimizer.tsx
 │   │   │   │   ├── StructureTemplates.tsx
 │   │   │   │   └── ReferenceAnalyzer.tsx
+│   │   │   ├── Medley/
+│   │   │   │   └── MedleyPanel.tsx        # Medley creation, track ordering, export
 │   │   │   └── WorkflowControl/
-│   │   │       ├── WorkflowStepper.tsx
+│   │   │       ├── WorkflowStepper.tsx    # Steps: lyrics|music|artwork|video|voice|medley|export
 │   │   │       ├── AutoManualToggle.tsx
 │   │   │       └── ProgressTracker.tsx
 │   │   ├── hooks/
@@ -799,6 +801,26 @@ GET    /api/jobs/:id                    # Get job status
 POST   /api/jobs/:id/cancel             # Cancel job
 GET    /api/jobs/project/:projectId     # All jobs for project
 ```
+
+### 4.9 Medley
+
+```
+POST   /api/medley                      # Create medley
+GET    /api/projects/:projectId/medleys # List project medleys
+GET    /api/medley/:id                  # Get medley with tracks
+PUT    /api/medley/:id                  # Update medley name/description
+DELETE /api/medley/:id                  # Delete medley
+POST   /api/medley/:id/tracks           # Add track (accepts musicId or sourceFilePath)
+PUT    /api/medley/:id/tracks           # Reorder tracks ({ orders: [{id, order}] })
+DELETE /api/medley/:id/tracks/:trackId  # Remove track
+POST   /api/medley/:id/export           # Export merged audio (format, bitrate, fadeOutFinal)
+GET    /api/medley/:id/duration         # Get total duration
+```
+
+**UI**: `MedleyPanel` component integrated as workflow step between Voice and Export/Master.
+- Left sidebar: list of project medleys (create/delete)
+- Right editor: track list with drag-to-reorder, add-from-project-tracks grid, total duration display, Export button
+- Accessible via WorkflowStepper step key `medley`
 
 ---
 

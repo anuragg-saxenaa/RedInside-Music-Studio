@@ -10,6 +10,15 @@ export type { Project, LyricsGeneration, MusicGeneration };
 
 function App() {
   const [project, setProject] = useState<Project | null>(null);
+  const [isMockMode, setIsMockMode] = useState(false);
+
+  useEffect(() => {
+    fetch('/health')
+      .then(r => r.json())
+      .then(d => { if (d.minimax === 'mock') setIsMockMode(true); })
+      .catch(() => {});
+  }, []);
+
   const [currentView, setCurrentView] = useState<'studio' | 'history' | 'viral' | 'settings'>(() => {
     if (window.location.hash === '#/history') return 'history';
     if (window.location.hash === '#/viral') return 'viral';
@@ -92,9 +101,15 @@ function App() {
           <rect width="100%" height="100%" fill="url(#grid-dots)"/>
         </svg>
       </div>
+      {isMockMode && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: '#FFB800', color: '#000', textAlign: 'center', padding: '6px 12px', fontSize: '13px', fontWeight: 600 }}>
+          TEST MODE — MiniMax mock active. For real use: stop backend, run <code style={{ background: 'rgba(0,0,0,0.15)', padding: '1px 6px', borderRadius: '3px' }}>npm run dev</code> in <code style={{ background: 'rgba(0,0,0,0.15)', padding: '1px 6px', borderRadius: '3px' }}>backend/</code>
+        </div>
+      )}
       <header style={{
         backgroundColor: 'rgba(10, 10, 10, 0.9)',
         borderBottom: '1px solid rgba(230, 57, 70, 0.3)',
+        marginTop: isMockMode ? '36px' : '0',
         padding: '20px 32px',
         position: 'sticky',
         top: 0,

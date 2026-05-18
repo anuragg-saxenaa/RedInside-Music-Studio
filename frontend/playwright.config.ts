@@ -7,12 +7,22 @@ export default defineConfig({
     baseURL: 'http://localhost:5173',
     headless: true,
   },
-  webServer: {
-    // Auto-start MiniMax mock server before tests. reuseExistingServer lets
-    // us keep it running between runs for speed.
-    command: 'node ../backend/tests/minimax-mock-server.js',
-    url: 'http://localhost:8999',
-    reuseExistingServer: true,
-    timeout: 10000,
-  },
+  webServer: [
+    {
+      // MiniMax mock server — started automatically, reused between runs
+      command: 'node ../backend/tests/minimax-mock-server.js',
+      url: 'http://localhost:8999',
+      reuseExistingServer: true,
+      timeout: 10000,
+    },
+    {
+      // Backend in mock mode — auto-started if nothing is on port 3000.
+      // If you already have `npm run dev` (real API) running, global-setup
+      // will block with instructions to restart in mock mode instead.
+      command: 'cd ../backend && MINIMAX_BASE_URL=http://localhost:8999 node src/server.js',
+      url: 'http://localhost:3000/health',
+      reuseExistingServer: true,
+      timeout: 30000,
+    },
+  ],
 });

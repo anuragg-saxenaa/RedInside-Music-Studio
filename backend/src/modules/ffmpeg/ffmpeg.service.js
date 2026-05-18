@@ -211,6 +211,43 @@ export class FFmpegService {
         .save(outputPath);
     });
   }
+
+  /**
+   * Merge multiple audio files into one (concatenation)
+   * @param {string[]} inputPaths - Array of input file paths
+   * @param {string} outputPath - Path to output merged file
+   * @param {object} options - { format, bitrate }
+   * @returns {Promise<{filePath: string, bitrate: number, format: string}>}
+   */
+  merge(inputPaths, outputPath, options = {}) {
+    const { format = 'mp3', bitrate = 320 } = options;
+    return new Promise((resolve, reject) => {
+      if (!inputPaths || inputPaths.length < 2) {
+        return reject(new Error('merge requires at least 2 input files'));
+      }
+
+      logger.info('Merging audio files', { count: inputPaths.length, outputPath });
+
+      let command = ffmpeg(inputPaths[0]);
+      for (let i = 1; i < inputPaths.length; i++) {
+        command = command.mergeAdd(inputPaths[i]);
+      }
+
+      command
+        .audioBitrate(bitrate)
+        .format(format)
+        .on('start', (cmd) => logger.debug('FFmpeg merge command:', cmd))
+        .on('end', () => {
+          logger.info('Audio merge completed', { outputPath });
+          resolve({ filePath: outputPath, bitrate, format });
+        })
+        .on('error', (err) => {
+          logger.error('FFmpeg merge failed', { error: err.message });
+          reject(new Error(`FFmpeg merge failed: ${err.message}`));
+        })
+        .mergeToFile(outputPath);
+    });
+  }
 }
 
 export default new FFmpegService();

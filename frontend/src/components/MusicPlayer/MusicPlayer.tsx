@@ -583,7 +583,7 @@ function AudioEditorInline({ audioUrl, trackId: _trackId, onClose, onExportCompl
   }
 
   return (
-    <div style={{
+    <div data-testid="audio-editor-panel" style={{
       background: 'linear-gradient(180deg, rgba(30,30,30,0.95) 0%, rgba(15,15,15,0.98) 100%)',
       backdropFilter: 'blur(40px)',
       WebkitBackdropFilter: 'blur(40px)',
@@ -789,6 +789,7 @@ function TrackRow({ music, isPlaying: _isPlaying, isThisPlaying, onPlay, onEdit,
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={onPlay}
+      onDoubleClick={(e) => { e.stopPropagation(); onEdit(); }}
     >
       {/* Play button */}
       <button
@@ -864,10 +865,10 @@ function TrackRow({ music, isPlaying: _isPlaying, isThisPlaying, onPlay, onEdit,
         <button onClick={(e) => { e.stopPropagation(); handleConvert(); }} disabled={converting} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px', color: '#888', cursor: 'pointer', transition: 'all 150ms' }} title="Convert to MP3" onMouseOver={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,210,106,0.2)'; (e.currentTarget as HTMLButtonElement).style.color = '#00D26A'; }} onMouseOut={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)'; (e.currentTarget as HTMLButtonElement).style.color = '#888'; }}>
           {converting ? <div style={{ width: '16px', height: '16px', border: '2px solid #666', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 1s linear infinite' }} /> : <ConvertIcon />}
         </button>
-        <button onClick={(e) => { e.stopPropagation(); onDownload(); }} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px', color: '#888', cursor: 'pointer', transition: 'all 150ms' }} title="Download" onMouseOver={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.1)'; (e.currentTarget as HTMLButtonElement).style.color = '#fff'; }} onMouseOut={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)'; (e.currentTarget as HTMLButtonElement).style.color = '#888'; }}>
+        <button data-testid="download-btn" onClick={(e) => { e.stopPropagation(); onDownload(); }} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px', color: '#888', cursor: 'pointer', transition: 'all 150ms' }} title="Download" onMouseOver={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.1)'; (e.currentTarget as HTMLButtonElement).style.color = '#fff'; }} onMouseOut={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)'; (e.currentTarget as HTMLButtonElement).style.color = '#888'; }}>
           <DownloadIcon />
         </button>
-        <button onClick={(e) => { e.stopPropagation(); onDelete(); }} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px', color: '#888', cursor: 'pointer', transition: 'all 150ms' }} title="Delete" onMouseOver={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(230,57,70,0.2)'; (e.currentTarget as HTMLButtonElement).style.color = '#E63946'; }} onMouseOut={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)'; (e.currentTarget as HTMLButtonElement).style.color = '#888'; }}>
+        <button data-testid="delete-btn" onClick={(e) => { e.stopPropagation(); onDelete(); }} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px', color: '#888', cursor: 'pointer', transition: 'all 150ms' }} title="Delete" onMouseOver={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(230,57,70,0.2)'; (e.currentTarget as HTMLButtonElement).style.color = '#E63946'; }} onMouseOut={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)'; (e.currentTarget as HTMLButtonElement).style.color = '#888'; }}>
           <TrashIcon />
         </button>
       </div>
@@ -896,7 +897,7 @@ function PlaybackBar({ music, isPlaying, onTogglePlay, onSeek, onSeekBy, onVolum
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div style={{
+    <div data-testid="playback-bar" style={{
       position: 'fixed', bottom: 0, left: 0, right: 0,
       background: 'linear-gradient(180deg, rgba(30,30,30,0.98) 0%, rgba(15,15,15,0.99) 100%)',
       backdropFilter: 'blur(40px)', WebkitBackdropFilter: 'blur(40px)',
@@ -1419,6 +1420,7 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
             )}
 
             <button
+              data-testid="generate-music-btn"
               onClick={generateMusic}
               disabled={isProcessing || (mode === 'generate' && !selectedLyrics)}
               style={{

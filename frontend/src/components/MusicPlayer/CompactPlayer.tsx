@@ -269,6 +269,7 @@ export default function CompactPlayer({
 
   return (
     <div
+      data-testid="compact-player"
       style={{
         display: 'flex',
         alignItems: 'center',
