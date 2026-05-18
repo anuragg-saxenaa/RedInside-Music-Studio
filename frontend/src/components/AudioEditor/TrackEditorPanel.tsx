@@ -87,6 +87,10 @@ export default function TrackEditorPanel({ track, onUpdate, onRemove }: TrackEdi
           bassBoostGainDb: 6,
           pitchShiftEnabled: false,
           pitchShiftSemitones: 0,
+          vocalRemovalEnabled: false,
+          vocalRemovalJobId: null,
+          vocalRemovalEngine: null,
+          vocalRemovalInstrumentalId: null,
         }}
         onChange={(ops) => {
           setSettings({

@@ -18,6 +18,7 @@ import { JobsRoutes } from './api/routes/jobs.routes.js';
 import { ProjectsController } from './api/routes/projects.routes.js';
 import { MedleyRoutes } from './api/routes/medley.routes.js';
 import { AudioRoutes } from './api/routes/audio.routes.js';
+import { DownloaderRoutes } from './api/routes/downloader.routes.js';
 import { FfmpegRoutes } from './api/routes/ffmpeg.routes.js';
 import { LyricsController } from './modules/lyrics/lyrics.controller.js';
 
@@ -26,6 +27,7 @@ import './queue/workers/lyrics.worker.js';
 import './queue/workers/music.worker.js';
 import './queue/workers/ffmpeg.worker.js';
 import './queue/workers/video.worker.js';
+import './queue/workers/vocal-removal.worker.js';
 
 const app = express();
 
@@ -44,13 +46,16 @@ app.use((req, res, next) => {
 });
 
 // Health check
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
   const minimaxBase = process.env.MINIMAX_BASE_URL || 'https://api.minimax.io';
+  const { VocalRemovalService } = await import('./modules/audio/vocal-removal.service.js');
+  const demucsEngine = await VocalRemovalService.detectEngine();
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     minimax: minimaxBase.includes('localhost') ? 'mock' : 'real',
     minimaxHost: new URL(minimaxBase).host,
+    demucs: demucsEngine === 'demucs' ? 'available' : 'fallback',
   });
 });
 
@@ -90,6 +95,10 @@ MedleyRoutes.forEach(route => {
 });
 
 AudioRoutes.forEach(route => {
+  app[route.method](route.path, route.handler);
+});
+
+DownloaderRoutes.forEach(route => {
   app[route.method](route.path, route.handler);
 });
 

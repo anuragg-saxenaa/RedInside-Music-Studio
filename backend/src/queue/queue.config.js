@@ -76,6 +76,19 @@ export const queues = {
       removeOnFail: 1000,
     },
   }),
+
+  vocalRemoval: new Queue('vocal-removal', {
+    connection: getRedisConnection(),
+    defaultJobOptions: {
+      attempts: 2,
+      backoff: {
+        type: 'exponential',
+        delay: 2000,
+      },
+      removeOnComplete: 50,
+      removeOnFail: 200,
+    },
+  }),
 };
 
 // Queue events for logging
@@ -84,6 +97,7 @@ export const queueEvents = {
   music: new QueueEvents('music-generation', { connection: getRedisConnection() }),
   ffmpeg: new QueueEvents('ffmpeg-processing', { connection: getRedisConnection() }),
   video: new QueueEvents('video-generation', { connection: getRedisConnection() }),
+  vocalRemoval: new QueueEvents('vocal-removal', { connection: getRedisConnection() }),
 };
 
 // Setup event listeners

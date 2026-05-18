@@ -4,6 +4,7 @@ import logger from '../../utils/logger.js';
 import fs from 'fs';
 import path from 'path';
 import { AudioMasteringService } from '../mastering/mastering.service.js';
+import { JobModel } from '../../queue/jobs.service.js';
 
 /**
  * Convert HTTP URL to filesystem path for uploaded mastering files
@@ -576,5 +577,41 @@ export const AudioController = {
       });
       res.json({ message: 'Pitch shifted successfully', ...result });
     } catch (error) { next(error); }
+  },
+
+  async removeVocals(req, res, next) {
+    try {
+      const { musicId, projectId } = req.body;
+      if (!musicId) return res.status(400).json({ error: 'musicId is required' });
+      if (!projectId) return res.status(400).json({ error: 'projectId is required' });
+
+      const { MusicModel } = await import('../../database/models/music.model.js');
+      const music = MusicModel.findById(musicId);
+      if (!music) return res.status(404).json({ error: 'Music not found' });
+
+      const inputPath = music.processed_file_path || music.original_file_path;
+      if (!inputPath || !fs.existsSync(inputPath)) {
+        return res.status(404).json({ error: 'Audio file not found on disk' });
+      }
+
+      const sqliteJob = JobModel.create({
+        projectId,
+        type: 'vocal-removal',
+        inputParams: { musicId, inputPath },
+      });
+
+      const { queues } = await import('../../queue/queue.config.js');
+      await queues.vocalRemoval.add('remove-vocals', {
+        musicId,
+        projectId,
+        inputPath,
+        originalTitle: music.title || 'Track',
+        jobId: sqliteJob.id,
+      });
+
+      res.status(202).json({ jobId: sqliteJob.id });
+    } catch (err) {
+      next(err);
+    }
   },
 };

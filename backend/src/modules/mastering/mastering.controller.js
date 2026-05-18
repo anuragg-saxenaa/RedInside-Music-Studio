@@ -200,14 +200,14 @@ export const MasteringController = {
       }
 
       const files = fs.readdirSync(uploadDir);
-      const file = files.find(f => f.startsWith(fileId));
+      const file = files.find(f => f.startsWith(fileId) && !f.endsWith('.meta.json'));
 
       if (!file) {
         return res.status(404).json({ error: 'File not found' });
       }
 
       const filePath = path.join(uploadDir, file);
-      res.sendFile(filePath);
+      res.sendFile(path.resolve(filePath));
     } catch (error) {
       next(error);
     }

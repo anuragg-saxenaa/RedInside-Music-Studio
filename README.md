@@ -205,11 +205,17 @@ frontend/src/
 ### Audio / FFmpeg
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/audio/process` | Apply effects chain (trim, speed, volume, fade, etc.) |
+| POST | `/api/audio/process` | Apply effects chain (trim, speed, volume, fade, reverb, echo, pitch, bass) |
 | POST | `/api/audio/trim` | Trim audio |
 | GET | `/api/audio/:id/metadata` | Get audio metadata |
+| POST | `/api/audio/remove-vocals` | Queue vocal removal job (Demucs AI or FFmpeg fallback) → 202 + jobId |
 | POST | `/api/ffmpeg/convert-bitrate` | Convert bitrate |
 | POST | `/api/ffmpeg/merge` | Merge audio files |
+
+### YouTube Downloader
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/downloader/youtube` | Queue yt-dlp download → saves best-quality MP3 to Music library → 202 + jobId |
 
 ### Mastering
 | Method | Endpoint | Description |
@@ -218,6 +224,8 @@ frontend/src/
 | POST | `/api/mastering/process` | Master file to Spotify standard |
 | POST | `/api/mastering/save-to-music` | Save mastered file to Music library |
 | GET | `/api/mastering/zip` | Download mastered files as ZIP |
+| GET | `/api/mastering/:fileId/file/:projectId` | Serve original uploaded audio |
+| GET | `/api/mastering/:fileId/download/:projectId` | Download mastered audio |
 | GET | `/api/mastering/files/:projectId` | List project mastering files |
 
 ### Medley
@@ -305,6 +313,76 @@ npm run dev          # Vite dev server
 npm run build        # Production build
 npx playwright test  # Run E2E tests (auto-starts mock stack)
 ```
+
+---
+
+## End-to-End Flow
+
+```
+User creates project
+        │
+        ▼
+1. LYRICS STEP
+   POST /api/lyrics/generate → synchronous AI call → LyricsGeneration record
+        │
+        ▼
+2. MUSIC STEP
+   POST /api/music/generate → BullMQ job queued → 202 + jobId
+   Worker: MiniMax music API → download MP3 → auto-convert 320kbps → MusicGeneration record
+   WebSocket: job.progress / job.completed events → UI updates in real-time
+   
+   [Optional] YouTube Import:
+   POST /api/downloader/youtube → yt-dlp downloads → MusicGeneration record
+   
+   [Optional] Vocal Removal:
+   POST /api/audio/remove-vocals → BullMQ job → Demucs (AI) or FFmpeg fallback
+   → instrumental MusicGeneration record with isInstrumental=true
+        │
+        ▼
+3. ARTWORK STEP
+   POST /api/image/generate → MiniMax image API → base64 saved to artwork dir
+        │
+        ▼
+4. VIDEO STEP
+   POST /api/video/generate → BullMQ job → MiniMax async video → poll status → MP4 file
+        │
+        ▼
+5. VOICE STEP
+   POST /api/voice/design or /api/voice/clone → custom AI voice for project
+        │
+        ▼
+6. MEDLEY STEP
+   POST /api/medley + tracks → POST /api/medley/:id/export → FFmpeg concat → MP3
+        │
+        ▼
+7. EXPORT / MASTERING STEP
+   POST /api/mastering/upload → POST /api/mastering/process (−14 LUFS)
+   → POST /api/mastering/save-to-music or GET /api/mastering/zip
+```
+
+See `docs/superpowers/specs/2026-05-05-architecture-flow.md` for full technical detail:
+module design, DB schema, storage layout, WebSocket protocol, all API endpoints.
+
+---
+
+## Contributing
+
+```bash
+# Run backend integration tests (real HTTP, real FFmpeg, no mocks)
+cd backend && npm test
+
+# Run frontend E2E tests (real browser, real stack)
+cd frontend && npx playwright test
+
+# Start mock API for development (no MiniMax credits burned)
+cd backend && npm run mock:minimax    # terminal 1
+cd backend && npm run dev:mock        # terminal 2 (backend against mock)
+cd frontend && npm run dev            # terminal 3 (frontend)
+```
+
+**Testing rules:** Backend tests must use `fetch('http://localhost:3000/api/...')` — no mocked endpoints.
+Frontend tests must use real Playwright browser — no `page.route()` mocks.
+This ensures the contract between layers is always verified.
 
 ---
 

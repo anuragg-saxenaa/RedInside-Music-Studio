@@ -13,7 +13,7 @@ const STEPS = [
   { key: 'video', label: 'Video' },
   { key: 'voice', label: 'Voice' },
   { key: 'medley', label: 'Medley' },
-  { key: 'export', label: 'Export/Master' },
+  { key: 'export', label: 'Export' },
 ] as const;
 
 export default function WorkflowStepper({ currentStep, onStepChange, hasLyrics: _hasLyrics, hasMusic: _hasMusic }: WorkflowStepperProps) {
@@ -31,7 +31,8 @@ export default function WorkflowStepper({ currentStep, onStepChange, hasLyrics: 
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+    <div style={{ overflowX: 'auto', width: '100%' }}>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', minWidth: 'max-content', padding: '4px 8px' }}>
       {STEPS.map((step, index) => {
         const state = getStepState(step.key);
         const canAccess = canAccessStep(step.key);
@@ -40,14 +41,15 @@ export default function WorkflowStepper({ currentStep, onStepChange, hasLyrics: 
           const base = {
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            padding: '10px 20px',
+            gap: '6px',
+            padding: '7px 12px',
             borderRadius: '9999px',
             border: 'none',
-            fontSize: '14px',
+            fontSize: '12px',
             fontWeight: 500,
             cursor: canAccess ? 'pointer' : 'not-allowed',
             transition: 'all 150ms ease',
+            whiteSpace: 'nowrap' as const,
           };
 
           if (state === 'completed') {
@@ -84,17 +86,19 @@ export default function WorkflowStepper({ currentStep, onStepChange, hasLyrics: 
             {index < STEPS.length - 1 && (
               <div
                 style={{
-                  width: '40px',
+                  width: '20px',
                   height: '2px',
                   backgroundColor: state === 'completed' ? '#00D26A' : '#2A2A2A',
-                  marginLeft: '8px',
-                  marginRight: '8px',
+                  marginLeft: '4px',
+                  marginRight: '4px',
+                  flexShrink: 0,
                 }}
               />
             )}
           </div>
         );
       })}
+    </div>
     </div>
   );
 }

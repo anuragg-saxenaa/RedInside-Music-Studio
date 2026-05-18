@@ -229,6 +229,28 @@ describe('Mastering API - Multi-file Upload', () => {
     assert.strictEqual(musicList.length, 1);
   });
 
+  it('GET /api/mastering/:fileId/file/:projectId serves original audio bytes', async () => {
+    const projectId = 'test-serve-orig-' + Date.now();
+    const fileData = fs.readFileSync(FIXTURE);
+    const { options, body } = createMultiPartRequest([
+      { name: 'original.mp3', data: fileData },
+    ], projectId);
+
+    const uploadRes = await makeRequest(options, body);
+    assert.strictEqual(uploadRes.status, 200);
+    const { files: [{ id: fileId }] } = uploadRes.data;
+
+    const serveRes = await fetch(`http://localhost:3000/api/mastering/${fileId}/file/${projectId}`);
+    assert.strictEqual(serveRes.status, 200, `Expected 200, got ${serveRes.status}`);
+    const contentType = serveRes.headers.get('content-type');
+    assert.ok(
+      contentType && (contentType.includes('audio') || contentType.includes('octet-stream')),
+      `Expected audio content-type, got: ${contentType}`
+    );
+    const buf = await serveRes.arrayBuffer();
+    assert.ok(buf.byteLength > 0, 'Served file must not be empty');
+  });
+
   it('creates ZIP of selected mastered files', async () => {
     const projectId = 'test-zip-' + Date.now();
 

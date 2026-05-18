@@ -1,0 +1,135 @@
+<h2>Audio Editor — UI Redesign Direction</h2>
+<p class="subtitle">Three distinct aesthetic approaches. Pick the one that feels right for a desi hip-hop studio.</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="darkdaw" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0a0a0a;padding:16px;font-family:'JetBrains Mono',monospace;min-height:220px">
+      <!-- Dark DAW mockup -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <div style="width:8px;height:8px;border-radius:50%;background:#E63946;box-shadow:0 0 6px #E63946"></div>
+        <span style="color:#888;font-size:10px;letter-spacing:3px">AUDIO EDITOR PRO</span>
+        <div style="margin-left:auto;background:#1a1a1a;border:1px solid #333;border-radius:4px;padding:2px 8px;font-size:10px;color:#00D26A">VOCAL REMOVE</div>
+      </div>
+      <div style="background:#111;border:1px solid #222;border-radius:6px;padding:8px;margin-bottom:8px">
+        <div style="height:40px;background:linear-gradient(90deg,#1a1a1a,#E63946 20%,#E63946 40%,#1a1a1a 60%,#2a1a1a 80%,#E63946);border-radius:3px;opacity:0.7"></div>
+        <div style="height:2px;background:#E63946;width:35%;margin-top:4px;border-radius:1px"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px">
+        <div style="background:#111;border:1px solid #222;border-radius:4px;padding:6px;text-align:center">
+          <div style="color:#666;font-size:8px">REVERB</div>
+          <div style="width:30px;height:30px;border-radius:50%;border:2px solid #333;margin:4px auto;position:relative">
+            <div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);width:2px;height:8px;background:#E63946;border-radius:1px"></div>
+          </div>
+          <div style="color:#fff;font-size:9px">32%</div>
+        </div>
+        <div style="background:#111;border:1px solid #222;border-radius:4px;padding:6px;text-align:center">
+          <div style="color:#666;font-size:8px">PITCH</div>
+          <div style="width:30px;height:30px;border-radius:50%;border:2px solid #E63946;margin:4px auto;position:relative">
+            <div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);width:2px;height:8px;background:#E63946;border-radius:1px"></div>
+          </div>
+          <div style="color:#E63946;font-size:9px">+2st</div>
+        </div>
+        <div style="background:#111;border:1px solid #222;border-radius:4px;padding:6px;text-align:center">
+          <div style="color:#666;font-size:8px">BASS</div>
+          <div style="width:30px;height:30px;border-radius:50%;border:2px solid #333;margin:4px auto;position:relative">
+            <div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);width:2px;height:8px;background:#FFB800;border-radius:1px"></div>
+          </div>
+          <div style="color:#FFB800;font-size:9px">+6dB</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <div style="background:#E63946;border-radius:4px;padding:4px 10px;font-size:9px;color:#fff">▶ PREVIEW</div>
+        <div style="background:#1a1a1a;border:1px solid #333;border-radius:4px;padding:4px 10px;font-size:9px;color:#888">EXPORT 320K</div>
+        <div style="margin-left:auto;background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);border-radius:4px;padding:4px 10px;font-size:9px;color:#E63946">🎤 REMOVE VOCALS</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Dark DAW — Pro Studio</h3>
+      <p>Hardware-inspired knobs, red/black palette, monospace readouts. Feels like Ableton Live. Dense, powerful, zero wasted space.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="minimal" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f5f4f0;padding:16px;font-family:'DM Sans',sans-serif;min-height:220px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <span style="color:#1a1a1a;font-size:11px;font-weight:700;letter-spacing:1px">Audio Editor</span>
+        <div style="background:#1a1a1a;color:#f5f4f0;border-radius:20px;padding:4px 12px;font-size:10px">Remove Vocals</div>
+      </div>
+      <div style="background:#fff;border-radius:8px;padding:10px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.1)">
+        <div style="height:36px;background:linear-gradient(90deg,#e8e4dc,#c5bdb0 30%,#c5bdb0 70%,#e8e4dc);border-radius:4px"></div>
+        <div style="height:2px;background:#1a1a1a;width:40%;margin-top:6px;border-radius:1px"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="color:#888;font-size:10px;width:50px">Reverb</span>
+          <div style="flex:1;height:4px;background:#e0ddd8;border-radius:2px"><div style="width:30%;height:100%;background:#1a1a1a;border-radius:2px"></div></div>
+          <span style="color:#1a1a1a;font-size:10px;font-weight:600">30%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="color:#888;font-size:10px;width:50px">Pitch</span>
+          <div style="flex:1;height:4px;background:#e0ddd8;border-radius:2px"><div style="width:60%;height:100%;background:#c0392b;border-radius:2px"></div></div>
+          <span style="color:#c0392b;font-size:10px;font-weight:600">+2 st</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="color:#888;font-size:10px;width:50px">Bass</span>
+          <div style="flex:1;height:4px;background:#e0ddd8;border-radius:2px"><div style="width:70%;height:100%;background:#1a1a1a;border-radius:2px"></div></div>
+          <span style="color:#1a1a1a;font-size:10px;font-weight:600">+6dB</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <div style="background:#1a1a1a;color:#fff;border-radius:6px;padding:6px 16px;font-size:10px;font-weight:600">Preview</div>
+        <div style="background:transparent;border:1px solid #ccc;border-radius:6px;padding:6px 16px;font-size:10px;color:#666">Export</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Editorial Minimal — Clean & Modern</h3>
+      <p>Light background, thin sliders, quiet typography. Feels like Figma or Linear. Elegant but may clash with the dark Studio aesthetic.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="neon" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#07071a;padding:16px;font-family:'Outfit',sans-serif;min-height:220px;position:relative;overflow:hidden">
+      <div style="position:absolute;top:-20px;right:-20px;width:120px;height:120px;background:radial-gradient(circle,rgba(230,57,70,0.15),transparent 70%);pointer-events:none"></div>
+      <div style="position:absolute;bottom:-20px;left:-20px;width:100px;height:100px;background:radial-gradient(circle,rgba(100,50,255,0.1),transparent 70%);pointer-events:none"></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;position:relative">
+        <span style="color:#fff;font-size:11px;font-weight:700;letter-spacing:2px">EDITOR</span>
+        <div style="margin-left:auto;background:linear-gradient(135deg,#E63946,#c0392b);border-radius:20px;padding:3px 10px;font-size:9px;color:#fff;font-weight:700;letter-spacing:1px;box-shadow:0 0 10px rgba(230,57,70,0.4)">✦ VOCAL AI</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px;margin-bottom:10px">
+        <div style="height:38px;background:linear-gradient(90deg,rgba(230,57,70,0.1),rgba(230,57,70,0.5) 30%,rgba(100,50,255,0.3) 60%,rgba(230,57,70,0.1));border-radius:4px"></div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px">
+          <div style="height:2px;width:35%;background:linear-gradient(90deg,#E63946,rgba(230,57,70,0));border-radius:1px"></div>
+          <span style="color:rgba(255,255,255,0.3);font-size:9px">2:14</span>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">
+        <div style="background:rgba(230,57,70,0.08);border:1px solid rgba(230,57,70,0.2);border-radius:6px;padding:6px;text-align:center">
+          <div style="color:rgba(255,255,255,0.4);font-size:8px;margin-bottom:4px">RVB</div>
+          <div style="color:#E63946;font-size:12px;font-weight:700">32</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:6px;text-align:center">
+          <div style="color:rgba(255,255,255,0.4);font-size:8px;margin-bottom:4px">ECH</div>
+          <div style="color:rgba(255,255,255,0.7);font-size:12px;font-weight:700">0</div>
+        </div>
+        <div style="background:rgba(255,184,0,0.08);border:1px solid rgba(255,184,0,0.2);border-radius:6px;padding:6px;text-align:center">
+          <div style="color:rgba(255,255,255,0.4);font-size:8px;margin-bottom:4px">BSS</div>
+          <div style="color:#FFB800;font-size:12px;font-weight:700">+6</div>
+        </div>
+        <div style="background:rgba(100,50,255,0.08);border:1px solid rgba(100,50,255,0.2);border-radius:6px;padding:6px;text-align:center">
+          <div style="color:rgba(255,255,255,0.4);font-size:8px;margin-bottom:4px">PCH</div>
+          <div style="color:#a78bfa;font-size:12px;font-weight:700">+2</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <div style="background:linear-gradient(135deg,#E63946,#c0392b);border-radius:6px;padding:5px 14px;font-size:9px;color:#fff;font-weight:700;box-shadow:0 0 12px rgba(230,57,70,0.3)">▶ PLAY</div>
+        <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 10px;font-size:9px;color:rgba(255,255,255,0.5);text-align:center">EXPORT</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Neon Dark — Futuristic & Immersive</h3>
+      <p>Deep navy/black, glowing accents, gradient waveform. Fits perfectly with the RedInside dark theme. Feels premium and music-native.</p>
+    </div>
+  </div>
+
+</div>
