@@ -56,7 +56,8 @@ export function useRealtimeAudio({
 
     return () => {
       cancelled = true;
-      sourceRef.current?.stop();
+      try { sourceRef.current?.stop(); } catch { /* never started */ }
+      sourceRef.current = null;
       cancelAnimationFrame(rafRef.current);
       ctx.close();
       ctxRef.current = null;
@@ -70,7 +71,8 @@ export function useRealtimeAudio({
     const buffer = bufferRef.current;
     if (!ctx || !buffer) return;
 
-    sourceRef.current?.stop();
+    try { sourceRef.current?.stop(); } catch { /* node never started — safe to ignore */ }
+    sourceRef.current = null;
     cancelAnimationFrame(rafRef.current);
 
     const ops = operationsRef.current;
@@ -187,7 +189,8 @@ export function useRealtimeAudio({
   // Play/pause
   useEffect(() => {
     if (!isPlaying) {
-      sourceRef.current?.stop();
+      try { sourceRef.current?.stop(); } catch { /* never started */ }
+      sourceRef.current = null;
       cancelAnimationFrame(rafRef.current);
       const ctx = ctxRef.current;
       if (ctx) {
