@@ -306,6 +306,7 @@ function ProjectSelector({ onCreate, onLoad }: {
                 onDelete={deleteProject}
                 onRename={renameProject}
                 index={i}
+                isLast={i === recentProjects.length - 1 && olderProjects.length === 0}
               />
             ))}
           </div>
@@ -334,6 +335,7 @@ function ProjectSelector({ onCreate, onLoad }: {
                 onDelete={deleteProject}
                 onRename={renameProject}
                 index={i + 3}
+                isLast={i === olderProjects.length - 1}
               />
             ))}
           </div>
@@ -362,12 +364,13 @@ function ProjectSelector({ onCreate, onLoad }: {
   );
 }
 
-function ProjectCard({ project, onClick, onDelete, onRename, index }: {
+function ProjectCard({ project, onClick, onDelete, onRename, index, isLast }: {
   project: Project;
   onClick: () => void;
   onDelete: (id: string) => void;
   onRename: (id: string, name: string) => void;
   index: number;
+  isLast?: boolean;
 }) {
   const [showMenu, setShowMenu] = useState(false);
   const hasLyrics = project.current_lyrics_version > 0;
@@ -477,7 +480,7 @@ function ProjectCard({ project, onClick, onDelete, onRename, index }: {
               <div style={{
                 position: 'absolute',
                 right: 0,
-                top: '100%',
+                ...(isLast ? { bottom: '100%' } : { top: '100%' }),
                 backgroundColor: '#1E1E1E',
                 border: '1px solid #2A2A2A',
                 borderRadius: '8px',

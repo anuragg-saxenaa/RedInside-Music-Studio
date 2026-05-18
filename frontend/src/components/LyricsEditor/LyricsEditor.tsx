@@ -28,6 +28,7 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
   const [editPreset, setEditPreset] = useState('hinglish-urban');
   const [editing, setEditing] = useState(false);
   const [editError, setEditError] = useState<unknown>(null);
+  const [newlyGeneratedId, setNewlyGeneratedId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/lyrics/presets')
@@ -74,6 +75,7 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
 
       const lyrics = await response.json();
       setLyricsHistory(prev => [lyrics, ...prev]);
+      setNewlyGeneratedId(lyrics.id);
       onLyricsGenerated(lyrics);
     } catch (err) {
       setError(err);
@@ -247,51 +249,96 @@ export default function LyricsEditor({ projectId, onLyricsGenerated }: LyricsEdi
             Previous Versions
           </h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {lyricsHistory.map(lyrics => (
-              <div
-                key={lyrics.id}
-                data-testid="lyrics-history-item"
-                style={{
-                  backgroundColor: '#1E1E1E',
-                  padding: '16px',
-                  borderRadius: '10px',
-                  border: '1px solid #2A2A2A',
-                  transition: 'all 150ms ease',
-                  cursor: 'pointer',
-                }}
-                onClick={() => setSelectedLyrics(lyrics)}
-                onMouseOver={(e) => {
-                  (e.currentTarget as HTMLElement).style.borderColor = '#E63946';
-                  (e.currentTarget as HTMLElement).style.backgroundColor = '#282828';
-                }}
-                onMouseOut={(e) => {
-                  (e.currentTarget as HTMLElement).style.borderColor = '#2A2A2A';
-                  (e.currentTarget as HTMLElement).style.backgroundColor = '#1E1E1E';
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: '#FFFFFF', fontSize: '14px', fontWeight: 500 }}>
-                      {lyrics.title || `Version ${lyrics.version}`}
-                    </span>
-                    <span style={{
-                      backgroundColor: '#2A2A2A',
-                      color: '#A0A0A0',
-                      fontSize: '11px',
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontFamily: 'JetBrains Mono, monospace'
-                    }}>
-                      {lyrics.style_preset}
-                    </span>
+            {lyricsHistory.map(lyrics => {
+              const isExpanded = lyrics.id === newlyGeneratedId;
+              return (
+                <div
+                  key={lyrics.id}
+                  data-testid="lyrics-history-item"
+                  style={{
+                    backgroundColor: isExpanded ? '#1A1A1A' : '#1E1E1E',
+                    padding: '16px',
+                    borderRadius: '10px',
+                    border: `1px solid ${isExpanded ? '#E63946' : '#2A2A2A'}`,
+                    transition: 'all 150ms ease',
+                    cursor: isExpanded ? 'default' : 'pointer',
+                  }}
+                  onClick={() => { if (!isExpanded) setSelectedLyrics(lyrics); }}
+                  onMouseOver={(e) => {
+                    if (!isExpanded) {
+                      (e.currentTarget as HTMLElement).style.borderColor = '#E63946';
+                      (e.currentTarget as HTMLElement).style.backgroundColor = '#282828';
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (!isExpanded) {
+                      (e.currentTarget as HTMLElement).style.borderColor = '#2A2A2A';
+                      (e.currentTarget as HTMLElement).style.backgroundColor = '#1E1E1E';
+                    }
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ color: '#FFFFFF', fontSize: '14px', fontWeight: 500 }}>
+                        {lyrics.title || `Version ${lyrics.version}`}
+                      </span>
+                      {isExpanded && (
+                        <span style={{ backgroundColor: '#E63946', color: '#FFF', fontSize: '10px', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                          NEW
+                        </span>
+                      )}
+                      <span style={{
+                        backgroundColor: '#2A2A2A',
+                        color: '#A0A0A0',
+                        fontSize: '11px',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontFamily: 'JetBrains Mono, monospace'
+                      }}>
+                        {lyrics.style_preset}
+                      </span>
+                    </div>
+                    {isExpanded ? (
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); startEdit(lyrics); setNewlyGeneratedId(null); }}
+                          style={{ background: '#2A2A2A', border: 'none', color: '#A0A0A0', padding: '4px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setNewlyGeneratedId(null); }}
+                          style={{ background: 'none', border: 'none', color: '#666', fontSize: '18px', cursor: 'pointer', lineHeight: 1 }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      <span style={{ color: '#666666', fontSize: '12px' }}>Click to view →</span>
+                    )}
                   </div>
-                  <span style={{ color: '#666666', fontSize: '12px' }}>Click to view →</span>
+                  {isExpanded ? (
+                    <pre style={{
+                      color: '#FFFFFF',
+                      fontSize: '13px',
+                      lineHeight: 1.7,
+                      fontFamily: 'DM Sans, sans-serif',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      margin: 0,
+                      maxHeight: '300px',
+                      overflowY: 'auto',
+                    }}>
+                      {lyrics.content}
+                    </pre>
+                  ) : (
+                    <p style={{ color: '#666666', fontSize: '13px', lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                      {lyrics.content}
+                    </p>
+                  )}
                 </div>
-                <p style={{ color: '#666666', fontSize: '13px', lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                  {lyrics.content}
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
