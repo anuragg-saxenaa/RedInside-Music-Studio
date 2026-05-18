@@ -9,6 +9,7 @@ import WorkflowStepper from '../components/WorkflowControl/WorkflowStepper';
 import CompactPlayer from '../components/MusicPlayer/CompactPlayer';
 import AudioMasteringPanel from '../components/Mastering/AudioMasteringPanel';
 import MedleyPanel from '../components/Medley/MedleyPanel';
+import YoutubeDownloader from '../components/Downloader/YoutubeDownloader';
 
 interface StudioProps {
   project: Project;
@@ -133,6 +134,10 @@ export default function Studio({ project, onBack }: StudioProps) {
             />
           </div>
           <div style={{ display: currentStep === 'music' ? 'block' : 'none' }}>
+            <YoutubeDownloader
+              projectId={project.id}
+              onDownloaded={() => { setHasMusic(true); fetchMusicList(); }}
+            />
             <MusicPlayer
               projectId={project.id}
               selectedLyrics={selectedLyrics}
