@@ -577,4 +577,33 @@ export const AudioController = {
       res.json({ message: 'Pitch shifted successfully', ...result });
     } catch (error) { next(error); }
   },
+
+  async removeVocals(req, res, next) {
+    try {
+      const { musicId, projectId } = req.body;
+      if (!musicId) return res.status(400).json({ error: 'musicId is required' });
+      if (!projectId) return res.status(400).json({ error: 'projectId is required' });
+
+      const { MusicModel } = await import('../../database/models/music.model.js');
+      const music = MusicModel.findById(musicId);
+      if (!music) return res.status(404).json({ error: 'Music not found' });
+
+      const inputPath = music.processed_file_path || music.original_file_path;
+      if (!inputPath || !fs.existsSync(inputPath)) {
+        return res.status(404).json({ error: 'Audio file not found on disk' });
+      }
+
+      const { queues } = await import('../../queue/queue.config.js');
+      const job = await queues.vocalRemoval.add('remove-vocals', {
+        musicId,
+        projectId,
+        inputPath,
+        originalTitle: music.title || 'Track',
+      });
+
+      res.status(202).json({ jobId: job.id });
+    } catch (err) {
+      next(err);
+    }
+  },
 };

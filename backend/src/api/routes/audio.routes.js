@@ -76,4 +76,9 @@ export const AudioRoutes = [
     path: '/api/audio/file/*',
     handler: AudioController.getFile,
   },
+  {
+    method: 'post',
+    path: '/api/audio/remove-vocals',
+    handler: AudioController.removeVocals,
+  },
 ];
