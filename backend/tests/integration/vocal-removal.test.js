@@ -9,7 +9,7 @@ describe('VocalRemovalService.detectEngine', () => {
   });
 });
 
-const BASE = 'http://localhost:3001';
+const BASE = 'http://localhost:3000';
 
 describe('POST /api/audio/remove-vocals', () => {
   it('returns 400 when musicId missing', async () => {

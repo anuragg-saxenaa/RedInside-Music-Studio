@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-const BASE = 'http://localhost:3001';
+const BASE = 'http://localhost:3000';
 
 describe('POST /api/downloader/youtube', () => {
   it('returns 400 when url missing', async () => {
