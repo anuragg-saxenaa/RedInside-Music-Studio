@@ -48,6 +48,16 @@ export const MedleyRoutes = [
   },
   {
     method: 'get',
+    path: '/api/medley/:id/file',
+    handler: MedleyController.serveFile,
+  },
+  {
+    method: 'post',
+    path: '/api/medley/:id/save-to-music',
+    handler: MedleyController.saveToMusic,
+  },
+  {
+    method: 'get',
     path: '/api/medley/:id/duration',
     handler: MedleyController.getDuration,
   },

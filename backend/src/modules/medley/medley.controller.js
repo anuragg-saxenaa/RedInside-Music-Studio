@@ -2,6 +2,8 @@ import medleyService from './medley.service.js';
 import { MedleyModel } from '../../database/models/medley.model.js';
 import logger from '../../utils/logger.js';
 import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
 
 export class MedleyController {
   /**
@@ -216,6 +218,73 @@ export class MedleyController {
         return res.status(400).json({ error: error.message });
       }
       logger.error('Failed to export medley', { error: error.message });
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  /**
+   * Serve exported medley file
+   * GET /api/medley/:id/file
+   */
+  static async serveFile(req, res) {
+    try {
+      const { id } = req.params;
+      const medley = MedleyModel.findById(id);
+      if (!medley) return res.status(404).json({ error: 'Medley not found' });
+      if (!medley.output_file_path || !fs.existsSync(medley.output_file_path)) {
+        return res.status(404).json({ error: 'Exported file not found — export the medley first' });
+      }
+      const ext = path.extname(medley.output_file_path).toLowerCase();
+      const contentType = ext === '.wav' ? 'audio/wav' : ext === '.flac' ? 'audio/flac' : 'audio/mpeg';
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `attachment; filename="${path.basename(medley.output_file_path)}"`);
+      fs.createReadStream(medley.output_file_path).pipe(res);
+    } catch (error) {
+      logger.error('Failed to serve medley file', { error: error.message });
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  /**
+   * Save exported medley as a Music library record
+   * POST /api/medley/:id/save-to-music
+   */
+  static async saveToMusic(req, res) {
+    try {
+      const { id } = req.params;
+      const medley = MedleyModel.findById(id);
+      if (!medley) return res.status(404).json({ error: 'Medley not found' });
+      if (!medley.output_file_path || !fs.existsSync(medley.output_file_path)) {
+        return res.status(400).json({ error: 'Export the medley before saving to Music' });
+      }
+
+      let durationSeconds = medley.total_duration || 0;
+      if (!durationSeconds) {
+        try {
+          const out = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${medley.output_file_path}"`, { encoding: 'utf8' });
+          durationSeconds = parseFloat(out.trim()) || 0;
+        } catch (_) {}
+      }
+
+      const { MusicModel } = await import('../../database/models/music.model.js');
+      const { ProjectModel } = await import('../../database/models/project.model.js');
+
+      const version = MusicModel.getNextVersion(medley.project_id);
+      const music = MusicModel.create({
+        projectId: medley.project_id,
+        version,
+        originalFilePath: medley.output_file_path,
+        processedFilePath: medley.output_file_path,
+        title: medley.name,
+        model: 'medley',
+        durationSeconds,
+      });
+      ProjectModel.incrementVersion(medley.project_id, 'music');
+
+      logger.info('Medley saved to music library', { medleyId: id, musicId: music.id });
+      res.json({ musicId: music.id, version, title: medley.name });
+    } catch (error) {
+      logger.error('Failed to save medley to music', { error: error.message });
       res.status(500).json({ error: error.message });
     }
   }

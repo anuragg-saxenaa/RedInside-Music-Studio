@@ -301,7 +301,10 @@ export class MedleyService {
       duration: result.duration,
     });
 
-    return result;
+    return {
+      ...result,
+      downloadUrl: `/api/medley/${medleyId}/file`,
+    };
   }
 
   /**

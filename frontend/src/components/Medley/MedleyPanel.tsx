@@ -122,6 +122,8 @@ export default function MedleyPanel({ projectId, musicList }: MedleyPanelProps) 
   const [exporting, setExporting] = useState(false);
   const [exportResult, setExportResult] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [savingToMusic, setSavingToMusic] = useState(false);
+  const [savedToMusic, setSavedToMusic] = useState(false);
   const [totalDuration, setTotalDuration] = useState<number>(0);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
@@ -257,6 +259,7 @@ export default function MedleyPanel({ projectId, musicList }: MedleyPanelProps) 
     setExporting(true);
     setExportResult(null);
     setExportError(null);
+    setSavedToMusic(false);
     const res = await fetch(`/api/medley/${selected.id}/export`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -269,6 +272,19 @@ export default function MedleyPanel({ projectId, musicList }: MedleyPanelProps) 
     } else {
       const err = await res.json().catch(() => ({ error: 'Export failed' }));
       setExportError(err.error || 'Export failed');
+    }
+  };
+
+  const handleSaveToMusic = async () => {
+    if (!selected) return;
+    setSavingToMusic(true);
+    const res = await fetch(`/api/medley/${selected.id}/save-to-music`, { method: 'POST' });
+    setSavingToMusic(false);
+    if (res.ok) {
+      setSavedToMusic(true);
+    } else {
+      const err = await res.json().catch(() => ({ error: 'Save failed' }));
+      setExportError(err.error || 'Save to Music failed');
     }
   };
 
@@ -780,10 +796,34 @@ export default function MedleyPanel({ projectId, musicList }: MedleyPanelProps) 
 
               {/* Export result / error */}
               {exportResult && (
-                <div style={S.toast(true)}>
-                  <CheckIcon /> Exported · {exportResult.startsWith('/') ? (
-                    <a href={exportResult} download style={{ color: 'inherit', textDecoration: 'underline' }}>Download</a>
-                  ) : 'Ready'}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={S.toast(true)}>
+                    <CheckIcon /> Exported ·{' '}
+                    <a href={exportResult} download style={{ color: 'inherit', textDecoration: 'underline' }}>Download MP3</a>
+                  </div>
+                  {savedToMusic ? (
+                    <div style={S.toast(true)}>
+                      <CheckIcon /> Saved to Music Library — go to Music step to play it
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleSaveToMusic}
+                      disabled={savingToMusic}
+                      style={{
+                        background: '#1E1E1E',
+                        border: '1px solid #E63946',
+                        color: '#E63946',
+                        borderRadius: '6px',
+                        padding: '8px 16px',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        cursor: savingToMusic ? 'not-allowed' : 'pointer',
+                        alignSelf: 'flex-start',
+                      }}
+                    >
+                      {savingToMusic ? 'Saving…' : '+ Save to Music Library'}
+                    </button>
+                  )}
                 </div>
               )}
               {exportError && (
