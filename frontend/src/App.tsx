@@ -4,6 +4,7 @@ import History from './pages/History';
 import ViralToolkit from './pages/ViralToolkit';
 import Settings from './pages/Settings';
 import type { Project, LyricsGeneration, MusicGeneration } from './types';
+import { SharedAudioProvider } from './contexts/SharedAudioContext';
 
 // Re-export for backwards compatibility
 export type { Project, LyricsGeneration, MusicGeneration };
@@ -54,6 +55,7 @@ function App() {
   };
 
   return (
+    <SharedAudioProvider>
     <div style={{ backgroundColor: '#0A0A0A', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif', position: 'relative', overflow: 'hidden' }}>
       {/* Geometric background pattern */}
       <div style={{
@@ -156,6 +158,7 @@ function App() {
         )}
       </main>
     </div>
+    </SharedAudioProvider>
   );
 }
 
