@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Last verified:** 2026-05-18 (session 17)
+**Last verified:** 2026-05-18 (session 18)
 **E2E tests:** 368 passing, 0 failing (Playwright — real browser, real backend, mock MiniMax)
 **Backend tests:** 175 passing, 1 skipped, 0 failing (Node test runner — real HTTP, real SQLite, real FFmpeg)
 **TypeScript:** 0 errors
@@ -41,6 +41,8 @@
 | Batch mastering (upload, process, ZIP, save-to-music) | ✅ | ✅ |
 | Spotify auto-mastering (−14 LUFS, auto on music generation) | ✅ | ✅ |
 | Medley mixer (multi-track concat, crossfade, export) | ✅ | ✅ |
+| Medley file download (`GET /api/medley/:id/file`) | ✅ | ✅ |
+| Medley save-to-music (`POST /api/medley/:id/save-to-music`) | ✅ | ✅ |
 | Medley UI panel (`MedleyPanel.tsx`) | ✅ | ✅ |
 | Artwork generation (MiniMax image API) | ✅ | ✅ |
 | Per-track artwork (persisted, loaded on artwork step) | ✅ | ✅ |
@@ -53,6 +55,25 @@
 | Compact persistent player bar | ✅ | ✅ |
 | Double-click track → opens audio editor | ✅ | ✅ |
 | Free workflow step navigation (all steps always accessible) | ✅ | ✅ |
+
+---
+
+## Session 18 Changes (2026-05-18)
+
+### Bugs Fixed
+
+| Bug | Root Cause | Fix |
+|-----|-----------|-----|
+| Last project in list had no Delete option | Dropdown opened downward, clipped below viewport | `isLast` prop flips dropdown to `bottom: 100%` for last card |
+| Generated lyrics not visible after generation | Lyrics added to history but no auto-expansion | New `newlyGeneratedId` state auto-expands latest item inline with full content + NEW badge |
+| Medley export unusable — no download, no music library | No `GET /api/medley/:id/file` endpoint; no save-to-music; `downloadUrl` missing from response | Added file-serve route, `save-to-music` route, `downloadUrl` in export response, Save to Music Library button in UI |
+
+### Architecture Docs Updated
+
+| Change | Details |
+|--------|---------|
+| `docs/superpowers/specs/2026-05-05-architecture-flow.md` | Full rewrite — reflects complete 8-step workflow, all modules, WebSocket flow, medley flow, mastering flow, generation chain linking, complete DB schema, full API surface |
+| `README.md` | Added `GET /api/medley/:id/file` and `POST /api/medley/:id/save-to-music` to API reference |
 
 ---
 

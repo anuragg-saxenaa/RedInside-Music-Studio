@@ -232,6 +232,8 @@ frontend/src/
 | PUT | `/api/medley/:id/tracks` | Reorder tracks |
 | DELETE | `/api/medley/:id/tracks/:trackId` | Remove track |
 | POST | `/api/medley/:id/export` | Export merged audio |
+| GET | `/api/medley/:id/file` | Stream exported file |
+| POST | `/api/medley/:id/save-to-music` | Save export to Music library |
 
 ### Video
 | Method | Endpoint | Description |
