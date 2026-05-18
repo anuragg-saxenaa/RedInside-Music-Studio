@@ -30,6 +30,8 @@ export function useWebSocket(onEvent: WSHandler) {
       const socket = new WebSocket(WS_URL);
       ws.current = socket;
 
+      (window as unknown as Record<string, unknown>).__studioWs = socket;
+
       socket.onmessage = (e) => {
         try {
           const event = JSON.parse(e.data) as WSEvent;

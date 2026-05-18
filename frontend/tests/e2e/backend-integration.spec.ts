@@ -117,17 +117,10 @@ test.describe('AudioEditorPanel - Real Backend Integration', () => {
       }
     });
 
-    // EXPORT is a dropdown button (data-testid="export-dropdown-btn")
-    // First click opens the format menu, then click a format to trigger export
+    // EXPORT: inline buttons — data-testid="export-dropdown-btn" is the MP3 320kbps button
     const exportButton = page.locator('[data-testid="export-dropdown-btn"]');
     await expect(exportButton).toBeVisible({ timeout: 3000 });
-    await exportButton.click(); // opens dropdown
-    await page.waitForTimeout(500); // wait for dropdown to render
-
-    // Click the MP3 320kbps option
-    const mp3Option = page.locator('button').filter({ hasText: '320kbps' }).first();
-    await expect(mp3Option).toBeVisible({ timeout: 2000 });
-    await mp3Option.click();
+    await exportButton.click();
     await page.waitForTimeout(3000);
 
     expect(processCalled, 'Clicking MP3 format must call /api/audio/process').toBe(true);

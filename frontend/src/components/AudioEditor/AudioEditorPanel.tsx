@@ -171,7 +171,7 @@ export default function AudioEditorPanel({
   ].filter(Boolean).length;
 
   return (
-    <div style={{
+    <div data-testid="audio-editor-panel" style={{
       background: '#07071a',
       borderRadius: 12,
       border: '1px solid rgba(255,255,255,0.08)',

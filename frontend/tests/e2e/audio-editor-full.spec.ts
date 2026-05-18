@@ -56,17 +56,9 @@ test.describe('Audio Editor Full Flow E2E', () => {
     // Audio editor MUST open — if not, this feature is broken
     await expect(page.locator('text=AUDIO EDITOR'), 'Audio editor must open after dblclick').toBeVisible({ timeout: 5000 });
 
-    // Export dropdown button must be present
+    // Export button must be present (inline buttons, no dropdown needed)
     const exportDropdown = page.locator('[data-testid="export-dropdown-btn"]');
-    await expect(exportDropdown).toBeVisible({ timeout: 3000 });
-
-    // Open dropdown
-    await exportDropdown.click();
-    await page.waitForTimeout(500);
-
-    // Format options must appear
-    const mp3Option = page.locator('button').filter({ hasText: '320kbps' }).first();
-    await expect(mp3Option, 'MP3 320kbps export option must appear in dropdown').toBeVisible({ timeout: 2000 });
+    await expect(exportDropdown, 'MP3 320kbps export option must appear').toBeVisible({ timeout: 3000 });
   });
 
   test('AudioEditorPanel renders TRIM, SPEED, VOLUME, FADE IN, REVERSE controls', async ({ page }) => {

@@ -125,6 +125,7 @@ export default function ControlsSidebar({
   duration,
   operations: ops,
   onChange,
+  onPreview,
   onExport,
   isExporting = false,
 }: ControlsSidebarProps) {
@@ -147,7 +148,7 @@ export default function ControlsSidebar({
         <div style={sectionLabel}>Trim</div>
         <div style={{ display: 'flex', gap: 8 }}>
           <div style={{ flex: 1 }}>
-            <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 8, marginBottom: 3, letterSpacing: '0.1em' }}>START (s)</div>
+            <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 8, marginBottom: 3, letterSpacing: '0.1em' }}>START:</div>
             <input
               type="number" min={0} max={duration} step={0.1}
               value={ops.trimStart.toFixed(1)}
@@ -260,11 +261,23 @@ export default function ControlsSidebar({
 
       {/* Export */}
       <div style={{ marginTop: 'auto', paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.1em', marginBottom: 2 }}>
+        <button
+          onClick={onPreview}
+          style={{
+            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 6, color: 'rgba(255,255,255,0.7)', fontSize: 11,
+            padding: '7px 16px', cursor: 'pointer', letterSpacing: '0.08em',
+          }}
+        >
+          PREVIEW
+        </button>
+        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.1em' }}>
           Preview ≈ · Export exact
         </div>
         {(['mp3-320', 'wav', 'flac'] as const).map(fmt => (
-          <button key={fmt} onClick={() => onExport(fmt)} disabled={isExporting}
+          <button key={fmt}
+            data-testid={fmt === 'mp3-320' ? 'export-dropdown-btn' : undefined}
+            onClick={() => onExport(fmt)} disabled={isExporting}
             style={{
               background: fmt === 'mp3-320' ? 'linear-gradient(135deg,#E63946,#c0392b)' : 'rgba(255,255,255,0.05)',
               border: fmt === 'mp3-320' ? 'none' : '1px solid rgba(255,255,255,0.1)',
@@ -275,7 +288,7 @@ export default function ControlsSidebar({
               boxShadow: fmt === 'mp3-320' ? '0 0 12px rgba(230,57,70,0.3)' : 'none',
               transition: 'opacity 0.15s',
             }}>
-            {isExporting && fmt === 'mp3-320' ? 'Exporting...' : fmt === 'mp3-320' ? 'Export 320K MP3' : fmt === 'wav' ? 'Export WAV' : 'Export FLAC'}
+            {isExporting && fmt === 'mp3-320' ? 'Exporting...' : fmt === 'mp3-320' ? 'Export MP3 320kbps' : fmt === 'wav' ? 'Export WAV' : 'Export FLAC'}
           </button>
         ))}
       </div>

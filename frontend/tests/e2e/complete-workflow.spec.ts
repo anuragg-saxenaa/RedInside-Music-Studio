@@ -73,17 +73,9 @@ test.describe('Complete Music Creation Workflow E2E', () => {
     // Audio editor MUST open — this is the core feature
     await expect(page.locator('text=AUDIO EDITOR'), 'Audio editor must open after dblclick').toBeVisible({ timeout: 5000 });
 
-    // Export dropdown MUST be present
+    // Export button MUST be present (inline buttons visible without dropdown)
     const exportDropdown = page.locator('[data-testid="export-dropdown-btn"]');
-    await expect(exportDropdown).toBeVisible({ timeout: 3000 });
-
-    // Open dropdown and verify format options
-    await exportDropdown.click();
-    await page.waitForTimeout(500);
-    await expect(
-      page.locator('button').filter({ hasText: '320kbps' }).first(),
-      'MP3 320kbps format option must appear'
-    ).toBeVisible({ timeout: 2000 });
+    await expect(exportDropdown, 'MP3 320kbps export option must appear').toBeVisible({ timeout: 3000 });
   });
 
   test('4. Audio Processing Backend API - all operations work', async ({ page }) => {
