@@ -27,6 +27,31 @@ export default function AudioMasteringPanel({ projectId, allMusic }: AudioMaster
   const [editingFile, setEditingFile] = useState<FileInfo | null>(null);
   const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null);
 
+  // Load previously uploaded mastering files on mount
+  useEffect(() => {
+    if (!projectId) return;
+    fetch(`/api/mastering/files/${projectId}`)
+      .then(r => r.ok ? r.json() : { files: [] })
+      .then(data => {
+        if (!data.files?.length) return;
+        setFiles(prev => {
+          const existingIds = new Set(prev.map(f => f.id));
+          const restored: FileInfo[] = data.files
+            .filter((f: any) => !existingIds.has(f.id))
+            .map((f: any) => ({
+              id: f.id,
+              filename: f.filename,
+              status: (f.status === 'mastered' ? 'complete' : 'idle') as FileInfo['status'],
+              progress: f.status === 'mastered' ? 100 : 0,
+              duration: f.duration,
+              filePath: f.originalPath,
+            }));
+          return [...prev, ...restored];
+        });
+      })
+      .catch(() => {});
+  }, [projectId]);
+
   useEffect(() => {
     if (!allMusic || allMusic.length === 0) return;
     setFiles(prev => {
@@ -208,7 +233,9 @@ export default function AudioMasteringPanel({ projectId, allMusic }: AudioMaster
 
   // If editing a file, show AudioEditorPanel instead
   if (editingFile) {
-    const audioUrl = `/api/mastering/${editingFile.id}/file/${projectId}`;
+    const audioUrl = editingFile.musicId
+      ? `/api/music/${editingFile.musicId}/file`
+      : `/api/mastering/${editingFile.id}/file/${projectId}`;
     return (
       <div style={{
         background: 'linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 100%)',
