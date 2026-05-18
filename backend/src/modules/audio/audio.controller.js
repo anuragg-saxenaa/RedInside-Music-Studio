@@ -4,6 +4,7 @@ import logger from '../../utils/logger.js';
 import fs from 'fs';
 import path from 'path';
 import { AudioMasteringService } from '../mastering/mastering.service.js';
+import { JobModel } from '../../queue/jobs.service.js';
 
 /**
  * Convert HTTP URL to filesystem path for uploaded mastering files
@@ -593,15 +594,22 @@ export const AudioController = {
         return res.status(404).json({ error: 'Audio file not found on disk' });
       }
 
+      const sqliteJob = JobModel.create({
+        projectId,
+        type: 'vocal-removal',
+        inputParams: { musicId, inputPath },
+      });
+
       const { queues } = await import('../../queue/queue.config.js');
-      const job = await queues.vocalRemoval.add('remove-vocals', {
+      await queues.vocalRemoval.add('remove-vocals', {
         musicId,
         projectId,
         inputPath,
         originalTitle: music.title || 'Track',
+        jobId: sqliteJob.id,
       });
 
-      res.status(202).json({ jobId: job.id });
+      res.status(202).json({ jobId: sqliteJob.id });
     } catch (err) {
       next(err);
     }

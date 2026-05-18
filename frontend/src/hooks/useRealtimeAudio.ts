@@ -65,6 +65,7 @@ export function useRealtimeAudio({
   }, [audioUrl]);
 
   const buildGraph = useCallback(() => {
+    try {
     const ctx = ctxRef.current;
     const buffer = bufferRef.current;
     if (!ctx || !buffer) return;
@@ -153,6 +154,7 @@ export function useRealtimeAudio({
 
     if (isPlayingRef.current) {
       const offset = Math.max(0, Math.min(startOffsetRef.current, buffer.duration - 0.01));
+      ctx.resume().catch(() => {});
       source.start(0, offset);
       startedAtRef.current = ctx.currentTime - offset / speedFactor;
 
@@ -167,6 +169,9 @@ export function useRealtimeAudio({
         }
       };
       rafRef.current = requestAnimationFrame(tick);
+    }
+    } catch (e) {
+      console.error('useRealtimeAudio buildGraph error:', e);
     }
   }, [onEnded, onTimeUpdate]);
 

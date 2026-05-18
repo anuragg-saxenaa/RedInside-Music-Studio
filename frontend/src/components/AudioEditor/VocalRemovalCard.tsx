@@ -99,23 +99,40 @@ export default function VocalRemovalCard({ musicId, projectId, onCompleted }: Vo
       </div>
 
       {jobState === 'idle' && (
-        <button
-          onClick={handleStart}
-          style={{
-            background: 'linear-gradient(135deg,#E63946,#c0392b)',
-            border: 'none',
-            borderRadius: 6,
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: 11,
-            padding: '7px 16px',
-            cursor: 'pointer',
-            boxShadow: '0 0 12px rgba(230,57,70,0.3)',
-            letterSpacing: '0.05em',
-          }}
-        >
-          Remove Vocals → Instrumental
-        </button>
+        <div>
+          {healthDemucs === 'fallback' && (
+            <div style={{
+              background: 'rgba(255,184,0,0.1)',
+              border: '1px solid rgba(255,184,0,0.3)',
+              borderRadius: 6,
+              padding: '8px 12px',
+              marginBottom: 10,
+              fontSize: 10,
+              color: '#FFB800',
+              lineHeight: 1.5,
+            }}>
+              ⚠ Demucs AI not installed — falling back to FFmpeg center-channel subtraction which produces low-quality results.
+              For proper vocal separation: <code style={{ background: 'rgba(0,0,0,0.3)', padding: '1px 4px', borderRadius: 3 }}>pip install demucs</code>
+            </div>
+          )}
+          <button
+            onClick={handleStart}
+            style={{
+              background: 'linear-gradient(135deg,#E63946,#c0392b)',
+              border: 'none',
+              borderRadius: 6,
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: 11,
+              padding: '7px 16px',
+              cursor: 'pointer',
+              boxShadow: '0 0 12px rgba(230,57,70,0.3)',
+              letterSpacing: '0.05em',
+            }}
+          >
+            Remove Vocals → Instrumental
+          </button>
+        </div>
       )}
 
       {jobState === 'running' && (

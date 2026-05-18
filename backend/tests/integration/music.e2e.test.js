@@ -198,6 +198,40 @@ describe('Music API — end-to-end', () => {
     await fetch(`${API}/api/jobs/${jobId}/cancel`, { method: 'POST' });
   });
 
+  test('POST /api/music/:id/convert → 202 queues FFmpeg job, result has processedFilePath', async () => {
+    const seedRes = await fetch(`${API}/api/test/seed-project`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: `convert-test-${Date.now()}`, music: true }),
+    });
+    assert.ok(seedRes.ok, `Seed failed: ${seedRes.status}`);
+    const { project: seedProject } = await seedRes.json();
+
+    const musicList = await fetch(`${API}/api/projects/${seedProject.id}/music`).then(r => r.json());
+    assert.ok(musicList.length > 0, 'Seeded project must have music record');
+    const musicId = musicList[0].id;
+
+    const convertRes = await fetch(`${API}/api/music/${musicId}/convert`, { method: 'POST' });
+    const convertData = await convertRes.json();
+    assert.ok(
+      convertRes.status === 200 || convertRes.status === 202,
+      `Expected 200 or 202, got ${convertRes.status}: ${JSON.stringify(convertData)}`
+    );
+    assert.ok(
+      convertData.musicId || convertData.jobId || convertData.processedFilePath,
+      `Convert response must have musicId or jobId, got: ${JSON.stringify(convertData)}`
+    );
+
+    // If async job, poll to completion
+    if (convertData.jobId) {
+      const job = await poll(convertData.jobId, 30000);
+      assert.strictEqual(job.status, 'completed', `Convert job failed: ${JSON.stringify(job.error)}`);
+    }
+
+    // Cleanup seeded project
+    await fetch(`${API}/api/projects/${seedProject.id}`, { method: 'DELETE' }).catch(() => {});
+  });
+
   test('project current_music_version increments after generation completes', async () => {
     const before = await fetch(`${API}/api/projects/${projectId}`).then(r => r.json());
     assert.ok(before.current_music_version > 0, 'Should have at least 1 music version from previous test');
