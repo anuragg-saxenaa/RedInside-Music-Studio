@@ -1,0 +1,68 @@
+<h2>Vocal Removal — Which approach?</h2>
+<p class="subtitle">This shapes the whole backend architecture. Pick the tradeoff that fits.</p>
+
+<div class="options">
+  <div class="option" data-choice="ffmpeg" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>FFmpeg Center-Channel Subtraction</h3>
+      <p><strong>Zero new dependencies.</strong> Works right now. Uses the stereo mid-side trick: subtracts the center channel (where vocals typically live) from both ears.</p>
+      <br>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul>
+          <li>Instant — no model download</li>
+          <li>Fast: &lt;5s per track</li>
+          <li>No Python/GPU needed</li>
+          <li>Works offline forever</li>
+        </ul></div>
+        <div class="cons"><h4>Cons</h4><ul>
+          <li>Mono files unsupported</li>
+          <li>May bleed centered bass/piano</li>
+          <li>Quality ~7/10</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="demucs" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Demucs AI (Meta Research)</h3>
+      <p><strong>State-of-the-art source separation.</strong> Separates vocals, drums, bass, and "other" as clean stems. Industry standard used in professional tools.</p>
+      <br>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul>
+          <li>Quality: ~9.5/10</li>
+          <li>Works on mono too</li>
+          <li>Clean stems — no bleed</li>
+          <li>Bonus: get drum/bass stems</li>
+        </ul></div>
+        <div class="cons"><h4>Cons</h4><ul>
+          <li>One-time setup: pip install demucs (~1.5GB model)</li>
+          <li>30–90s per track (CPU)</li>
+          <li>Requires Python 3.8+</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="both" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Both — Fast fallback + AI upgrade</h3>
+      <p>Backend tries Demucs if installed; falls back to FFmpeg if not. UI shows which engine was used. Best UX — works immediately, gets better when Demucs is set up.</p>
+      <br>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul>
+          <li>Always works out of the box</li>
+          <li>Upgrades silently when available</li>
+          <li>Progressive enhancement</li>
+        </ul></div>
+        <div class="cons"><h4>Cons</h4><ul>
+          <li>Slightly more backend code</li>
+          <li>UI needs to show engine quality</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+</div>

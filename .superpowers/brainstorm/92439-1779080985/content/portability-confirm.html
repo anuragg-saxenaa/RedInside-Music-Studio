@@ -1,0 +1,63 @@
+<h2>Cloud-portable design — confirming the architecture</h2>
+<p class="subtitle">You want this to work on local dev AND cloud deployments (Vercel, VPS, etc.). Here's what that means for each feature:</p>
+
+<div class="mockup">
+  <div class="mockup-header">Portability Matrix</div>
+  <div class="mockup-body">
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead>
+        <tr style="border-bottom:1px solid #333">
+          <th style="text-align:left;padding:10px 8px;color:#888">Feature</th>
+          <th style="text-align:center;padding:10px 8px;color:#888">Local</th>
+          <th style="text-align:center;padding:10px 8px;color:#888">VPS / Docker</th>
+          <th style="text-align:center;padding:10px 8px;color:#888">Serverless (Vercel)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid #222">
+          <td style="padding:10px 8px;color:#fff">Real-time preview<br><span style="color:#666;font-size:11px">Web Audio API (client-side)</span></td>
+          <td style="text-align:center;padding:10px 8px;color:#00D26A">✓ Works</td>
+          <td style="text-align:center;padding:10px 8px;color:#00D26A">✓ Works</td>
+          <td style="text-align:center;padding:10px 8px;color:#00D26A">✓ Works</td>
+        </tr>
+        <tr style="border-bottom:1px solid #222">
+          <td style="padding:10px 8px;color:#fff">Export (precise)<br><span style="color:#666;font-size:11px">FFmpeg server-side</span></td>
+          <td style="text-align:center;padding:10px 8px;color:#00D26A">✓ Works</td>
+          <td style="text-align:center;padding:10px 8px;color:#00D26A">✓ Works</td>
+          <td style="text-align:center;padding:10px 8px;color:#E63946">✗ No FFmpeg</td>
+        </tr>
+        <tr style="border-bottom:1px solid #222">
+          <td style="padding:10px 8px;color:#fff">Vocal removal — Demucs AI<br><span style="color:#666;font-size:11px">Python + 1.5GB model</span></td>
+          <td style="text-align:center;padding:10px 8px;color:#00D26A">✓ After setup</td>
+          <td style="text-align:center;padding:10px 8px;color:#00D26A">✓ Docker install</td>
+          <td style="text-align:center;padding:10px 8px;color:#E63946">✗ Not available</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 8px;color:#fff">Vocal removal — FFmpeg fallback<br><span style="color:#666;font-size:11px">Center-channel subtraction</span></td>
+          <td style="text-align:center;padding:10px 8px;color:#00D26A">✓ Always</td>
+          <td style="text-align:center;padding:10px 8px;color:#00D26A">✓ Always</td>
+          <td style="text-align:center;padding:10px 8px;color:#E63946">✗ No FFmpeg</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<br>
+<h3>Recommended portable design</h3>
+<div class="options">
+  <div class="option selected" data-choice="portable" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content">
+      <h3>Graceful degradation at every layer</h3>
+      <ul style="color:#ccc;font-size:13px;line-height:1.8">
+        <li><strong style="color:#00D26A">Real-time preview</strong> → Web Audio API (100% client-side, works everywhere)</li>
+        <li><strong style="color:#00D26A">Export</strong> → FFmpeg when available; show "download not supported" on pure serverless</li>
+        <li><strong style="color:#00D26A">Vocal removal</strong> → Check Demucs on startup; use it if found; fall back to FFmpeg center-channel; <code style="color:#FFB800">/health</code> endpoint exposes <code style="color:#FFB800">demucs: "available" | "fallback"</code></li>
+        <li><strong style="color:#00D26A">UI badge</strong> → Shows "AI Separation" or "Fast Mode" so user knows which engine ran</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle">This is the only design that works everywhere. Confirm to proceed, or ask to change anything.</p>

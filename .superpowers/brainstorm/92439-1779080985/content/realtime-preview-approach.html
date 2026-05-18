@@ -1,0 +1,84 @@
+<h2>Real-Time Preview — How should changes feel?</h2>
+<p class="subtitle">Currently: trim/speed/volume/fade/reverse are already instant (Web Audio). Reverb/echo/normalize/bass boost/pitch shift require clicking Export to hear. Pick the model.</p>
+
+<div class="options">
+  <div class="option" data-choice="webaudio" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Web Audio API — Instant, always live</h3>
+      <p>All effects run in the browser as you drag sliders. No server call. You hear every change the moment you make it — like a hardware mixer.</p>
+      <br>
+      <div style="background:#111;border-radius:8px;padding:12px;font-size:13px;color:#aaa;font-family:monospace">
+        Move reverb slider → hear reverb change instantly<br>
+        Toggle bass boost → hear it in &lt;10ms<br>
+        Drag pitch knob → pitch changes live<br>
+        ✓ No loading, no spinner, no wait
+      </div>
+      <br>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul>
+          <li>Truly instant — zero latency</li>
+          <li>No server load for previews</li>
+          <li>Works offline</li>
+        </ul></div>
+        <div class="cons"><h4>Cons</h4><ul>
+          <li>Browser approximation ≠ exact FFmpeg output</li>
+          <li>Pitch shift needs a JS lib (Tone.js ~200KB)</li>
+          <li>Export still goes through FFmpeg for precision</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="debounced" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Debounced Server Preview — Exact FFmpeg output</h3>
+      <p>500ms after you stop adjusting, backend processes a short preview clip and auto-plays it. What you hear = exactly what you export.</p>
+      <br>
+      <div style="background:#111;border-radius:8px;padding:12px;font-size:13px;color:#aaa;font-family:monospace">
+        Move reverb slider → stop → 0.5s delay → hear exact result<br>
+        Toggle bass boost → 0.5s delay → exact FFmpeg output<br>
+        ⚡ Server generates first 15s preview only (fast)
+      </div>
+      <br>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul>
+          <li>100% accurate — no surprises at export</li>
+          <li>Works for all effects including vocal removal</li>
+        </ul></div>
+        <div class="cons"><h4>Cons</h4><ul>
+          <li>0.5–2s lag per change</li>
+          <li>Server load on every tweak</li>
+          <li>Needs loading indicator</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="hybrid" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Hybrid — Instant approximation + exact on export</h3>
+      <p>Web Audio API for instant feedback while you're adjusting. FFmpeg for the final export. Best of both: you feel responsive, you export precise.</p>
+      <br>
+      <div style="background:#111;border-radius:8px;padding:12px;font-size:13px;color:#aaa;font-family:monospace">
+        Drag any slider → hear approximate change instantly<br>
+        Click Export → FFmpeg produces exact output<br>
+        Small badge: "Preview ≈ / Export exact"
+      </div>
+      <br>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul>
+          <li>Feels like pro DAW (Ableton/Logic)</li>
+          <li>No server calls during editing</li>
+          <li>Precise final output</li>
+        </ul></div>
+        <div class="cons"><h4>Cons</h4><ul>
+          <li>Preview ≠ export exactly (small gap)</li>
+          <li>Most complex to implement</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+</div>
