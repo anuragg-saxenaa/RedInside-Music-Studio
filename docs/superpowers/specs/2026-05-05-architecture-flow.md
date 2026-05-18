@@ -439,11 +439,18 @@ storage/
 ### Audio / FFmpeg
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/audio/process` | Apply effects chain |
+| POST | `/api/audio/process` | Apply effects chain (trim, speed, volume, fade, reverb, echo, pitch, bass) |
 | POST | `/api/audio/trim` | Trim audio |
 | GET | `/api/audio/:id/metadata` | Audio metadata |
+| POST | `/api/audio/remove-vocals` | Queue BullMQ vocal removal job (demucs or FFmpeg fallback) |
 | POST | `/api/ffmpeg/convert-bitrate` | Bitrate conversion |
 | POST | `/api/ffmpeg/merge` | Merge audio files |
+
+### YouTube Downloader
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/downloader/youtube` | Queue yt-dlp download job → saves MP3 to Music library |
+| GET | `/api/jobs/:id` | Poll job status (works for all job types incl. vocal-removal, youtube-download) |
 
 ### Mastering
 | Method | Endpoint | Description |
@@ -453,6 +460,8 @@ storage/
 | POST | `/api/mastering/save-to-music` | Save mastered to Music library |
 | GET | `/api/mastering/zip` | Download ZIP of mastered files |
 | GET | `/api/mastering/files/:projectId` | List mastering files |
+| GET | `/api/mastering/:fileId/file/:projectId` | Serve original uploaded audio |
+| GET | `/api/mastering/:fileId/download/:projectId` | Download mastered audio |
 
 ### Medley
 | Method | Endpoint | Description |
@@ -535,8 +544,12 @@ storage/
 |----------|-----|
 | `output_format: 'url'` for music | MiniMax times out on >30s songs with buffer format |
 | Auto-mastering on every music generation | Spotify-standard output by default; no manual step |
-| BullMQ + Redis for music/video | AI calls take 30–120s; async prevents HTTP timeout |
+| BullMQ + Redis for music/video/vocal-removal/youtube | AI calls and yt-dlp downloads take 30–120s; async prevents HTTP timeout |
 | Lyrics generation is synchronous | Fast enough (<5s); no queue needed |
+| All BullMQ job types create SQLite job first | Single `/api/jobs/:id` poll endpoint works for all job types; no job-type-specific poll endpoints |
+| Vocal removal: demucs → FFmpeg fallback | demucs (AI) gives proper stem separation; FFmpeg center-channel subtraction is low-quality fallback; health endpoint reports which is active |
+| Audio Editor in-browser (Web Audio API) | Zero-latency real-time preview for EQ/reverb/echo/speed/pitch without server roundtrip |
+| `res.sendFile(path.resolve(filePath))` | Express sendFile requires absolute path; relative paths silently serve wrong content-type |
 | `canAccessStep` always returns `true` | Iterative creation; users shouldn't be gated |
 | `data-testid` on all interactive elements | Playwright tests bind to stable selectors, not text |
 | Mock MiniMax server on port 8999 | E2E tests run without API credits; `MINIMAX_BASE_URL` override |
