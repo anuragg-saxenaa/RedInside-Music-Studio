@@ -7,7 +7,7 @@ export default function WriteTab() {
   const { activeProjectId, setSelectedLyrics } = useWorkspace();
 
   if (!activeProjectId) {
-    return <div style={{ color: C.textDim, textAlign: 'center', padding: '48px 0' }}>Select a project first</div>;
+    return <div data-testid="write-tab" style={{ color: C.textDim, textAlign: 'center', padding: '48px 0' }}>Select a project first</div>;
   }
 
   return (

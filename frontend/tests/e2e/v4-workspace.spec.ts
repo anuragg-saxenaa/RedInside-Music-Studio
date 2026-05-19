@@ -29,6 +29,8 @@ test.describe('StudioV4 Workspace', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
+    // New sidebar: click toggle to reveal input
+    await page.locator('[data-testid="new-project-toggle"]').click();
     await page.locator('[data-testid="new-project-input"]').fill(name);
     await page.locator('[data-testid="create-project-btn"]').click();
     await page.waitForTimeout(1200);
@@ -47,5 +49,21 @@ test.describe('StudioV4 Workspace', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid="player-bar"]')).toContainText('No track selected', { timeout: 8000 });
+  });
+
+  test('titlebar shows active project name', async ({ page }) => {
+    const name = `TitlebarTest-${Date.now()}`;
+    const { project } = await page.request
+      .post('http://localhost:3000/api/test/seed-project', { data: { name, music: false, lyrics: false } })
+      .then(r => r.json());
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.locator(`[data-testid="project-item-${project.id}"]`).click();
+    await page.waitForTimeout(600);
+
+    await expect(page.locator('[data-testid="titlebar"]')).toContainText(name, { timeout: 5000 });
+
+    await page.request.delete(`http://localhost:3000/api/projects/${project.id}`).catch(() => {});
   });
 });
