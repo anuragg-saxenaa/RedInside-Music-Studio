@@ -8,83 +8,192 @@ function fmtTime(s: number) {
   return `${m}:${sec.toString().padStart(2, '0')}`;
 }
 
+const btnBase: React.CSSProperties = {
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '6px',
+  borderRadius: '50%',
+  transition: 'all 150ms',
+  color: 'rgba(255,255,255,0.5)',
+};
+
 export default function PlayerBar() {
-  const { playerTrack, playerIsPlaying, playerProgress, playerCurrentTime, playerDuration, playerVolume,
-          togglePlay, seekTo, setPlayerVolume, playNext, playPrev } = useWorkspace();
+  const {
+    playerTrack, playerIsPlaying, playerProgress, playerCurrentTime, playerDuration, playerVolume,
+    togglePlay, seekTo, setPlayerVolume, playNext, playPrev,
+  } = useWorkspace();
 
   return (
-    <div style={{
-      background: 'rgba(0,0,0,0.85)',
-      backdropFilter: 'blur(20px)',
-      borderTop: `1px solid ${C.border}`,
-      padding: '12px 20px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '16px',
-    }} data-testid="player-bar">
-
-      {/* Track info */}
-      <div style={{ width: '200px', flexShrink: 0 }}>
-        {playerTrack ? (
-          <>
-            <div style={{ color: C.text, fontSize: '12px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {playerTrack.title || `Track v${playerTrack.version}`}
-            </div>
-            <div style={{ color: C.textDim, fontSize: '10px', marginTop: '2px' }}>
-              {fmtTime(playerCurrentTime)} / {fmtTime(playerDuration)}
-            </div>
-          </>
-        ) : (
-          <div style={{ color: C.textDim, fontSize: '11px' }}>No track selected</div>
-        )}
-      </div>
-
-      {/* Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-        <button onClick={playPrev} style={{ background: 'none', border: 'none', color: C.textDim, cursor: 'pointer', fontSize: '14px', padding: '4px' }}>⏮</button>
-        <button
-          onClick={togglePlay}
-          data-testid="player-play-pause"
-          style={{
-            width: '36px', height: '36px', borderRadius: '50%', border: 'none', cursor: 'pointer',
-            background: playerIsPlaying ? C.red : 'rgba(255,255,255,0.15)',
-            color: '#fff', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: playerIsPlaying ? `0 0 12px ${C.red}66` : 'none',
-            transition: 'all 200ms',
-          }}
-        >
-          {playerIsPlaying ? '⏸' : '▶'}
-        </button>
-        <button onClick={playNext} style={{ background: 'none', border: 'none', color: C.textDim, cursor: 'pointer', fontSize: '14px', padding: '4px' }}>⏭</button>
-      </div>
-
-      {/* Progress bar */}
-      <div
-        style={{ flex: 1, height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', cursor: 'pointer', position: 'relative' }}
-        onClick={e => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          seekTo((e.clientX - rect.left) / rect.width);
-        }}
-        data-testid="player-progress"
-      >
+    <div
+      data-testid="player-bar"
+      style={{
+        background: 'rgba(8,2,4,0.97)',
+        backdropFilter: 'blur(28px) saturate(1.6)',
+        borderTop: `1px solid rgba(230,57,70,0.22)`,
+        display: 'grid',
+        gridTemplateColumns: '1fr auto 1fr',
+        alignItems: 'center',
+        gap: '16px',
+        padding: '0 24px',
+        height: '78px',
+        flexShrink: 0,
+      }}
+    >
+      {/* Left — track info */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+        {/* Thumbnail */}
         <div style={{
-          height: '100%',
-          width: `${playerProgress * 100}%`,
-          background: `linear-gradient(to right, ${C.red}, ${C.gold})`,
-          borderRadius: '2px',
-          transition: 'width 0.1s linear',
-        }} />
-        <div style={{
-          position: 'absolute', top: '50%', left: `${playerProgress * 100}%`,
-          transform: 'translate(-50%, -50%)',
-          width: '10px', height: '10px', borderRadius: '50%', background: C.text,
-          boxShadow: '0 0 4px rgba(0,0,0,0.5)',
-        }} />
+          width: '46px',
+          height: '46px',
+          borderRadius: '8px',
+          background: playerTrack
+            ? `linear-gradient(135deg, ${C.redDark}, #080108)`
+            : 'rgba(255,255,255,0.06)',
+          border: `1px solid ${playerTrack ? C.borderActive : C.border}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          boxShadow: playerTrack && playerIsPlaying ? `0 0 16px ${C.red}33` : 'none',
+          transition: 'box-shadow 400ms',
+        }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="6" stroke={playerTrack ? C.red : 'rgba(255,255,255,0.15)'} strokeWidth="1.5"/>
+            <circle cx="8" cy="8" r="2" fill={playerTrack ? C.red : 'rgba(255,255,255,0.1)'} opacity={playerTrack ? 0.6 : 1}/>
+          </svg>
+        </div>
+
+        <div style={{ minWidth: 0 }}>
+          {playerTrack ? (
+            <>
+              <div style={{
+                color: C.text,
+                fontSize: '14px',
+                fontWeight: 600,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                letterSpacing: '-0.1px',
+              }}>
+                {playerTrack.title || `Track v${playerTrack.version}`}
+              </div>
+              <div style={{ color: 'rgba(255,255,255,0.38)', fontSize: '11px', marginTop: '3px', fontVariantNumeric: 'tabular-nums' }}>
+                {fmtTime(playerCurrentTime)} · {fmtTime(playerDuration)}
+              </div>
+            </>
+          ) : (
+            <div style={{ color: 'rgba(255,255,255,0.25)', fontSize: '13px' }}>
+              No track selected
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Volume */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-        <span style={{ color: C.textDim, fontSize: '12px' }}>🔊</span>
+      {/* Centre — controls + scrubber */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', width: '380px' }}>
+        {/* Transport buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <button
+            onClick={playPrev}
+            title="Previous"
+            style={{ ...btnBase, fontSize: '13px' }}
+            onMouseOver={e => { (e.currentTarget as HTMLButtonElement).style.color = '#fff'; }}
+            onMouseOut={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.5)'; }}
+          >⏮</button>
+
+          <button
+            onClick={togglePlay}
+            data-testid="player-play-pause"
+            title={playerIsPlaying ? 'Pause' : 'Play'}
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              border: 'none',
+              cursor: 'pointer',
+              background: playerIsPlaying
+                ? C.red
+                : 'rgba(255,255,255,0.92)',
+              color: playerIsPlaying ? '#fff' : '#000',
+              fontSize: '13px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: playerIsPlaying
+                ? `0 0 20px ${C.red}55, 0 2px 8px rgba(0,0,0,0.5)`
+                : '0 2px 8px rgba(0,0,0,0.4)',
+              transition: 'all 200ms',
+              margin: '0 4px',
+            }}
+          >
+            {playerIsPlaying ? '⏸' : '▶'}
+          </button>
+
+          <button
+            onClick={playNext}
+            title="Next"
+            style={{ ...btnBase, fontSize: '13px' }}
+            onMouseOver={e => { (e.currentTarget as HTMLButtonElement).style.color = '#fff'; }}
+            onMouseOut={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.5)'; }}
+          >⏭</button>
+        </div>
+
+        {/* Scrubber */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+          <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', fontVariantNumeric: 'tabular-nums', width: '30px', textAlign: 'right', flexShrink: 0 }}>
+            {fmtTime(playerCurrentTime)}
+          </span>
+          <div
+            onClick={e => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              seekTo((e.clientX - rect.left) / rect.width);
+            }}
+            data-testid="player-progress"
+            style={{
+              flex: 1,
+              height: '4px',
+              background: 'rgba(255,255,255,0.12)',
+              borderRadius: '2px',
+              cursor: 'pointer',
+              position: 'relative',
+            }}
+          >
+            <div style={{
+              height: '100%',
+              width: `${playerProgress * 100}%`,
+              background: `linear-gradient(to right, ${C.red}, ${C.gold})`,
+              borderRadius: '2px',
+              transition: 'width 0.1s linear',
+            }} />
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: `${playerProgress * 100}%`,
+              transform: 'translate(-50%, -50%)',
+              width: '12px',
+              height: '12px',
+              borderRadius: '50%',
+              background: '#fff',
+              boxShadow: '0 0 4px rgba(0,0,0,0.6)',
+              opacity: playerTrack ? 1 : 0,
+              transition: 'opacity 200ms',
+            }} />
+          </div>
+          <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', fontVariantNumeric: 'tabular-nums', width: '30px', flexShrink: 0 }}>
+            {fmtTime(playerDuration)}
+          </span>
+        </div>
+      </div>
+
+      {/* Right — volume */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end' }}>
+        <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '13px' }}>
+          {playerVolume === 0 ? '🔇' : playerVolume < 0.4 ? '🔈' : playerVolume < 0.8 ? '🔉' : '🔊'}
+        </span>
         <input
           type="range"
           min={0}
@@ -93,7 +202,7 @@ export default function PlayerBar() {
           value={playerVolume}
           onChange={e => setPlayerVolume(Number(e.target.value))}
           data-testid="volume-slider"
-          style={{ width: '80px', accentColor: C.red, cursor: 'pointer' }}
+          style={{ width: '88px', accentColor: C.red, cursor: 'pointer' }}
         />
       </div>
     </div>

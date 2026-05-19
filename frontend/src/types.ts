@@ -33,6 +33,7 @@ export interface MusicGeneration {
   duration_seconds?: number;
   bitrate?: number;
   title?: string;
+  is_instrumental: boolean;
   created_at: string;
 }
 
