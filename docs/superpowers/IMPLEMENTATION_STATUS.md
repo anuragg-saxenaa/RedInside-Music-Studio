@@ -1,7 +1,7 @@
 # Implementation Status
 
-**Last verified:** 2026-05-18 (session 18)
-**E2E tests:** 368 passing, 0 failing (Playwright — real browser, real backend, mock MiniMax)
+**Last verified:** 2026-05-18 (session 19)
+**E2E tests:** 368+ passing (Playwright — real browser, real backend, mock MiniMax)
 **Backend tests:** 175 passing, 1 skipped, 0 failing (Node test runner — real HTTP, real SQLite, real FFmpeg)
 **TypeScript:** 0 errors
 **Test mode:** Mock MiniMax server auto-started by `npx playwright test` — no API credits consumed
@@ -55,6 +55,33 @@
 | Compact persistent player bar | ✅ | ✅ |
 | Double-click track → opens audio editor | ✅ | ✅ |
 | Free workflow step navigation (all steps always accessible) | ✅ | ✅ |
+
+---
+
+## Session 19 Changes (2026-05-18)
+
+### Phase 3 Features Shipped
+
+| Feature | Status | Tests |
+|---------|--------|-------|
+| Vocal Removal (`POST /api/audio/remove-vocals`, Demucs/FFmpeg) | ✅ | ✅ |
+| YouTube Downloader (`POST /api/downloader/youtube`, yt-dlp) | ✅ | ✅ |
+| Audio Editor real-time preview (Web Audio API, `useRealtimeAudio`) | ✅ | ✅ |
+| Audio Editor Neon Dark UI redesign | ✅ | ✅ |
+| `YoutubeDownloader.tsx` Signal Capture design | ✅ | ✅ |
+| `VocalRemovalCard.tsx` with progress bar + engine badge | ✅ | ✅ |
+
+### Bugs Fixed
+
+| Bug | Root Cause | Fix |
+|-----|-----------|-----|
+| Audio Editor crash → blank page | `SharedAudioProvider` never mounted in `App.tsx`; `useSharedAudio()` threw on every call | Wrapped App return with `<SharedAudioProvider>` |
+| Audio Editor play silent (no sound) | `stop()` called on unstarted `AudioBufferSourceNode` → `InvalidStateError` → caught → `start()` never reached | `try/catch` around all 3 `.stop()` call sites in `useRealtimeAudio.ts` |
+| Export tab empty on revisit | File list in React state only; navigating away unmounts component, wiping everything | Fetch `GET /api/mastering/files/:projectId` on mount to restore uploaded tracks |
+| Export tab shows UUID filenames | `listFiles` returned raw filesystem name (`{uuid}.mp3`) | Read `.meta.json` sidecar (written at upload) and return `originalName` |
+| `vocal-removal` job type rejected by SQLite | `jobs.type` CHECK constraint missing new types | Migration 012: recreate table adding `vocal-removal` + `youtube-download` to constraint |
+| `GET /api/jobs/:id` returns 404 for vocal removal | Worker returned BullMQ job ID; `/api/jobs` queries SQLite only | Create SQLite job first, pass `jobId` in BullMQ data, return SQLite ID to client |
+| Mastering `serveOriginal` served `.meta.json` bytes | `files.find(f => f.startsWith(fileId))` matched `.meta.json` before `.mp3` alphabetically | Added `!f.endsWith('.meta.json')` filter + `path.resolve()` for absolute path |
 
 ---
 
