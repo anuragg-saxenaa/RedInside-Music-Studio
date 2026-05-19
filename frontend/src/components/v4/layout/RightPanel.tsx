@@ -19,7 +19,7 @@ const sectionLabel: React.CSSProperties = {
 };
 
 export default function RightPanel() {
-  const { selectedTrack, playTrack, setActiveTab, playerCurrentTime, activeProjectId, playlists, refreshPlaylists } = useWorkspace();
+  const { selectedTrack, setSelectedTrack, playTrack, setActiveTab, playerCurrentTime, activeProjectId, playlists, refreshPlaylists, refreshTracks } = useWorkspace();
   const [notes, setNotes] = useState<MusicNote[]>([]);
   const [newNoteText, setNewNoteText] = useState('');
   const [tags, setTags] = useState<MusicTags>({ bpm: null, key: null, mood: null });
@@ -81,11 +81,14 @@ export default function RightPanel() {
 
   const saveTitle = async () => {
     if (!selectedTrack || !titleDraft.trim()) { setEditingTitle(false); return; }
+    const trimmed = titleDraft.trim();
     await fetch(`/api/music/${selectedTrack.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: titleDraft.trim() }),
+      body: JSON.stringify({ title: trimmed }),
     });
+    setSelectedTrack({ ...selectedTrack, title: trimmed });
+    refreshTracks();
     setEditingTitle(false);
   };
 

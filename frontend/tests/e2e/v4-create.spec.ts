@@ -31,7 +31,7 @@ test.describe('CreateTab', () => {
   test('sections are collapsible', async ({ page }) => {
     const { project } = await seedAndOpenCreate(page);
 
-    await page.locator('[data-testid="section-artwork"] button').click();
+    await page.locator('[data-testid="section-artwork"] button').first().click();
     await page.waitForTimeout(300);
 
     const artworkButtons = await page.locator('[data-testid="section-artwork"] button').count();
