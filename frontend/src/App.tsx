@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import Studio from './pages/Studio';
 import History from './pages/History';
 import ViralToolkit from './pages/ViralToolkit';
 import Settings from './pages/Settings';
+import StudioV4 from './pages/StudioV4';
+import ShareView from './pages/ShareView';
 import type { Project, LyricsGeneration, MusicGeneration } from './types';
 import { SharedAudioProvider } from './contexts/SharedAudioContext';
 
@@ -10,108 +11,60 @@ import { SharedAudioProvider } from './contexts/SharedAudioContext';
 export type { Project, LyricsGeneration, MusicGeneration };
 
 function App() {
-  const [project, setProject] = useState<Project | null>(null);
-  const [isMockMode, setIsMockMode] = useState(false);
 
-  useEffect(() => {
-    fetch('/health')
-      .then(r => r.json())
-      .then(d => { if (d.minimax === 'mock') setIsMockMode(true); })
-      .catch(() => {});
-  }, []);
-
-  const [currentView, setCurrentView] = useState<'studio' | 'history' | 'viral' | 'settings'>(() => {
+  const [currentView, setCurrentView] = useState<'studio' | 'history' | 'viral' | 'settings' | 'share'>(() => {
+    if (window.location.hash.startsWith('#/share/')) return 'share';
     if (window.location.hash === '#/history') return 'history';
     if (window.location.hash === '#/viral') return 'viral';
     if (window.location.hash === '#/settings') return 'settings';
     return 'studio';
   });
 
+  const [shareToken, setShareToken] = useState<string>(() => {
+    const match = window.location.hash.match(/^#\/share\/(.+)$/);
+    return match ? match[1] : '';
+  });
+
   useEffect(() => {
     const handleHashChange = () => {
-      if (window.location.hash === '#/history') setCurrentView('history');
-      else if (window.location.hash === '#/viral') setCurrentView('viral');
-      else if (window.location.hash === '#/settings') setCurrentView('settings');
+      const hash = window.location.hash;
+      if (hash === '#/history') setCurrentView('history');
+      else if (hash === '#/viral') setCurrentView('viral');
+      else if (hash === '#/settings') setCurrentView('settings');
+      else if (hash.startsWith('#/share/')) {
+        const match = hash.match(/^#\/share\/(.+)$/);
+        if (match) { setShareToken(match[1]); setCurrentView('share'); }
+      }
       else setCurrentView('studio');
     };
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  const createProject = async (name: string) => {
-    const response = await fetch('/api/projects', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
-    });
-    const newProject = await response.json();
-    setProject(newProject);
-  };
+  // StudioV4 is a full-viewport DAW — render it directly, no wrapper
+  if (currentView === 'share') {
+    return (
+      <SharedAudioProvider>
+        <ShareView token={shareToken} />
+      </SharedAudioProvider>
+    );
+  }
 
-  const loadProject = async (id: string) => {
-    const response = await fetch(`/api/projects/${id}`);
-    const projectData = await response.json();
-    setProject(projectData);
-  };
+  if (currentView === 'studio') {
+    return (
+      <SharedAudioProvider>
+        <StudioV4 />
+      </SharedAudioProvider>
+    );
+  }
 
+  // Legacy pages (history/viral/settings) keep the old branded shell
   return (
     <SharedAudioProvider>
     <div style={{ backgroundColor: '#0A0A0A', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif', position: 'relative', overflow: 'hidden' }}>
-      {/* Geometric background pattern */}
-      <div style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 0,
-        pointerEvents: 'none',
-        background: `
-          radial-gradient(ellipse 80% 50% at 20% 40%, rgba(230, 57, 70, 0.08) 0%, transparent 50%),
-          radial-gradient(ellipse 60% 40% at 80% 60%, rgba(230, 57, 70, 0.05) 0%, transparent 50%),
-          linear-gradient(180deg, #0A0A0A 0%, #0D0D0D 100%)
-        `,
-      }}>
-        {/* Diagonal lines pattern */}
-        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.03 }}>
-          <pattern id="diagonal-lines" patternUnits="userSpaceOnUse" width="60" height="60" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="60" stroke="#E63946" strokeWidth="1"/>
-          </pattern>
-          <rect width="100%" height="100%" fill="url(#diagonal-lines)"/>
-        </svg>
-        {/* Red glow orbs */}
-        <div style={{
-          position: 'absolute',
-          top: '10%',
-          left: '-5%',
-          width: '400px',
-          height: '400px',
-          background: 'radial-gradient(circle, rgba(230, 57, 70, 0.15) 0%, transparent 70%)',
-          filter: 'blur(60px)',
-        }}/>
-        <div style={{
-          position: 'absolute',
-          bottom: '20%',
-          right: '-10%',
-          width: '500px',
-          height: '500px',
-          background: 'radial-gradient(circle, rgba(230, 57, 70, 0.1) 0%, transparent 70%)',
-          filter: 'blur(80px)',
-        }}/>
-        {/* Grid dots pattern */}
-        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.02 }}>
-          <pattern id="grid-dots" patternUnits="userSpaceOnUse" width="30" height="30">
-            <circle cx="15" cy="15" r="1" fill="#E63946"/>
-          </pattern>
-          <rect width="100%" height="100%" fill="url(#grid-dots)"/>
-        </svg>
-      </div>
-      {isMockMode && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: '#FFB800', color: '#000', textAlign: 'center', padding: '6px 12px', fontSize: '13px', fontWeight: 600 }}>
-          TEST MODE — MiniMax mock active. For real use: stop backend, run <code style={{ background: 'rgba(0,0,0,0.15)', padding: '1px 6px', borderRadius: '3px' }}>npm run dev</code> in <code style={{ background: 'rgba(0,0,0,0.15)', padding: '1px 6px', borderRadius: '3px' }}>backend/</code>
-        </div>
-      )}
       <header style={{
         backgroundColor: 'rgba(10, 10, 10, 0.9)',
         borderBottom: '1px solid rgba(230, 57, 70, 0.3)',
-        marginTop: isMockMode ? '36px' : '0',
         padding: '20px 32px',
         position: 'sticky',
         top: 0,
@@ -138,433 +91,18 @@ function App() {
           RedInside <span style={{ color: '#FFFFFF' }}>Music Studio</span>
         </h1>
         <nav style={{ display: 'flex', gap: '16px' }}>
-          <a href="#/" style={{ color: currentView === 'studio' ? '#E63946' : '#A0A0A0', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>Studio</a>
+          <a href="#/" style={{ color: '#A0A0A0', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>Studio</a>
           <a href="#/history" style={{ color: currentView === 'history' ? '#E63946' : '#A0A0A0', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>History</a>
           <a href="#/viral" style={{ color: currentView === 'viral' ? '#E63946' : '#A0A0A0', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>Viral</a>
           <a href="#/settings" style={{ color: currentView === 'settings' ? '#E63946' : '#A0A0A0', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>Settings</a>
         </nav>
       </header>
       <main style={{ maxWidth: '900px', margin: '0 auto', padding: '48px 24px', position: 'relative', zIndex: 1 }}>
-        {currentView === 'history' ? (
-          <History />
-        ) : currentView === 'viral' ? (
-          <ViralToolkit />
-        ) : currentView === 'settings' ? (
-          <Settings />
-        ) : !project ? (
-          <ProjectSelector onCreate={createProject} onLoad={loadProject} />
-        ) : (
-          <Studio project={project} onBack={() => setProject(null)} />
-        )}
+        {currentView === 'history' ? <History /> : currentView === 'viral' ? <ViralToolkit /> : <Settings />}
       </main>
     </div>
     </SharedAudioProvider>
   );
-}
-
-function ProjectSelector({ onCreate, onLoad }: {
-  onCreate: (name: string) => void;
-  onLoad: (id: string) => void;
-}) {
-  const [name, setName] = useState('');
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-
-  useEffect(() => {
-    fetch('/api/projects')
-      .then(res => res.json())
-      .then(setProjects)
-      .catch(console.error);
-  }, []);
-
-  const deleteProject = async (id: string) => {
-    if (!confirm('Delete this project permanently?')) return;
-    await fetch(`/api/projects/${id}`, { method: 'DELETE' });
-    setProjects(projects.filter(p => p.id !== id));
-  };
-
-  const renameProject = async (id: string, newName: string) => {
-    const response = await fetch(`/api/projects/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newName }),
-    });
-    const updated = await response.json();
-    setProjects(projects.map(p => p.id === id ? updated : p));
-  };
-
-  const filteredProjects = projects
-    .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-
-  const recentProjects = filteredProjects.slice(0, 3);
-  const olderProjects = filteredProjects.slice(3);
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
-      {/* Create New Project */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <input
-            type="text"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            placeholder="Name your new track..."
-            onKeyDown={(e) => e.key === 'Enter' && name && onCreate(name)}
-            style={{
-              flex: 1,
-              backgroundColor: '#141414',
-              border: '1px solid #2A2A2A',
-              borderRadius: '12px',
-              padding: '16px 20px',
-              color: '#FFFFFF',
-              fontSize: '16px',
-              outline: 'none',
-              transition: 'border-color 150ms ease',
-            }}
-            onFocus={(e) => e.currentTarget.style.borderColor = '#E63946'}
-            onBlur={(e) => e.currentTarget.style.borderColor = '#2A2A2A'}
-          />
-          <button
-            onClick={() => name && onCreate(name)}
-            disabled={!name.trim()}
-            style={{
-              backgroundColor: name.trim() ? '#E63946' : '#2A2A2A',
-              color: '#FFFFFF',
-              border: 'none',
-              borderRadius: '12px',
-              padding: '16px 28px',
-              fontSize: '15px',
-              fontWeight: 600,
-              cursor: name.trim() ? 'pointer' : 'not-allowed',
-              transition: 'all 150ms ease',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-            onMouseOver={(e) => { if (name.trim()) (e.currentTarget as HTMLElement).style.backgroundColor = '#FF4757'; }}
-            onMouseOut={(e) => { if (name.trim()) (e.currentTarget as HTMLElement).style.backgroundColor = '#E63946'; }}
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M8 3V13M3 8H13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-            Create
-          </button>
-        </div>
-      </div>
-
-      {/* Search */}
-      {projects.length > 0 && (
-        <div style={{ position: 'relative' }}>
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 18 18"
-            fill="none"
-            style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#666666' }}
-          >
-            <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.5"/>
-            <path d="M12.5 12.5L16 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-          </svg>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search projects..."
-            style={{
-              width: '100%',
-              backgroundColor: '#141414',
-              border: '1px solid #2A2A2A',
-              borderRadius: '10px',
-              padding: '12px 16px 12px 48px',
-              color: '#FFFFFF',
-              fontSize: '14px',
-              outline: 'none',
-            }}
-            onFocus={(e) => e.currentTarget.style.borderColor = '#E63946'}
-            onBlur={(e) => e.currentTarget.style.borderColor = '#2A2A2A'}
-          />
-        </div>
-      )}
-
-      {/* Recent Projects */}
-      {recentProjects.length > 0 && (
-        <div>
-          <h3 style={{
-            color: '#666666',
-            fontSize: '11px',
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            letterSpacing: '1px',
-            marginBottom: '16px',
-          }}>
-            Recent
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {recentProjects.map((p, i) => (
-              <ProjectCard
-                key={p.id}
-                project={p}
-                onClick={() => onLoad(p.id)}
-                onDelete={deleteProject}
-                onRename={renameProject}
-                index={i}
-                isLast={i === recentProjects.length - 1 && olderProjects.length === 0}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Older Projects */}
-      {olderProjects.length > 0 && (
-        <div>
-          <h3 style={{
-            color: '#666666',
-            fontSize: '11px',
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            letterSpacing: '1px',
-            marginBottom: '16px',
-          }}>
-            Older Projects
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {olderProjects.map((p, i) => (
-              <ProjectCard
-                key={p.id}
-                project={p}
-                onClick={() => onLoad(p.id)}
-                onDelete={deleteProject}
-                onRename={renameProject}
-                index={i + 3}
-                isLast={i === olderProjects.length - 1}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Empty State */}
-      {projects.length === 0 && (
-        <div style={{
-          textAlign: 'center',
-          padding: '60px 20px',
-          backgroundColor: '#141414',
-          borderRadius: '16px',
-          border: '1px dashed #2A2A2A',
-        }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎵</div>
-          <h3 style={{ color: '#FFFFFF', fontSize: '18px', fontWeight: 600, fontFamily: 'Outfit, sans-serif', marginBottom: '8px' }}>
-            Start Your Music Journey
-          </h3>
-          <p style={{ color: '#666666', fontSize: '14px' }}>
-            Create your first project above to begin generating lyrics and music
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ProjectCard({ project, onClick, onDelete, onRename, index, isLast }: {
-  project: Project;
-  onClick: () => void;
-  onDelete: (id: string) => void;
-  onRename: (id: string, name: string) => void;
-  index: number;
-  isLast?: boolean;
-}) {
-  const [showMenu, setShowMenu] = useState(false);
-  const hasLyrics = project.current_lyrics_version > 0;
-  const hasMusic = project.current_music_version > 0;
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); }}
-      style={{
-        width: '100%',
-        textAlign: 'left',
-        backgroundColor: '#141414',
-        border: '1px solid #2A2A2A',
-        borderRadius: '12px',
-        padding: '20px 24px',
-        cursor: 'pointer',
-        transition: 'all 200ms ease',
-        animation: `fadeIn 300ms ease forwards`,
-        animationDelay: `${index * 50}ms`,
-        opacity: 0,
-      }}
-      onMouseOver={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = '#E63946';
-        (e.currentTarget as HTMLElement).style.backgroundColor = '#1A1A1A';
-        (e.currentTarget as HTMLElement).style.transform = 'translateX(4px)';
-      }}
-      onMouseOut={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = '#2A2A2A';
-        (e.currentTarget as HTMLElement).style.backgroundColor = '#141414';
-        (e.currentTarget as HTMLElement).style.transform = 'translateX(0)';
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ flex: 1 }}>
-          <h4 style={{
-            color: '#FFFFFF',
-            fontSize: '16px',
-            fontWeight: 600,
-            fontFamily: 'Outfit, sans-serif',
-            marginBottom: '8px',
-          }}>
-            {project.name}
-          </h4>
-
-          {/* Progress indicators */}
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <span style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '12px',
-              color: hasLyrics ? '#00D26A' : '#666666',
-            }}>
-              <span style={{
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                backgroundColor: hasLyrics ? '#00D26A' : '#333333',
-              }} />
-              ✍️ Lyrics {hasLyrics ? `v${project.current_lyrics_version}` : ''}
-            </span>
-            <span style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '12px',
-              color: hasMusic ? '#00D26A' : '#666666',
-            }}>
-              <span style={{
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                backgroundColor: hasMusic ? '#00D26A' : '#333333',
-              }} />
-              🎵 Music {hasMusic ? `v${project.current_music_version}` : ''}
-            </span>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-          <span style={{
-            fontSize: '11px',
-            color: '#666666',
-            fontFamily: 'JetBrains Mono, monospace',
-          }}>
-            {formatRelativeTime(project.updated_at)}
-          </span>
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#666666',
-                cursor: 'pointer',
-                padding: '4px 8px',
-                fontSize: '18px',
-                lineHeight: 1,
-              }}
-            >
-              ⋮
-            </button>
-            {showMenu && (
-              <div style={{
-                position: 'absolute',
-                right: 0,
-                ...(isLast ? { bottom: '100%' } : { top: '100%' }),
-                backgroundColor: '#1E1E1E',
-                border: '1px solid #2A2A2A',
-                borderRadius: '8px',
-                padding: '4px',
-                zIndex: 100,
-                minWidth: '120px',
-              }}>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const newName = prompt('New name:', project.name);
-                    if (newName) onRename(project.id, newName);
-                    setShowMenu(false);
-                  }}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    background: 'none',
-                    border: 'none',
-                    color: '#A0A0A0',
-                    padding: '8px 16px',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    fontSize: '13px',
-                  }}
-                  onMouseOver={(e) => (e.currentTarget as HTMLElement).style.color = '#FFFFFF'}
-                  onMouseOut={(e) => (e.currentTarget as HTMLElement).style.color = '#A0A0A0'}
-                >
-                  Rename
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (confirm('Delete this project?')) onDelete(project.id);
-                    setShowMenu(false);
-                  }}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    background: 'none',
-                    border: 'none',
-                    color: '#E63946',
-                    padding: '8px 16px',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    fontSize: '13px',
-                  }}
-                  onMouseOver={(e) => (e.currentTarget as HTMLElement).style.color = '#FF4757'}
-                  onMouseOut={(e) => (e.currentTarget as HTMLElement).style.color = '#E63946'}
-                >
-                  Delete
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-function formatRelativeTime(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString();
 }
 
 export default App;

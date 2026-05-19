@@ -1,6 +1,7 @@
 import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './tests/e2e',
+  testIgnore: ['**/legacy/**'],
   timeout: 30000,
   globalSetup: './tests/e2e/global-setup.ts',
   use: {

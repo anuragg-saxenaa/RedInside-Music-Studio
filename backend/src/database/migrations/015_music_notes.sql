@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS music_notes (
+  id TEXT PRIMARY KEY,
+  music_id TEXT NOT NULL REFERENCES music_generations(id) ON DELETE CASCADE,
+  timestamp_sec REAL NOT NULL,
+  text TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

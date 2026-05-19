@@ -51,6 +51,7 @@ export const TestRoutes = [
           });
         }
 
+        let musicRecords = [];
         if (music) {
           // Create project directories using storage utility
           storage.createProjectDirs(project.id);
@@ -73,13 +74,15 @@ export const TestRoutes = [
             durationSeconds: 30,
           });
 
+          musicRecords = [musicRecord];
+
           // Update project with music version
           await ProjectModel.update(project.id, {
             current_music_version: 1
           });
         }
 
-        res.json({ project });
+        res.json({ project, music: musicRecords });
       } catch (error) {
         next(error);
       }
