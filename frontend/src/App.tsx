@@ -66,67 +66,30 @@ function App() {
     setProject(projectData);
   };
 
+  // StudioV4 is a full-viewport DAW — render it directly, no wrapper
+  if (currentView === 'share') {
+    return (
+      <SharedAudioProvider>
+        <ShareView token={shareToken} />
+      </SharedAudioProvider>
+    );
+  }
+
+  if (currentView === 'studio') {
+    return (
+      <SharedAudioProvider>
+        <StudioV4 />
+      </SharedAudioProvider>
+    );
+  }
+
+  // Legacy pages (history/viral/settings) keep the old branded shell
   return (
     <SharedAudioProvider>
-    {currentView === 'share' ? (
-      <ShareView token={shareToken} />
-    ) : (
     <div style={{ backgroundColor: '#0A0A0A', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif', position: 'relative', overflow: 'hidden' }}>
-      {/* Geometric background pattern */}
-      <div style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 0,
-        pointerEvents: 'none',
-        background: `
-          radial-gradient(ellipse 80% 50% at 20% 40%, rgba(230, 57, 70, 0.08) 0%, transparent 50%),
-          radial-gradient(ellipse 60% 40% at 80% 60%, rgba(230, 57, 70, 0.05) 0%, transparent 50%),
-          linear-gradient(180deg, #0A0A0A 0%, #0D0D0D 100%)
-        `,
-      }}>
-        {/* Diagonal lines pattern */}
-        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.03 }}>
-          <pattern id="diagonal-lines" patternUnits="userSpaceOnUse" width="60" height="60" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="60" stroke="#E63946" strokeWidth="1"/>
-          </pattern>
-          <rect width="100%" height="100%" fill="url(#diagonal-lines)"/>
-        </svg>
-        {/* Red glow orbs */}
-        <div style={{
-          position: 'absolute',
-          top: '10%',
-          left: '-5%',
-          width: '400px',
-          height: '400px',
-          background: 'radial-gradient(circle, rgba(230, 57, 70, 0.15) 0%, transparent 70%)',
-          filter: 'blur(60px)',
-        }}/>
-        <div style={{
-          position: 'absolute',
-          bottom: '20%',
-          right: '-10%',
-          width: '500px',
-          height: '500px',
-          background: 'radial-gradient(circle, rgba(230, 57, 70, 0.1) 0%, transparent 70%)',
-          filter: 'blur(80px)',
-        }}/>
-        {/* Grid dots pattern */}
-        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.02 }}>
-          <pattern id="grid-dots" patternUnits="userSpaceOnUse" width="30" height="30">
-            <circle cx="15" cy="15" r="1" fill="#E63946"/>
-          </pattern>
-          <rect width="100%" height="100%" fill="url(#grid-dots)"/>
-        </svg>
-      </div>
-      {isMockMode && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: '#FFB800', color: '#000', textAlign: 'center', padding: '6px 12px', fontSize: '13px', fontWeight: 600 }}>
-          TEST MODE — MiniMax mock active. For real use: stop backend, run <code style={{ background: 'rgba(0,0,0,0.15)', padding: '1px 6px', borderRadius: '3px' }}>npm run dev</code> in <code style={{ background: 'rgba(0,0,0,0.15)', padding: '1px 6px', borderRadius: '3px' }}>backend/</code>
-        </div>
-      )}
       <header style={{
         backgroundColor: 'rgba(10, 10, 10, 0.9)',
         borderBottom: '1px solid rgba(230, 57, 70, 0.3)',
-        marginTop: isMockMode ? '36px' : '0',
         padding: '20px 32px',
         position: 'sticky',
         top: 0,
@@ -153,25 +116,16 @@ function App() {
           RedInside <span style={{ color: '#FFFFFF' }}>Music Studio</span>
         </h1>
         <nav style={{ display: 'flex', gap: '16px' }}>
-          <a href="#/" style={{ color: (currentView === 'studio') ? '#E63946' : '#A0A0A0', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>Studio</a>
+          <a href="#/" style={{ color: '#A0A0A0', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>Studio</a>
           <a href="#/history" style={{ color: currentView === 'history' ? '#E63946' : '#A0A0A0', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>History</a>
           <a href="#/viral" style={{ color: currentView === 'viral' ? '#E63946' : '#A0A0A0', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>Viral</a>
           <a href="#/settings" style={{ color: currentView === 'settings' ? '#E63946' : '#A0A0A0', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>Settings</a>
         </nav>
       </header>
       <main style={{ maxWidth: '900px', margin: '0 auto', padding: '48px 24px', position: 'relative', zIndex: 1 }}>
-        {currentView === 'history' ? (
-          <History />
-        ) : currentView === 'viral' ? (
-          <ViralToolkit />
-        ) : currentView === 'settings' ? (
-          <Settings />
-        ) : (
-          <StudioV4 />
-        )}
+        {currentView === 'history' ? <History /> : currentView === 'viral' ? <ViralToolkit /> : <Settings />}
       </main>
     </div>
-    )}
     </SharedAudioProvider>
   );
 }
