@@ -7,6 +7,7 @@ import { MasteringRoutes } from './api/routes/mastering.routes.js';
 import { ViralRoutes } from './api/routes/viral.routes.js';
 import { SettingsRoutes } from './api/routes/settings.routes.js';
 import { PlaylistRoutes } from './api/routes/playlist.routes.js';
+import { MusicTagsRoutes } from './api/routes/music-tags.routes.js';
 import { initWebSocketServer } from './utils/ws.server.js';
 import express from 'express';
 import cors from 'cors';
@@ -129,6 +130,10 @@ SettingsRoutes.forEach(route => {
 });
 
 PlaylistRoutes.forEach(route => {
+  app[route.method](route.path, route.handler);
+});
+
+MusicTagsRoutes.forEach(route => {
   app[route.method](route.path, route.handler);
 });
 
