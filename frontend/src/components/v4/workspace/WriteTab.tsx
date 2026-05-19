@@ -1,4 +1,21 @@
 import { C } from '../shared/colors';
+import { useWorkspace } from '../../../contexts/WorkspaceContext';
+import LyricsEditor from '../../LyricsEditor/LyricsEditor';
+import type { LyricsGeneration } from '../../../types';
+
 export default function WriteTab() {
-  return <div style={{ color: C.textDim, padding: '24px 0' }} data-testid="write-tab">WRITE</div>;
+  const { activeProjectId, setSelectedLyrics } = useWorkspace();
+
+  if (!activeProjectId) {
+    return <div style={{ color: C.textDim, textAlign: 'center', padding: '48px 0' }}>Select a project first</div>;
+  }
+
+  return (
+    <div data-testid="write-tab">
+      <LyricsEditor
+        projectId={activeProjectId}
+        onLyricsGenerated={(lyrics: LyricsGeneration) => setSelectedLyrics(lyrics)}
+      />
+    </div>
+  );
 }
