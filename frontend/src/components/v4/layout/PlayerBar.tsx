@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 
@@ -25,7 +26,31 @@ export default function PlayerBar() {
   const {
     playerTrack, playerIsPlaying, playerProgress, playerCurrentTime, playerDuration, playerVolume,
     togglePlay, seekTo, setPlayerVolume, playNext, playPrev,
+    selectedTrack, setSelectedTrack, refreshTracks,
   } = useWorkspace();
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
+
+  const startEditTitle = () => {
+    if (!playerTrack) return;
+    setTitleDraft(playerTrack.title || `Track v${playerTrack.version}`);
+    setEditingTitle(true);
+  };
+
+  const saveTitle = async () => {
+    if (!playerTrack || !titleDraft.trim()) { setEditingTitle(false); return; }
+    const trimmed = titleDraft.trim();
+    await fetch(`/api/music/${playerTrack.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: trimmed }),
+    });
+    if (selectedTrack?.id === playerTrack.id) {
+      setSelectedTrack({ ...selectedTrack, title: trimmed });
+    }
+    refreshTracks();
+    setEditingTitle(false);
+  };
 
   return (
     <div
@@ -45,6 +70,15 @@ export default function PlayerBar() {
     >
       {/* Left — track info */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+        <style>{`
+          @keyframes marquee-scroll {
+            0%   { transform: translateX(0); }
+            30%  { transform: translateX(0); }
+            70%  { transform: translateX(var(--marquee-shift)); }
+            100% { transform: translateX(var(--marquee-shift)); }
+          }
+        `}</style>
+
         {/* Thumbnail */}
         <div style={{
           width: '46px',
@@ -67,22 +101,59 @@ export default function PlayerBar() {
           </svg>
         </div>
 
-        <div style={{ minWidth: 0 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
           {playerTrack ? (
             <>
-              <div style={{
-                color: C.text,
-                fontSize: '14px',
-                fontWeight: 600,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                letterSpacing: '-0.1px',
-              }}>
-                {playerTrack.title || `Track v${playerTrack.version}`}
-              </div>
+              {editingTitle ? (
+                <input
+                  autoFocus
+                  value={titleDraft}
+                  onChange={e => setTitleDraft(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false); }}
+                  onBlur={saveTitle}
+                  data-testid="player-title-input"
+                  style={{
+                    background: 'rgba(255,255,255,0.08)',
+                    border: `1px solid ${C.borderActive}`,
+                    borderRadius: '5px',
+                    padding: '3px 8px',
+                    color: C.text,
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    outline: 'none',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              ) : (
+                <div
+                  style={{ overflow: 'hidden', position: 'relative', cursor: 'text' }}
+                  title="Double-click to rename"
+                  onDoubleClick={startEditTitle}
+                  data-testid="player-track-title"
+                >
+                  <div
+                    style={{
+                      color: C.text,
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      whiteSpace: 'nowrap',
+                      letterSpacing: '-0.1px',
+                      display: 'inline-block',
+                      /* CSS variable set via style prop on parent isn't possible inline;
+                         use animation only for long titles via a conditional class-like approach */
+                      animation: (playerTrack.title || `Track v${playerTrack.version}`).length > 22
+                        ? 'marquee-scroll 6s ease-in-out infinite alternate'
+                        : 'none',
+                    }}
+                  >
+                    {playerTrack.title || `Track v${playerTrack.version}`}
+                  </div>
+                </div>
+              )}
               <div style={{ color: 'rgba(255,255,255,0.38)', fontSize: '11px', marginTop: '3px', fontVariantNumeric: 'tabular-nums' }}>
                 {fmtTime(playerCurrentTime)} · {fmtTime(playerDuration)}
+                {!editingTitle && <span style={{ color: 'rgba(255,255,255,0.2)', marginLeft: '8px', fontSize: '10px' }}>✏ dbl-click to rename</span>}
               </div>
             </>
           ) : (

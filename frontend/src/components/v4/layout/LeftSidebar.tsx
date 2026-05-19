@@ -4,6 +4,19 @@ import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import type { Project } from '../../../types';
 
 const MAX_PROJECTS_COLLAPSED = 5;
+const SEVEN_DAYS_MS = 7 * 24 * 3600 * 1000;
+
+function formatRelativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 7) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 
 const NAV_ITEMS = [
   { label: 'Sounds',   href: '#',          icon: '♪' },
@@ -23,15 +36,19 @@ export default function LeftSidebar() {
   const [creatingProject, setCreatingProject] = useState(false);
   const [showNewProjectInput, setShowNewProjectInput] = useState(false);
   const [projectsExpanded, setProjectsExpanded] = useState(false);
+  const [projectSearch, setProjectSearch] = useState('');
+  const [projectMenu, setProjectMenu] = useState<string | null>(null); // project id with open menu
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
   const [playlistsOpen, setPlaylistsOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
 
-  const sortedProjects = [...projects].sort((a, b) =>
-    new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-  );
-  const visibleProjects = projectsExpanded ? sortedProjects : sortedProjects.slice(0, MAX_PROJECTS_COLLAPSED);
+  const sortedProjects = [...projects]
+    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+    .filter(p => !projectSearch.trim() || p.name.toLowerCase().includes(projectSearch.toLowerCase()));
+  const visibleProjects = (projectsExpanded || projectSearch.trim()) ? sortedProjects : sortedProjects.slice(0, MAX_PROJECTS_COLLAPSED);
 
   const createProject = async () => {
     if (!newProjectName.trim()) return;
@@ -50,6 +67,24 @@ export default function LeftSidebar() {
     } finally {
       setCreatingProject(false);
     }
+  };
+
+  const deleteProject = async (id: string) => {
+    await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+    refreshProjects();
+    setProjectMenu(null);
+  };
+
+  const renameProject = async (id: string) => {
+    if (!renameDraft.trim()) { setRenamingId(null); return; }
+    await fetch(`/api/projects/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: renameDraft.trim() }),
+    });
+    refreshProjects();
+    setRenamingId(null);
+    setProjectMenu(null);
   };
 
   const createPlaylist = async () => {
@@ -157,6 +192,27 @@ export default function LeftSidebar() {
           >+</button>
         </div>
 
+        {/* Search */}
+        <div style={{ padding: '0 16px 8px' }}>
+          <input
+            value={projectSearch}
+            onChange={e => setProjectSearch(e.target.value)}
+            placeholder="Search projects…"
+            data-testid="project-search"
+            style={{
+              width: '100%',
+              background: 'rgba(255,255,255,0.06)',
+              border: `1px solid ${C.border}`,
+              borderRadius: '7px',
+              padding: '6px 10px',
+              color: C.text,
+              fontSize: '12px',
+              outline: 'none',
+              boxSizing: 'border-box',
+            }}
+          />
+        </div>
+
         {showNewProjectInput && (
           <div style={{ display: 'flex', gap: '6px', padding: '0 16px 8px' }}>
             <input
@@ -197,59 +253,132 @@ export default function LeftSidebar() {
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {visibleProjects.map((p: Project) => {
+          {(() => {
+            const now = Date.now();
+            const recent = visibleProjects.filter(p => now - new Date(p.updated_at).getTime() < SEVEN_DAYS_MS);
+            const older = visibleProjects.filter(p => now - new Date(p.updated_at).getTime() >= SEVEN_DAYS_MS);
+            const showGroupLabels = recent.length > 0 && older.length > 0;
+            const groups: Array<{ label: string; items: Project[] }> = [];
+            if (recent.length > 0) groups.push({ label: 'Recent', items: recent });
+            if (older.length > 0) groups.push({ label: 'Earlier', items: older });
+
+            return groups.flatMap(({ label, items }) => [
+              showGroupLabels && (
+                <div key={`grp-${label}`} style={{ ...sectionLabel, padding: '10px 20px 3px', fontSize: '9px', opacity: 0.4 }}>{label}</div>
+              ),
+              ...items.map((p: Project) => {
             const active = activeProjectId === p.id;
+            const menuOpen = projectMenu === p.id;
+            const renaming = renamingId === p.id;
             return (
               <div
                 key={p.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => setActiveProjectId(p.id)}
-                onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setActiveProjectId(p.id)}
                 data-testid={`project-item-${p.id}`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '8px 20px',
-                  cursor: 'pointer',
-                  background: active ? 'rgba(230,57,70,0.12)' : 'transparent',
-                  borderLeft: `3px solid ${active ? C.red : 'transparent'}`,
-                  transition: 'all 120ms',
-                }}
-                onMouseOver={e => { if (!active) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)'; }}
-                onMouseOut={e => { if (!active) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+                style={{ position: 'relative' }}
               >
-                <div style={{
-                  width: '30px',
-                  height: '30px',
-                  borderRadius: '6px',
-                  background: active ? `linear-gradient(135deg, ${C.redDark}, #0a0102)` : 'rgba(255,255,255,0.07)',
-                  border: `1px solid ${active ? C.borderActive : C.border}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  fontSize: '11px',
-                  color: active ? C.red : 'rgba(255,255,255,0.3)',
-                  fontWeight: 700,
-                }}>
-                  {p.name.slice(0, 2).toUpperCase()}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => { if (!renaming) { setActiveProjectId(p.id); setProjectMenu(null); } }}
+                  onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setActiveProjectId(p.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '8px 8px 8px 20px',
+                    cursor: 'pointer',
+                    background: active ? 'rgba(230,57,70,0.12)' : 'transparent',
+                    borderLeft: `3px solid ${active ? C.red : 'transparent'}`,
+                    transition: 'all 120ms',
+                  }}
+                  onMouseOver={e => { if (!active) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)'; }}
+                  onMouseOut={e => { if (!active) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+                >
+                  <div style={{
+                    width: '30px', height: '30px', borderRadius: '6px', flexShrink: 0,
+                    background: active ? `linear-gradient(135deg, ${C.redDark}, #0a0102)` : 'rgba(255,255,255,0.07)',
+                    border: `1px solid ${active ? C.borderActive : C.border}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '11px', color: active ? C.red : 'rgba(255,255,255,0.3)', fontWeight: 700,
+                  }}>
+                    {p.name.slice(0, 2).toUpperCase()}
+                  </div>
+
+                  {renaming ? (
+                    <input
+                      autoFocus
+                      value={renameDraft}
+                      onChange={e => setRenameDraft(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') renameProject(p.id); if (e.key === 'Escape') { setRenamingId(null); setProjectMenu(null); } }}
+                      onBlur={() => renameProject(p.id)}
+                      onClick={e => e.stopPropagation()}
+                      style={{
+                        flex: 1, background: 'rgba(255,255,255,0.1)', border: `1px solid ${C.borderActive}`,
+                        borderRadius: '5px', padding: '3px 7px', color: C.text, fontSize: '13px', outline: 'none',
+                      }}
+                    />
+                  ) : (
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        color: active ? C.text : 'rgba(255,255,255,0.6)',
+                        fontSize: '13px', fontWeight: active ? 600 : 400,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        {p.name}
+                      </div>
+                      <div style={{ color: 'rgba(255,255,255,0.25)', fontSize: '10px', marginTop: '1px' }}>
+                        {formatRelativeTime(p.created_at)}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ⋯ menu button */}
+                  <button
+                    onClick={e => { e.stopPropagation(); setProjectMenu(menuOpen ? null : p.id); }}
+                    style={{
+                      background: 'none', border: 'none', color: menuOpen ? C.text : 'rgba(255,255,255,0.25)',
+                      cursor: 'pointer', fontSize: '16px', padding: '2px 6px', lineHeight: 1, flexShrink: 0,
+                      borderRadius: '4px',
+                    }}
+                    onMouseOver={e => (e.currentTarget.style.color = C.text)}
+                    onMouseOut={e => { if (!menuOpen) e.currentTarget.style.color = 'rgba(255,255,255,0.25)'; }}
+                  >⋯</button>
                 </div>
-                <span style={{
-                  color: active ? C.text : 'rgba(255,255,255,0.6)',
-                  fontSize: '13px',
-                  fontWeight: active ? 600 : 400,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  flex: 1,
-                }}>
-                  {p.name}
-                </span>
+
+                {/* Dropdown menu */}
+                {menuOpen && (
+                  <div style={{
+                    position: 'absolute', right: '8px', top: '100%', zIndex: 300,
+                    background: '#1a1a1a', border: `1px solid ${C.border}`, borderRadius: '8px',
+                    padding: '4px', minWidth: '120px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                  }}>
+                    <button
+                      onClick={e => { e.stopPropagation(); setRenameDraft(p.name); setRenamingId(p.id); setProjectMenu(null); }}
+                      style={{
+                        display: 'block', width: '100%', background: 'none', border: 'none',
+                        color: 'rgba(255,255,255,0.7)', padding: '8px 12px', cursor: 'pointer',
+                        textAlign: 'left', fontSize: '13px', borderRadius: '5px',
+                      }}
+                      onMouseOver={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+                      onMouseOut={e => (e.currentTarget.style.background = 'none')}
+                    >✏ Rename</button>
+                    <button
+                      onClick={e => { e.stopPropagation(); if (confirm(`Delete "${p.name}"?`)) deleteProject(p.id); }}
+                      style={{
+                        display: 'block', width: '100%', background: 'none', border: 'none',
+                        color: C.red, padding: '8px 12px', cursor: 'pointer',
+                        textAlign: 'left', fontSize: '13px', borderRadius: '5px',
+                      }}
+                      onMouseOver={e => (e.currentTarget.style.background = 'rgba(230,57,70,0.12)')}
+                      onMouseOut={e => (e.currentTarget.style.background = 'none')}
+                    >✕ Delete</button>
+                  </div>
+                )}
               </div>
             );
-          })}
+          })
+            ]);
+          })()}
 
           {projects.length === 0 && (
             <div style={{ color: 'rgba(255,255,255,0.25)', fontSize: '12px', padding: '8px 20px' }}>
