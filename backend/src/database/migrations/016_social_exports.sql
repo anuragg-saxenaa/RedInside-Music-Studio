@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS social_exports (
+  id TEXT PRIMARY KEY,
+  music_id TEXT NOT NULL REFERENCES music_generations(id) ON DELETE CASCADE,
+  preset TEXT NOT NULL,
+  output_path TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
