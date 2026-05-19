@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import type { MusicGeneration } from '../../../types';
@@ -14,10 +15,37 @@ function fmtDuration(s?: number | null) {
   return `${m}:${sec.toString().padStart(2, '0')}`;
 }
 
+function Badge({ label, color }: { label: string; color: string }) {
+  return (
+    <span style={{
+      fontSize: '9px',
+      fontWeight: 700,
+      letterSpacing: '0.6px',
+      padding: '2px 5px',
+      borderRadius: '3px',
+      border: `1px solid ${color}44`,
+      color,
+      background: `${color}11`,
+      flexShrink: 0,
+    }}>
+      {label}
+    </span>
+  );
+}
+
 export default function TrackRow({ track, onDoubleClick }: TrackRowProps) {
   const { selectedTrack, setSelectedTrack, playTrack, playerTrack, playerIsPlaying } = useWorkspace();
   const isSelected = selectedTrack?.id === track.id;
   const isPlaying = playerTrack?.id === track.id && playerIsPlaying;
+  const isMastered = !!track.processed_file_path;
+  const [bpm, setBpm] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/music/${track.id}/tags`)
+      .then(r => r.json())
+      .then((t: { bpm?: number | null }) => { if (t.bpm) setBpm(Math.round(t.bpm)); })
+      .catch(() => {});
+  }, [track.id]);
 
   return (
     <div
@@ -37,7 +65,6 @@ export default function TrackRow({ track, onDoubleClick }: TrackRowProps) {
       onMouseOver={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)'; }}
       onMouseOut={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
     >
-      {/* Play indicator */}
       <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
         {isPlaying ? (
           <div style={{ display: 'flex', gap: '2px', alignItems: 'flex-end', height: '14px' }}>
@@ -52,17 +79,18 @@ export default function TrackRow({ track, onDoubleClick }: TrackRowProps) {
         )}
       </div>
 
-      {/* Title + meta */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ color: C.text, fontSize: '13px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {track.title || `Track v${track.version}`}
         </div>
-        <div style={{ color: C.textDim, fontSize: '11px', marginTop: '2px' }}>
-          {fmtDuration(track.duration_seconds)} {track.bitrate ? `· ${track.bitrate}kbps` : ''}
+        <div style={{ color: C.textDim, fontSize: '11px', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+          <span>{fmtDuration(track.duration_seconds)}{track.bitrate ? ` · ${track.bitrate}kbps` : ''}</span>
+          {isMastered && <Badge label="MASTERED" color={C.gold} />}
+          {track.is_instrumental && <Badge label="INSTRUMENTAL" color="#60a5fa" />}
+          {bpm && <Badge label={`${bpm} BPM`} color="rgba(255,255,255,0.5)" />}
         </div>
       </div>
 
-      {/* Play button */}
       <button
         onClick={e => { e.stopPropagation(); playTrack(track); }}
         data-testid={`play-btn-${track.id}`}
