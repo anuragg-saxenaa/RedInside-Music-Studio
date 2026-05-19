@@ -8,6 +8,9 @@ import { ViralRoutes } from './api/routes/viral.routes.js';
 import { SettingsRoutes } from './api/routes/settings.routes.js';
 import { PlaylistRoutes } from './api/routes/playlist.routes.js';
 import { MusicTagsRoutes } from './api/routes/music-tags.routes.js';
+import { MusicNotesRoutes } from './api/routes/music-notes.routes.js';
+import { SocialExportRoutes } from './api/routes/social-export.routes.js';
+import { ShareRoutes } from './api/routes/share.routes.js';
 import { initWebSocketServer } from './utils/ws.server.js';
 import express from 'express';
 import cors from 'cors';
@@ -134,6 +137,18 @@ PlaylistRoutes.forEach(route => {
 });
 
 MusicTagsRoutes.forEach(route => {
+  app[route.method](route.path, route.handler);
+});
+
+MusicNotesRoutes.forEach(route => {
+  app[route.method](route.path, route.handler);
+});
+
+SocialExportRoutes.forEach(route => {
+  app[route.method](route.path, route.handler);
+});
+
+ShareRoutes.forEach(route => {
   app[route.method](route.path, route.handler);
 });
 
