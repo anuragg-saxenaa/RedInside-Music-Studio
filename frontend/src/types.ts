@@ -88,3 +88,38 @@ export interface ReplayData {
   nextVersion: number;
   regenerationParams: Record<string, string | number | boolean>;
 }
+
+export interface Playlist {
+  id: string;
+  name: string;
+  track_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlaylistTrack extends MusicGeneration {
+  position: number;
+  added_at: string;
+}
+
+export interface MusicNote {
+  id: string;
+  music_id: string;
+  timestamp_sec: number;
+  text: string;
+  created_at: string;
+}
+
+export interface MusicTags {
+  bpm: number | null;
+  key: string | null;
+  mood: string | null;
+}
+
+export interface ShareToken {
+  token: string;
+  url: string;
+  expiresAt: string;
+}
+
+export type V4Tab = 'sounds' | 'write' | 'create' | 'craft' | 'release';
