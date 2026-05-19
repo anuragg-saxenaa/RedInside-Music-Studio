@@ -153,7 +153,6 @@ export default function PlayerBar() {
               )}
               <div style={{ color: 'rgba(255,255,255,0.38)', fontSize: '11px', marginTop: '3px', fontVariantNumeric: 'tabular-nums' }}>
                 {fmtTime(playerCurrentTime)} · {fmtTime(playerDuration)}
-                {!editingTitle && <span style={{ color: 'rgba(255,255,255,0.2)', marginLeft: '8px', fontSize: '10px' }}>✏ dbl-click to rename</span>}
               </div>
             </>
           ) : (

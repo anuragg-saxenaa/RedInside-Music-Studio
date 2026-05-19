@@ -2,12 +2,12 @@ import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import type { V4Tab } from '../../../types';
 
-const TABS: { id: V4Tab; label: string }[] = [
-  { id: 'sounds',  label: 'SOUNDS'  },
-  { id: 'write',   label: 'WRITE'   },
-  { id: 'create',  label: 'CREATE'  },
-  { id: 'craft',   label: 'CRAFT'   },
-  { id: 'release', label: 'RELEASE' },
+const TABS: { id: V4Tab; label: string; icon: string }[] = [
+  { id: 'sounds',  label: 'SOUNDS',  icon: '♪' },
+  { id: 'write',   label: 'WRITE',   icon: '✎' },
+  { id: 'create',  label: 'CREATE',  icon: '◈' },
+  { id: 'craft',   label: 'CRAFT',   icon: '⚙' },
+  { id: 'release', label: 'RELEASE', icon: '↗' },
 ];
 
 export default function TabBar() {
@@ -42,6 +42,7 @@ export default function TabBar() {
           onMouseOver={e => { if (activeTab !== tab.id) (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.75)'; }}
           onMouseOut={e => { if (activeTab !== tab.id) (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.35)'; }}
         >
+          <span style={{ marginRight: '6px', opacity: activeTab === tab.id ? 1 : 0.6 }}>{tab.icon}</span>
           {tab.label}
         </button>
       ))}

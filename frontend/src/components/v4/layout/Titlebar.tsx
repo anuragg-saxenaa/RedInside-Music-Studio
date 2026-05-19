@@ -20,8 +20,12 @@ export default function Titlebar() {
         zIndex: 100,
       }}
     >
-      {/* Left — empty (brand is in sidebar) */}
-      <div />
+      {/* Left — Studio label */}
+      <div style={{ display: 'flex', alignItems: 'center', paddingLeft: '20px' }}>
+        <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '10px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase' }}>
+          Studio
+        </span>
+      </div>
 
       {/* Centre — active project breadcrumb */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
@@ -53,11 +57,11 @@ export default function Titlebar() {
           width: '6px',
           height: '6px',
           borderRadius: '50%',
-          background: C.red,
-          boxShadow: `0 0 6px ${C.red}`,
+          background: '#4ade80',
+          boxShadow: '0 0 6px #4ade80',
           opacity: 0.7,
         }} />
-        <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '11px' }}>Live</span>
+        <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '11px' }}>Ready</span>
       </div>
     </div>
   );

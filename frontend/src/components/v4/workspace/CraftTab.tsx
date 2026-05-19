@@ -10,6 +10,7 @@ type CraftSubTab = 'editor' | 'medley';
 export default function CraftTab() {
   const { activeProjectId, selectedTrack, tracks } = useWorkspace();
   const [subTab, setSubTab] = useState<CraftSubTab>('editor');
+  const [craftPreset, setCraftPreset] = useState<Record<string, unknown>>({});
 
   if (!activeProjectId) {
     return <div data-testid="craft-tab" style={{ color: C.textDim, textAlign: 'center', padding: '48px 0' }}>Select a project first</div>;
@@ -39,8 +40,9 @@ export default function CraftTab() {
             audioUrl={`/api/music/${selectedTrack.id}/file`}
             trackId={selectedTrack.id}
             musicId={selectedTrack.id}
+            presetOperations={craftPreset}
           />
-          <RemixSuggestions onApply={ops => console.log('Apply remix ops:', ops)} />
+          <RemixSuggestions onApply={ops => setCraftPreset(ops as Record<string, unknown>)} />
         </>
       )}
 

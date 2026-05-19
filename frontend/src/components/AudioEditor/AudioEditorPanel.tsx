@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import TrackLane from './TrackLane';
 import TimelineView from './TimelineView';
 import GridView from './GridView';
@@ -17,6 +17,7 @@ export interface AudioEditorPanelProps {
   mode?: 'single' | 'medley'
   tracks?: any[]
   onExport?: (result: { filePath: string, duration: number }) => void
+  presetOperations?: Partial<AudioOperations>
 }
 
 const defaultOperations: AudioOperations = {
@@ -56,6 +57,7 @@ export default function AudioEditorPanel({
   mode = 'single',
   tracks = [],
   onExport,
+  presetOperations,
 }: AudioEditorPanelProps) {
   const [duration, setDuration] = useState(0);
   const handleDurationDetected = useCallback((d: number) => {
@@ -63,6 +65,14 @@ export default function AudioEditorPanel({
     setOperations(o => ({ ...o, trimEnd: o.trimEnd > 0 ? o.trimEnd : d }));
   }, []);
   const [operations, setOperations] = useState<AudioOperations>({ ...defaultOperations });
+
+  useEffect(() => {
+    if (presetOperations && Object.keys(presetOperations).length > 0) {
+      setOperations(o => ({ ...o, ...presetOperations }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(presetOperations)]);
+
   const [isExporting, setIsExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState<{ type: 'success' | 'error' | 'processing'; text: string } | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('timeline');

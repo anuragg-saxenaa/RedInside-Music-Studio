@@ -18,7 +18,7 @@ export default function AppShell({ titlebar, sidebar, centre, rightPanel, player
       overflow: 'hidden',
       display: 'flex',
       flexDirection: 'column',
-      fontFamily: "'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif",
+      fontFamily: "'Outfit', 'DM Sans', -apple-system, sans-serif",
       color: C.text,
     }}>
       {mockBanner}
