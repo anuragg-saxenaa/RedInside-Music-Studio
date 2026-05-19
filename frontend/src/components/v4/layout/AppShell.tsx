@@ -26,7 +26,7 @@ export default function AppShell({ titlebar, sidebar, centre, rightPanel, player
           {rightPanel}
         </div>
       </div>
-      <div style={{ position: 'sticky', bottom: 0, zIndex: 200 }} data-testid="player-bar">
+      <div style={{ position: 'sticky', bottom: 0, zIndex: 200 }}>
         {playerBar}
       </div>
     </div>

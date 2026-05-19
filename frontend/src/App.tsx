@@ -166,8 +166,6 @@ function App() {
           <ViralToolkit />
         ) : currentView === 'settings' ? (
           <Settings />
-        ) : !project ? (
-          <ProjectSelector onCreate={createProject} onLoad={loadProject} />
         ) : (
           <StudioV4 />
         )}
