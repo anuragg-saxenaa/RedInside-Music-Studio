@@ -31,7 +31,7 @@ export default function AppShell({ titlebar, sidebar, centre, rightPanel, player
         gap: '1px',
         background: C.border,
       }}>
-        <div style={{ overflow: 'hidden auto', background: 'rgba(0,0,0,0.72)' }} data-testid="left-sidebar">
+        <div style={{ overflow: 'hidden', background: 'rgba(0,0,0,0.72)' }} data-testid="left-sidebar">
           {sidebar}
         </div>
         <div style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', minWidth: 0, background: 'rgba(4,1,2,0.92)' }} data-testid="centre-panel">

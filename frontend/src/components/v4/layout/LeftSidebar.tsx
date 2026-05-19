@@ -100,9 +100,9 @@ export default function LeftSidebar() {
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', paddingBottom: '16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-      {/* Brand */}
+      {/* Brand — always visible */}
       <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
           <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
@@ -115,7 +115,7 @@ export default function LeftSidebar() {
         </div>
       </div>
 
-      {/* Nav */}
+      {/* Nav — always visible */}
       <nav style={{ flexShrink: 0, borderBottom: `1px solid ${C.border}`, paddingBottom: '8px' }}>
         <div style={sectionLabel}>Workspace</div>
         {NAV_ITEMS.map(({ label, href, icon }) => (
@@ -132,8 +132,11 @@ export default function LeftSidebar() {
         ))}
       </nav>
 
+      {/* Scrollable list area — projects + playlists scroll, brand+nav stay pinned */}
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', paddingBottom: '16px' }}>
+
       {/* Projects */}
-      <div style={{ flexShrink: 0, borderBottom: `1px solid ${C.border}`, paddingBottom: '8px' }}>
+      <div style={{ borderBottom: `1px solid ${C.border}`, paddingBottom: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 20px 6px' }}>
           <span style={{ ...sectionLabel, padding: 0 }}>Projects</span>
           <button
@@ -272,7 +275,7 @@ export default function LeftSidebar() {
       </div>
 
       {/* Playlists */}
-      <div style={{ flexShrink: 0 }}>
+      <div>
         <button
           onClick={() => setPlaylistsOpen(v => !v)}
           style={{
@@ -378,6 +381,8 @@ export default function LeftSidebar() {
           </div>
         )}
       </div>
+
+      </div>{/* end scrollable area */}
     </div>
   );
 }
