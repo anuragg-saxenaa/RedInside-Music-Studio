@@ -6,6 +6,7 @@ import { HistoryRoutes } from './api/routes/history.routes.js';
 import { MasteringRoutes } from './api/routes/mastering.routes.js';
 import { ViralRoutes } from './api/routes/viral.routes.js';
 import { SettingsRoutes } from './api/routes/settings.routes.js';
+import { PlaylistRoutes } from './api/routes/playlist.routes.js';
 import { initWebSocketServer } from './utils/ws.server.js';
 import express from 'express';
 import cors from 'cors';
@@ -124,6 +125,10 @@ ViralRoutes.forEach(route => {
 });
 
 SettingsRoutes.forEach(route => {
+  app[route.method](route.path, route.handler);
+});
+
+PlaylistRoutes.forEach(route => {
   app[route.method](route.path, route.handler);
 });
 
