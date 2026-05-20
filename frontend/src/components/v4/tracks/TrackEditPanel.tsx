@@ -128,6 +128,7 @@ export default function TrackEditPanel({ track, onClose, onSaved }: TrackEditPan
       setArtworkUrl(saveData.artworkUrl + '?t=' + Date.now());
       setShowGenerate(false);
       setArtPrompt('');
+      refreshTracks();
     } catch {
       setGenError('Network error');
     } finally {
