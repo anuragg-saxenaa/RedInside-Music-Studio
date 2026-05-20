@@ -17,25 +17,20 @@ async function seedAndOpenCreate(page: Page) {
 }
 
 test.describe('CreateTab', () => {
-  test('album tab is visible', async ({ page }) => {
+  test('album tab is visible with create album button', async ({ page }) => {
     const { project } = await seedAndOpenCreate(page);
 
     await expect(page.locator('[data-testid="album-tab"]')).toBeVisible({ timeout: 8000 });
-    await expect(page.locator('[data-testid="section-artwork"]')).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('[data-testid="section-video"]')).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('[data-testid="section-voice"]')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('[data-testid="create-album-btn"]')).toBeVisible({ timeout: 5000 });
 
     await page.request.delete(`http://localhost:3000/api/projects/${project.id}`).catch(() => {});
   });
 
-  test('sections are collapsible', async ({ page }) => {
+  test('can create album and see editor', async ({ page }) => {
     const { project } = await seedAndOpenCreate(page);
 
-    await page.locator('[data-testid="section-artwork"] button').first().click();
-    await page.waitForTimeout(300);
-
-    const artworkButtons = await page.locator('[data-testid="section-artwork"] button').count();
-    expect(artworkButtons).toBe(1);
+    await page.locator('[data-testid="create-album-btn"]').click();
+    await expect(page.locator('[data-testid="save-album-btn"]')).toBeVisible({ timeout: 5000 });
 
     await page.request.delete(`http://localhost:3000/api/projects/${project.id}`).catch(() => {});
   });

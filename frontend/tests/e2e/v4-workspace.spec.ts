@@ -17,7 +17,7 @@ test.describe('StudioV4 Workspace', () => {
 
     await expect(page.locator('[data-testid="tab-bar"]')).toBeVisible({ timeout: 8000 });
 
-    for (const tab of ['sounds', 'write', 'create', 'craft', 'release']) {
+    for (const tab of ['sounds', 'write', 'album', 'craft', 'release']) {
       await expect(page.locator(`[data-testid="tab-${tab}"]`)).toBeVisible({ timeout: 5000 });
       await page.locator(`[data-testid="tab-${tab}"]`).click();
       await page.waitForTimeout(200);
