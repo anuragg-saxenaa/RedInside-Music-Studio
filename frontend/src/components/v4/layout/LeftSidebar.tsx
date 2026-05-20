@@ -31,7 +31,7 @@ const SMART_PLAYLISTS = [
 ];
 
 export default function LeftSidebar() {
-  const { projects, activeProjectId, setActiveProjectId, refreshProjects, playlists, refreshPlaylists, playTrack, setSelectedTrack, playerTrack, playerIsPlaying } = useWorkspace();
+  const { projects, activeProjectId, setActiveProjectId, refreshProjects, playlists, refreshPlaylists, tracks, playTrack, setSelectedTrack, playerTrack, playerIsPlaying } = useWorkspace();
   const [newProjectName, setNewProjectName] = useState('');
   const [creatingProject, setCreatingProject] = useState(false);
   const [showNewProjectInput, setShowNewProjectInput] = useState(false);
@@ -112,7 +112,8 @@ export default function LeftSidebar() {
     if (activePlaylistId === id) setActivePlaylistId(null);
   };
 
-  // Re-fetch tracks for the currently-expanded playlist whenever playlists refresh
+  // Re-fetch tracks for the currently-expanded playlist whenever playlists or tracks refresh
+  // tracks dependency catches renames: refreshTracks() updates tracks but not playlists
   useEffect(() => {
     if (activePlaylistId && playlistTracks[activePlaylistId] !== undefined) {
       fetch(`/api/playlists/${activePlaylistId}/tracks`)
@@ -123,7 +124,7 @@ export default function LeftSidebar() {
         .catch(() => {});
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playlists]);
+  }, [playlists, tracks]);
 
   const sectionLabel: React.CSSProperties = {
     color: C.textDim,
