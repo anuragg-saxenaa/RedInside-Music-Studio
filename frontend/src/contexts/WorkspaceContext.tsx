@@ -35,6 +35,11 @@ interface WorkspaceContextType {
   playNext: () => void;
   playPrev: () => void;
 
+  isLooping: boolean;
+  isShuffled: boolean;
+  toggleLoop: () => void;
+  toggleShuffle: () => void;
+
   isMockMode: boolean;
 }
 
@@ -55,6 +60,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [playerDuration, setPlayerDuration] = useState(0);
   const [playerVolume, setPlayerVolumeState] = useState(0.8);
   const [isMockMode, setIsMockMode] = useState(false);
+  const [isLooping, setIsLooping] = useState(false);
+  const [isShuffled, setIsShuffled] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -102,7 +109,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setPlayerIsPlaying(true);
     setPlayerProgress(0);
     setPlayerCurrentTime(0);
-    audio.addEventListener('ended', () => setPlayerIsPlaying(false));
+    audio.addEventListener('ended', () => {
+      if (isLooping) {
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
+      } else {
+        setPlayerIsPlaying(false);
+      }
+    });
     audio.addEventListener('timeupdate', () => {
       if (audio.duration && isFinite(audio.duration)) {
         setPlayerProgress(audio.currentTime / audio.duration);
@@ -113,7 +127,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     audio.addEventListener('loadedmetadata', () => {
       if (isFinite(audio.duration)) setPlayerDuration(audio.duration);
     });
-  }, [playerVolume]);
+  }, [playerVolume, isLooping]);
 
   const togglePlay = useCallback(() => {
     if (!audioRef.current) return;
@@ -138,10 +152,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const playNext = useCallback(() => {
     if (!playerTrack || tracks.length === 0) return;
+    if (isShuffled && tracks.length > 1) {
+      const others = tracks.filter(t => t.id !== playerTrack.id);
+      const next = others[Math.floor(Math.random() * others.length)];
+      playTrack(next);
+      return;
+    }
     const idx = tracks.findIndex(t => t.id === playerTrack.id);
+    const isLast = idx === tracks.length - 1;
+    if (isLast && !isLooping) return;
     const next = tracks[(idx + 1) % tracks.length];
     playTrack(next);
-  }, [playerTrack, tracks, playTrack]);
+  }, [playerTrack, tracks, isShuffled, isLooping, playTrack]);
 
   const playPrev = useCallback(() => {
     if (!playerTrack || tracks.length === 0) return;
@@ -149,6 +171,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const prev = tracks[(idx - 1 + tracks.length) % tracks.length];
     playTrack(prev);
   }, [playerTrack, tracks, playTrack]);
+
+  const toggleLoop = useCallback(() => setIsLooping(v => !v), []);
+  const toggleShuffle = useCallback(() => setIsShuffled(v => !v), []);
 
   return (
     <WorkspaceContext.Provider value={{
@@ -159,6 +184,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       playlists, refreshPlaylists,
       playerTrack, playerIsPlaying, playerProgress, playerCurrentTime, playerDuration, playerVolume,
       playTrack, togglePlay, seekTo, setPlayerVolume, playNext, playPrev,
+      isLooping, isShuffled, toggleLoop, toggleShuffle,
       isMockMode,
     }}>
       {children}
