@@ -94,11 +94,21 @@ export default function PlayerBar() {
           flexShrink: 0,
           boxShadow: playerTrack && playerIsPlaying ? `0 0 16px ${C.red}33` : 'none',
           transition: 'box-shadow 400ms',
+          overflow: 'hidden',
+          position: 'relative',
         }}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <circle cx="8" cy="8" r="6" stroke={playerTrack ? C.red : 'rgba(255,255,255,0.15)'} strokeWidth="1.5"/>
-            <circle cx="8" cy="8" r="2" fill={playerTrack ? C.red : 'rgba(255,255,255,0.1)'} opacity={playerTrack ? 0.6 : 1}/>
-          </svg>
+          {playerTrack?.artwork_url ? (
+            <img
+              src={`/api/projects/${playerTrack.project_id}/artwork/${playerTrack.id}`}
+              alt=""
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="6" stroke={playerTrack ? C.red : 'rgba(255,255,255,0.15)'} strokeWidth="1.5"/>
+              <circle cx="8" cy="8" r="2" fill={playerTrack ? C.red : 'rgba(255,255,255,0.1)'} opacity={playerTrack ? 0.6 : 1}/>
+            </svg>
+          )}
         </div>
 
         <div style={{ minWidth: 0, flex: 1 }}>
