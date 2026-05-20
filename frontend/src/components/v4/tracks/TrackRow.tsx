@@ -71,9 +71,9 @@ export default function TrackRow({ track, onDoubleClick }: TrackRowProps) {
       <div
         role="button"
         tabIndex={0}
-        onClick={() => setSelectedTrack(track)}
+        onClick={() => { setSelectedTrack(track); playTrack(track); }}
         onDoubleClick={onDoubleClick}
-        onKeyDown={e => e.key === 'Enter' && setSelectedTrack(track)}
+        onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && (setSelectedTrack(track), playTrack(track))}
         style={{
           display: 'flex', alignItems: 'center', gap: '12px',
           padding: '10px 12px', borderRadius: '8px', cursor: 'pointer',
@@ -110,11 +110,6 @@ export default function TrackRow({ track, onDoubleClick }: TrackRowProps) {
           </div>
         </div>
 
-        <button
-          onClick={e => { e.stopPropagation(); playTrack(track); }}
-          data-testid={`play-btn-${track.id}`}
-          style={{ background: 'none', border: 'none', color: isSelected ? C.red : C.textDim, cursor: 'pointer', padding: '4px', fontSize: '12px' }}
-        >▶</button>
 
         <button
           onClick={e => { e.stopPropagation(); setMenuOpen(v => !v); }}
