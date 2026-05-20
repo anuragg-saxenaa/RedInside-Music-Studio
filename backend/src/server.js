@@ -11,6 +11,7 @@ import { MusicTagsRoutes } from './api/routes/music-tags.routes.js';
 import { MusicNotesRoutes } from './api/routes/music-notes.routes.js';
 import { SocialExportRoutes } from './api/routes/social-export.routes.js';
 import { ShareRoutes } from './api/routes/share.routes.js';
+import { AlbumRoutes } from './api/routes/album.routes.js';
 import { initWebSocketServer } from './utils/ws.server.js';
 import express from 'express';
 import cors from 'cors';
@@ -149,6 +150,10 @@ SocialExportRoutes.forEach(route => {
 });
 
 ShareRoutes.forEach(route => {
+  app[route.method](route.path, route.handler);
+});
+
+AlbumRoutes.forEach(route => {
   app[route.method](route.path, route.handler);
 });
 
