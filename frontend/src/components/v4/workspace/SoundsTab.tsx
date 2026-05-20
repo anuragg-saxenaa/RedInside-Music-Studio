@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import TrackRow from '../tracks/TrackRow';
+import TrackEditPanel from '../tracks/TrackEditPanel';
 import ABComparator from '../tracks/ABComparator';
 import YoutubeDownloader from '../../Downloader/YoutubeDownloader';
 import MusicPlayer from '../../MusicPlayer/MusicPlayer';
@@ -11,6 +12,7 @@ export default function SoundsTab() {
   const { tracks, activeProjectId, selectedLyrics, setSelectedTrack, setActiveTab, refreshTracks } = useWorkspace();
   const [showYoutube, setShowYoutube] = useState(false);
   const [showGenerate, setShowGenerate] = useState(false);
+  const [expandedTrackId, setExpandedTrackId] = useState<string | null>(null);
 
   if (!activeProjectId) {
     return (
@@ -81,11 +83,21 @@ export default function SoundsTab() {
           </div>
         )}
         {tracks.map(track => (
-          <TrackRow
-            key={track.id}
-            track={track}
-            onDoubleClick={() => { setSelectedTrack(track); setActiveTab('craft'); }}
-          />
+          <div key={track.id}>
+            <TrackRow
+              track={track}
+              onDoubleClick={() => { setSelectedTrack(track); setActiveTab('craft'); }}
+              onEdit={() => setExpandedTrackId(prev => prev === track.id ? null : track.id)}
+              isEditOpen={expandedTrackId === track.id}
+            />
+            {expandedTrackId === track.id && (
+              <TrackEditPanel
+                track={track}
+                onClose={() => setExpandedTrackId(null)}
+                onSaved={() => { setExpandedTrackId(null); refreshTracks(); }}
+              />
+            )}
+          </div>
         ))}
       </div>
 

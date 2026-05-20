@@ -6,6 +6,8 @@ import type { MusicGeneration } from '../../../types';
 interface TrackRowProps {
   track: MusicGeneration;
   onDoubleClick?: () => void;
+  onEdit?: () => void;
+  isEditOpen?: boolean;
 }
 
 function fmtDuration(s?: number | null) {
@@ -33,7 +35,7 @@ function Badge({ label, color }: { label: string; color: string }) {
   );
 }
 
-export default function TrackRow({ track, onDoubleClick }: TrackRowProps) {
+export default function TrackRow({ track, onDoubleClick, onEdit, isEditOpen }: TrackRowProps) {
   const { selectedTrack, setSelectedTrack, playTrack, playerTrack, playerIsPlaying, refreshTracks, setActiveTab } = useWorkspace();
   const isSelected = selectedTrack?.id === track.id;
   const isPlaying = playerTrack?.id === track.id && playerIsPlaying;
@@ -111,6 +113,19 @@ export default function TrackRow({ track, onDoubleClick }: TrackRowProps) {
         </div>
 
 
+        <button
+          onClick={e => { e.stopPropagation(); onEdit?.(); }}
+          title="Edit track metadata"
+          style={{
+            background: isEditOpen ? 'rgba(230,57,70,0.12)' : 'none',
+            border: `1px solid ${isEditOpen ? 'rgba(230,57,70,0.3)' : 'transparent'}`,
+            color: isEditOpen ? C.red : 'rgba(255,255,255,0.25)',
+            cursor: 'pointer', fontSize: '13px', padding: '3px 6px', lineHeight: 1,
+            borderRadius: '4px', flexShrink: 0,
+          }}
+          onMouseOver={e => { (e.currentTarget.style.color = C.text); }}
+          onMouseOut={e => { if (!isEditOpen) e.currentTarget.style.color = 'rgba(255,255,255,0.25)'; }}
+        >✎</button>
         <button
           onClick={e => { e.stopPropagation(); setMenuOpen(v => !v); }}
           data-testid={`track-menu-btn-${track.id}`}
