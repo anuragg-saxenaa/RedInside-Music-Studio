@@ -86,8 +86,22 @@ export default function TrackRow({ track, onDoubleClick, onEdit, isEditOpen }: T
         onMouseOver={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)'; }}
         onMouseOut={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
       >
-        <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          {isPlaying ? (
+        <div style={{
+          width: '40px', height: '40px', borderRadius: '6px',
+          background: track.artwork_url
+            ? 'transparent'
+            : `linear-gradient(135deg, rgba(230,57,70,0.3) 0%, rgba(8,2,4,0.8) 100%)`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0, overflow: 'hidden', position: 'relative',
+          border: `1px solid ${isSelected ? C.borderActive : C.border}`,
+        }}>
+          {track.artwork_url ? (
+            <img
+              src={`/api/projects/${track.project_id}/artwork/${track.id}`}
+              alt=""
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
+          ) : isPlaying ? (
             <div style={{ display: 'flex', gap: '2px', alignItems: 'flex-end', height: '14px' }}>
               {[1,2,3].map(i => (
                 <div key={i} style={{ width: '3px', background: C.red, borderRadius: '1px', height: `${8 + i * 2}px`, animation: `barPulse${i} 0.8s ease-in-out infinite alternate` }} />
@@ -97,6 +111,18 @@ export default function TrackRow({ track, onDoubleClick, onEdit, isEditOpen }: T
             <svg width="10" height="12" viewBox="0 0 10 12" fill={isSelected ? C.red : C.textDim}>
               <path d="M0 0L10 6L0 12V0Z"/>
             </svg>
+          )}
+          {isPlaying && track.artwork_url && (
+            <div style={{
+              position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <div style={{ display: 'flex', gap: '2px', alignItems: 'flex-end', height: '14px' }}>
+                {[1,2,3].map(i => (
+                  <div key={i} style={{ width: '3px', background: C.red, borderRadius: '1px', height: `${8 + i * 2}px`, animation: `barPulse${i} 0.8s ease-in-out infinite alternate` }} />
+                ))}
+              </div>
+            </div>
           )}
         </div>
 
