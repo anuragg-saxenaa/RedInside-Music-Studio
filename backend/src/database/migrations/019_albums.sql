@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS albums (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  artist TEXT,
+  year INTEGER,
+  genre TEXT,
+  label TEXT,
+  artwork_path TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
