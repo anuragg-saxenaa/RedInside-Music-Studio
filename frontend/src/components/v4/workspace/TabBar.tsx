@@ -5,7 +5,7 @@ import type { V4Tab } from '../../../types';
 const TABS: { id: V4Tab; label: string; icon: string }[] = [
   { id: 'sounds',  label: 'SOUNDS',  icon: '♪' },
   { id: 'write',   label: 'WRITE',   icon: '✎' },
-  { id: 'create',  label: 'CREATE',  icon: '◈' },
+  { id: 'album',   label: 'ALBUM',   icon: '◈' },
   { id: 'craft',   label: 'CRAFT',   icon: '⚙' },
   { id: 'release', label: 'RELEASE', icon: '↗' },
 ];

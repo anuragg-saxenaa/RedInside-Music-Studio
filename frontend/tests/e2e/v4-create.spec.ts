@@ -10,17 +10,17 @@ async function seedAndOpenCreate(page: Page) {
   await page.waitForLoadState('networkidle');
   await page.locator(`[data-testid="project-item-${project.id}"]`).click();
   await page.waitForTimeout(800);
-  await page.locator('[data-testid="tab-create"]').click();
+  await page.locator('[data-testid="tab-album"]').click();
   await page.waitForTimeout(400);
 
   return { project };
 }
 
 test.describe('CreateTab', () => {
-  test('create tab renders with all three sections', async ({ page }) => {
+  test('album tab is visible', async ({ page }) => {
     const { project } = await seedAndOpenCreate(page);
 
-    await expect(page.locator('[data-testid="create-tab"]')).toBeVisible({ timeout: 8000 });
+    await expect(page.locator('[data-testid="album-tab"]')).toBeVisible({ timeout: 8000 });
     await expect(page.locator('[data-testid="section-artwork"]')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('[data-testid="section-video"]')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('[data-testid="section-voice"]')).toBeVisible({ timeout: 5000 });
@@ -43,9 +43,9 @@ test.describe('CreateTab', () => {
   test('shows prompt when no project selected', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
-    await page.locator('[data-testid="tab-create"]').click();
+    await page.locator('[data-testid="tab-album"]').click();
     await page.waitForTimeout(300);
 
-    await expect(page.locator('[data-testid="create-tab"]')).toContainText('Select a project', { timeout: 5000 });
+    await expect(page.locator('[data-testid="album-tab"]')).toContainText('Select a project', { timeout: 5000 });
   });
 });

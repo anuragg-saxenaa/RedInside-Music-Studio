@@ -1,7 +1,7 @@
 import TabBar from './TabBar';
 import SoundsTab from './SoundsTab';
 import WriteTab from './WriteTab';
-import CreateTab from './CreateTab';
+import AlbumTab from './AlbumTab';
 import CraftTab from './CraftTab';
 import ReleaseTab from './ReleaseTab';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
@@ -14,7 +14,7 @@ export default function CentreWorkspace() {
       <div style={{ flex: 1, overflow: 'hidden auto', padding: '24px' }}>
         {activeTab === 'sounds'  && <SoundsTab />}
         {activeTab === 'write'   && <WriteTab />}
-        {activeTab === 'create'  && <CreateTab />}
+        {activeTab === 'album'   && <AlbumTab />}
         {activeTab === 'craft'   && <CraftTab />}
         {activeTab === 'release' && <ReleaseTab />}
       </div>

@@ -33,8 +33,28 @@ export interface MusicGeneration {
   duration_seconds?: number;
   bitrate?: number;
   title?: string;
+  artist?: string;
+  genre?: string;
+  year?: number;
+  track_number?: number;
+  composer?: string;
+  lyrics_credit?: string;
   is_instrumental: boolean;
   created_at: string;
+}
+
+export interface Album {
+  id: string;
+  project_id: string;
+  title: string;
+  artist?: string;
+  year?: number;
+  genre?: string;
+  label?: string;
+  artwork_path?: string;
+  track_count?: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface VideoGeneration {
@@ -123,4 +143,4 @@ export interface ShareToken {
   expiresAt: string;
 }
 
-export type V4Tab = 'sounds' | 'write' | 'create' | 'craft' | 'release';
+export type V4Tab = 'sounds' | 'write' | 'album' | 'craft' | 'release';
