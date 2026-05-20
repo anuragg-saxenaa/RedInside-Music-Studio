@@ -2,6 +2,7 @@ import { ProjectModel } from '../../database/models/project.model.js';
 import storage from '../../utils/storage.util.js';
 import path from 'path';
 import fs from 'fs';
+import { AlbumModel } from '../../modules/album/album.model.js';
 
 export const ProjectsController = {
   async create(req, res, next) {
@@ -260,5 +261,42 @@ export const ProjectsController = {
     } catch (error) {
       next(error);
     }
+  },
+
+  async saveAlbumArtwork(req, res, next) {
+    try {
+      const { id: projectId, albumId } = req.params;
+      const { imageData } = req.body;
+      if (!imageData) return res.status(400).json({ error: 'imageData is required' });
+
+      const album = AlbumModel.findById(albumId);
+      if (!album) return res.status(404).json({ error: 'Album not found' });
+
+      const buffer = Buffer.from(
+        imageData.startsWith('data:') ? imageData.split(',')[1] : imageData,
+        'base64'
+      );
+
+      const artworkDir = storage.getArtworkDir(projectId);
+      fs.mkdirSync(artworkDir, { recursive: true });
+      const artworkPath = path.join(artworkDir, `album-${albumId}.png`);
+      fs.writeFileSync(artworkPath, buffer);
+
+      AlbumModel.update(albumId, { artworkPath });
+
+      const artworkUrl = `/api/projects/${projectId}/albums/${albumId}/artwork`;
+      res.json({ success: true, artworkUrl });
+    } catch (err) { next(err); }
+  },
+
+  async getAlbumArtwork(req, res, next) {
+    try {
+      const { id: projectId, albumId } = req.params;
+      const album = AlbumModel.findById(albumId);
+      if (!album || !album.artwork_path) return res.status(404).json({ error: 'No artwork' });
+      if (!fs.existsSync(album.artwork_path)) return res.status(404).json({ error: 'File not found' });
+      res.setHeader('Content-Type', 'image/png');
+      res.sendFile(album.artwork_path);
+    } catch (err) { next(err); }
   },
 };

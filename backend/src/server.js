@@ -76,6 +76,8 @@ const projectRoutes = [
   { method: 'post', path: '/api/projects/:id/artwork', handler: ProjectsController.saveArtwork },
   { method: 'post', path: '/api/projects/:id/artwork/fetch-image', handler: ProjectsController.fetchImage },
   { method: 'get', path: '/api/projects/:id/artwork/:musicId', handler: ProjectsController.getMusicArtwork },
+  { method: 'post', path: '/api/projects/:id/albums/:albumId/artwork', handler: ProjectsController.saveAlbumArtwork },
+  { method: 'get',  path: '/api/projects/:id/albums/:albumId/artwork', handler: ProjectsController.getAlbumArtwork },
   { method: 'get', path: '/api/projects/:id/history', handler: (req, res, next) => { req.params.projectId = req.params.id; return import('./modules/history/history.controller.js').then(m => m.HistoryController.getProjectHistory(req, res, next)); } },
 ];
 
