@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import TrackRow from '../tracks/TrackRow';
@@ -8,11 +8,28 @@ import YoutubeDownloader from '../../Downloader/YoutubeDownloader';
 import MusicPlayer from '../../MusicPlayer/MusicPlayer';
 import type { MusicGeneration } from '../../../types';
 
+function fmtTotalDuration(s: number) {
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
+}
+
 export default function SoundsTab() {
   const { tracks, activeProjectId, selectedLyrics, setSelectedTrack, setActiveTab, refreshTracks } = useWorkspace();
   const [showYoutube, setShowYoutube] = useState(false);
   const [showGenerate, setShowGenerate] = useState(false);
   const [expandedTrackId, setExpandedTrackId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<'date' | 'title' | 'duration' | 'bpm'>('date');
+
+  const displayTracks = useMemo(() => {
+    let list = tracks.filter(t =>
+      !search || (t.title || `Track v${t.version}`).toLowerCase().includes(search.toLowerCase())
+    );
+    if (sortBy === 'title') list = [...list].sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+    if (sortBy === 'duration') list = [...list].sort((a, b) => (b.duration_seconds ?? 0) - (a.duration_seconds ?? 0));
+    return list;
+  }, [tracks, search, sortBy]);
 
   if (!activeProjectId) {
     return (
@@ -29,6 +46,16 @@ export default function SoundsTab() {
 
   return (
     <div data-testid="sounds-tab">
+      {/* Summary header */}
+      {tracks.length > 0 && (
+        <div style={{ color: C.textDim, fontSize: '11px', marginBottom: '8px', letterSpacing: '0.2px' }}>
+          {tracks.length} track{tracks.length !== 1 ? 's' : ''}
+          {tracks.reduce((s, t) => s + (t.duration_seconds ?? 0), 0) > 0 &&
+            ` · ${fmtTotalDuration(tracks.reduce((s, t) => s + (t.duration_seconds ?? 0), 0))}`
+          }
+        </div>
+      )}
+
       {/* Action bar */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
         <button
@@ -51,6 +78,36 @@ export default function SoundsTab() {
             fontWeight: 600, cursor: 'pointer',
           }}
         >▼ YouTube Import</button>
+      </div>
+
+      {/* Search + sort bar */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}>
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search tracks…"
+          data-testid="track-search"
+          style={{
+            flex: 1, background: 'rgba(255,255,255,0.05)', border: `1px solid ${C.border}`,
+            borderRadius: '8px', padding: '7px 12px', color: C.text,
+            fontSize: '12px', outline: 'none',
+          }}
+        />
+        <select
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value as typeof sortBy)}
+          data-testid="track-sort"
+          style={{
+            background: 'rgba(255,255,255,0.05)', border: `1px solid ${C.border}`,
+            borderRadius: '8px', padding: '7px 10px', color: C.text, fontSize: '12px',
+            cursor: 'pointer', outline: 'none',
+          }}
+        >
+          <option value="date">Newest</option>
+          <option value="title">A–Z</option>
+          <option value="duration">Duration</option>
+          <option value="bpm">BPM</option>
+        </select>
       </div>
 
       {/* Generate panel */}
@@ -77,12 +134,14 @@ export default function SoundsTab() {
 
       {/* Track list */}
       <div data-testid="track-list" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        {tracks.length === 0 && (
+        {displayTracks.length === 0 && (
           <div style={{ color: C.textDim, textAlign: 'center', padding: '32px 0', fontSize: '13px' }}>
-            No tracks yet — generate or import one above
+            {tracks.length === 0
+              ? 'No tracks yet — generate or import one above'
+              : 'No tracks match your search'}
           </div>
         )}
-        {tracks.map(track => (
+        {displayTracks.map(track => (
           <div key={track.id}>
             <TrackRow
               track={track}
