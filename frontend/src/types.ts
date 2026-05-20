@@ -39,6 +39,7 @@ export interface MusicGeneration {
   track_number?: number;
   composer?: string;
   lyrics_credit?: string;
+  artwork_url?: string;
   is_instrumental: boolean;
   created_at: string;
 }
