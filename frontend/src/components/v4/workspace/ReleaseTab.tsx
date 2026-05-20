@@ -30,16 +30,11 @@ function VideoSection({ children }: { children: React.ReactNode }) {
 
 export default function ReleaseTab() {
   const { activeProjectId, selectedTrack, tracks } = useWorkspace();
-  const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
   const [hasLyrics, setHasLyrics] = useState(false);
 
   useEffect(() => {
     if (!activeProjectId) return;
-    fetch(`/api/projects/${activeProjectId}/artwork`)
-      .then(r => r.ok && r.status !== 204 ? r.blob() : null)
-      .then(blob => setArtworkUrl(blob ? URL.createObjectURL(blob) : null))
-      .catch(() => {});
-    fetch(`/api/projects/${activeProjectId}/lyrics`)
+    fetch(`/api/lyrics?projectId=${activeProjectId}`)
       .then(r => r.json())
       .then((list: unknown[]) => setHasLyrics(Array.isArray(list) && list.length > 0))
       .catch(() => {});
@@ -54,7 +49,7 @@ export default function ReleaseTab() {
       <VideoSection>
         <VideoPreview projectId={activeProjectId} selectedMusic={selectedTrack ?? null} />
       </VideoSection>
-      <ReadinessChecklist track={selectedTrack} artworkUrl={artworkUrl} hasLyrics={hasLyrics} />
+      <ReadinessChecklist track={selectedTrack} hasLyrics={hasLyrics} />
       <hr style={{ border: 'none', borderTop: `1px solid ${C.border}` }} />
       <SocialExportPanel track={selectedTrack} />
       <hr style={{ border: 'none', borderTop: `1px solid ${C.border}` }} />

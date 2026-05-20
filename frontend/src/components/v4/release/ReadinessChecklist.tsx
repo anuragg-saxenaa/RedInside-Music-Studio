@@ -3,15 +3,14 @@ import type { MusicGeneration } from '../../../types';
 
 interface ReadinessChecklistProps {
   track: MusicGeneration | null;
-  artworkUrl?: string | null;
   hasLyrics?: boolean;
 }
 
-export default function ReadinessChecklist({ track, artworkUrl, hasLyrics }: ReadinessChecklistProps) {
+export default function ReadinessChecklist({ track, hasLyrics }: ReadinessChecklistProps) {
   if (!track) return null;
 
   const checks = [
-    { label: 'Has artwork',        pass: !!artworkUrl },
+    { label: 'Has artwork',        pass: !!track.artwork_url },
     { label: 'Has lyrics',         pass: !!hasLyrics },
     { label: 'Duration > 60s',     pass: (track.duration_seconds ?? 0) > 60 },
     { label: 'Title is not generic', pass: !!(track.title && !/^(version|track|v)\s*\d*/i.test(track.title)) },

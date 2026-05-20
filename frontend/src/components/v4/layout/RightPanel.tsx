@@ -155,6 +155,7 @@ export default function RightPanel() {
   const [titleDraft, setTitleDraft] = useState('');
   const [trackPlaylists, setTrackPlaylists] = useState<string[]>([]);
   const [showAddPlaylist, setShowAddPlaylist] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (!selectedTrack) return;
@@ -252,6 +253,28 @@ export default function RightPanel() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const downloadTrack = async () => {
+    if (!selectedTrack || exporting) return;
+    setExporting(true);
+    try {
+      const res = await fetch(`/api/music/${selectedTrack.id}/file`);
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${selectedTrack.title || `track-v${selectedTrack.version}`}.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      /* silently ignore */
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (!selectedTrack) {
     return (
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', gap: '12px' }}>
@@ -342,13 +365,14 @@ export default function RightPanel() {
             { label: '▶ Play',    action: () => playTrack(selectedTrack), testId: 'action-play',   danger: false },
             { label: '✎ Craft',  action: () => setActiveTab('craft'),    testId: 'action-edit',   danger: false },
             { label: '⬆ Master', action: () => setActiveTab('release'),  testId: 'action-master', danger: false },
-            { label: '↗ Export', action: () => setActiveTab('release'),  testId: 'action-export', danger: false },
+            { label: exporting ? '⏳ Downloading…' : '↗ Export', action: downloadTrack, testId: 'action-export', danger: false },
             { label: '✕ Delete', action: deleteTrack,                    testId: 'action-delete',  danger: true  },
           ].map(({ label, action, testId, danger }) => (
             <button
               key={testId}
               onClick={action}
               data-testid={testId}
+              disabled={testId === 'action-export' && exporting}
               style={{
                 background: danger ? 'rgba(230,57,70,0.06)' : 'rgba(255,255,255,0.05)',
                 border: `1px solid ${danger ? 'rgba(230,57,70,0.22)' : C.border}`,
