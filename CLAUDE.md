@@ -12,6 +12,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `docs/superpowers/specs/2026-05-19-phase4-gap-fix-design.md` — Gap audit and fix design
 - `docs/superpowers/specs/2026-05-20-track-metadata-album-studio-design.md` — Phase 4.5: per-track metadata, album CRUD, per-song artwork, upload/generate
 - `docs/superpowers/plans/2026-05-20-track-metadata-album-studio-plan.md` — Phase 4.5 implementation plan
+- `docs/superpowers/plans/2026-05-20-player-overhaul-plan.md` — Player overhaul (drag-seek, loop/shuffle, keyboard shortcuts, mute, Up Next queue)
+- `docs/superpowers/plans/2026-05-20-sounds-tab-polish-plan.md` — SoundsTab polish (artwork thumbnails, search/sort, track count header)
+- `docs/superpowers/plans/2026-05-20-discovery-navigation-plan.md` — Global search (Cmd+K), animated playlist indicator, sidebar search button
 
 ## Project Overview
 
@@ -62,8 +65,9 @@ frontend/src/
 ├── components/v4/
 │   ├── layout/
 │   │   ├── AppShell.tsx          # 3-column grid: sidebar / centre / right + player bar
-│   │   ├── LeftSidebar.tsx       # Projects (search, ⋯ menu, timestamps) + Playlists
+│   │   ├── LeftSidebar.tsx       # Projects (search, ⋯ menu, timestamps) + Playlists + search button
 │   │   ├── Titlebar.tsx          # Top bar with project name and mock mode badge
+│   │   ├── GlobalSearch.tsx      # Cmd+K global search modal (tracks, playlists, projects)
 │   │   ├── RightPanel.tsx        # Track card, ArtworkBox (upload/display), editable title, tags, notes, share link
 │   │   └── PlayerBar.tsx         # Transport, scrubber, volume, marquee title, rename
 │   ├── workspace/
@@ -102,6 +106,7 @@ frontend/src/
 - `playlists`, `refreshPlaylists`
 - `playerTrack`, `playerIsPlaying`, `playerProgress`, `playerCurrentTime`, `playerDuration`, `playerVolume`
 - `togglePlay`, `seekTo`, `setPlayerVolume`, `playNext`, `playPrev`, `playTrack`
+- `isLooping`, `isShuffled`, `toggleLoop`, `toggleShuffle`
 - `activeTab`, `setActiveTab`
 - `isMockMode`
 
@@ -110,11 +115,12 @@ frontend/src/
 App.tsx (hash router)
  ├── #/           → StudioV4 (full-viewport DAW)
  │    ├── Titlebar (breadcrumb: Project › name, green Ready dot)
- │    ├── LeftSidebar
+ │    ├── LeftSidebar (search button ⌘K, projects, playlists with pulsing dot when playing)
  │    │    ├── Projects: search, ⋯ (Rename/Delete), timestamps, Recent/Earlier groups
  │    │    └── Playlists: collapsible, per-playlist expand shows tracks (lazy fetch)
  │    ├── CentreWorkspace (TabBar + tab content)
- │    │    ├── ♪ SOUNDS — TrackRow list; click row = play+select; ✎ = TrackEditPanel; ⋯ = Play/Write/Craft/Master/Export/Delete
+ │    │    ├── ♪ SOUNDS — TrackRow list with artwork thumbnails; search + sort controls;
+│    │    │   track count + total duration header; ✎ = TrackEditPanel; ⋯ = Play/Write/Craft/Master/Export/Delete
  │    │    ├── ✎ WRITE  — LyricsEditor
  │    │    ├── ◈ ALBUM  — album list, editor (cover art generate, metadata), drag-reorder tracklist
  │    │    ├── ⚙ CRAFT  — AudioEditorPanel + RemixSuggestions (presets wired) + MedleyMixer + Voice Design
@@ -127,12 +133,13 @@ App.tsx (hash router)
  │    │    ├── Share: generate link → copy
  │    │    ├── Playlists: add/remove membership
  │    │    └── Timed notes: add at current playhead position
- │    └── PlayerBar
- │         ├── Track artwork thumbnail (46×46, shows if artwork_url set, else SVG icon)
- │         ├── Marquee title (dblclick to rename)
- │         ├── Prev / Play-Pause / Next controls
- │         ├── Scrubber with drag-to-seek
- │         └── Volume slider
+ │    ├── PlayerBar
+ │    │    ├── Track artwork thumbnail (46×46, shows if artwork_url set, else SVG icon)
+ │    │    ├── Marquee title (dblclick to rename)
+ │    │    ├── Shuffle + Prev / Play-Pause / Next + Loop transport controls
+ │    │    ├── Scrubber with drag-to-seek (dragProgress state, document-level mouse tracking)
+ │    │    ├── Volume slider + mute toggle button (pre-mute volume restore)
+ │    │    └── Up Next queue popover (Up Next / Shuffle Queue, plays from queue)
  ├── #/share/:token → ShareView (public, no auth)
  ├── #/history      → History page
  ├── #/viral        → ViralToolkit
@@ -329,6 +336,9 @@ Legacy tests (pre-Phase 4) archived in `frontend/tests/e2e/legacy/` — excluded
 - **PlayerBar artwork** — shows `<img>` if `playerTrack.artwork_url` is set, else shows SVG icon. URL is `/api/projects/${playerTrack.project_id}/artwork/${playerTrack.id}` (no cache-busting needed; `artwork_url` column presence is the signal).
 - **AlbumTab cover generate** — same 3-step flow as TrackEditPanel. Save call uses `{ imageData }` (not `imageUrl`) for album artwork endpoint.
 - **RemixSuggestions** (Craft tab) applies audio operations via `presetOperations` prop on `AudioEditorPanel` — not just cosmetic.
-- **PlayerBar rename** — double-click the title in the player bar to inline-rename (same PATCH /api/music/:id call as RightPanel).
+- **PlayerBar keyboard shortcuts** — Space (play/pause), ←/→ (seek ±5%), M (mute), N (next), P (prev). Guard: skips INPUT/TEXTAREA targets.
+- **PlayerBar drag-to-seek** — mousedown on scrubber starts drag, document mousemove/mouseup track position, visual shows dragProgress fraction while dragging, seekTo called on mouseup.
+- **Global search (⌘K)** — searches tracks/playlists/projects; keyboard navigation (↑↓ to cursor, Enter to select/open, Esc to close). Opens from sidebar search button or global Cmd+K shortcut.
+- **Playlist sidebar dot** — tracks in sidebar playlists show pulsing red dot (rds-pulse keyframe) when playing; click plays and selects.
 - **RightPanel delete** — Quick Actions grid includes ✕ Delete (red), confirms before calling DELETE /api/music/:id.
 - **V4Tab type**: `'sounds' | 'write' | 'album' | 'craft' | 'release'` — note `album` not `create`.
