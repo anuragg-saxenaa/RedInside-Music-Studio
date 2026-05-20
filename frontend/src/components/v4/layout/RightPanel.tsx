@@ -1,7 +1,133 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
-import type { MusicNote, MusicTags } from '../../../types';
+import type { MusicNote, MusicTags, MusicGeneration } from '../../../types';
+
+function ArtworkBox({ track, activeProjectId, onUploaded }: {
+  track: MusicGeneration;
+  activeProjectId: string | null;
+  onUploaded: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [localUrl, setLocalUrl] = useState<string | null>(
+    track.artwork_url ? `/api/projects/${activeProjectId}/artwork/${track.id}?v=${Date.now()}` : null
+  );
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setLocalUrl(track.artwork_url
+      ? `/api/projects/${activeProjectId}/artwork/${track.id}?v=${Date.now()}`
+      : null
+    );
+  }, [track.artwork_url, track.id, activeProjectId]);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeProjectId) return;
+    setUploading(true);
+    try {
+      const imageUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = ev => resolve(ev.target?.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const res = await fetch(`/api/projects/${activeProjectId}/artwork`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ musicId: track.id, imageUrl }),
+      });
+      if (res.ok) {
+        setLocalUrl(`/api/projects/${activeProjectId}/artwork/${track.id}?v=${Date.now()}`);
+        onUploaded();
+      }
+    } catch { /* ignore */ }
+    finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  return (
+    <div
+      style={{ width: '100%', aspectRatio: '1', position: 'relative', marginBottom: '14px', borderRadius: '10px', overflow: 'hidden', cursor: 'pointer' }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={() => fileRef.current?.click()}
+    >
+      {/* Artwork or placeholder */}
+      {localUrl ? (
+        <img
+          src={localUrl}
+          alt="Track artwork"
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
+      ) : (
+        <div style={{
+          width: '100%', height: '100%',
+          background: `linear-gradient(145deg, #1a0508 0%, #0d0105 50%, #000 100%)`,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          position: 'relative', overflow: 'hidden',
+        }}>
+          {/* Waveform bars placeholder */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', opacity: 0.15 }}>
+            {[18, 32, 22, 40, 28, 36, 20, 38, 24, 30, 16, 34, 26].map((h, i) => (
+              <div key={i} style={{
+                width: '3px', height: `${h}px`, borderRadius: '2px',
+                background: C.red,
+              }} />
+            ))}
+          </div>
+          {/* Subtle radial glow */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: `radial-gradient(ellipse at center, rgba(230,57,70,0.06) 0%, transparent 70%)`,
+          }} />
+          <div style={{
+            position: 'absolute', bottom: '14px',
+            fontSize: '9px', fontWeight: 700, letterSpacing: '1.5px',
+            color: 'rgba(255,255,255,0.12)', textTransform: 'uppercase',
+          }}>No Artwork</div>
+        </div>
+      )}
+
+      {/* Hover overlay */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.12) 100%)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end',
+        paddingBottom: '16px', gap: '4px',
+        opacity: hovered ? 1 : 0,
+        transition: 'opacity 180ms ease',
+        borderRadius: '10px',
+      }}>
+        <div style={{ fontSize: '16px', color: '#fff' }}>{uploading ? '⏳' : '↑'}</div>
+        <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.2px', color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase' }}>
+          {uploading ? 'Uploading…' : localUrl ? 'Change Artwork' : 'Upload Artwork'}
+        </div>
+      </div>
+
+      {/* Uploading pulsing border */}
+      {uploading && (
+        <div style={{
+          position: 'absolute', inset: 0, borderRadius: '10px',
+          border: `2px solid ${C.red}`,
+          animation: 'pulse 1s ease-in-out infinite',
+          opacity: 0.6,
+        }} />
+      )}
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFile}
+        style={{ display: 'none' }}
+      />
+    </div>
+  );
+}
 
 function fmtTime(s: number) {
   const m = Math.floor(s / 60);
@@ -155,35 +281,7 @@ export default function RightPanel() {
     >
       {/* Track art + title */}
       <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${C.border}` }}>
-        <div style={{
-          width: '100%',
-          aspectRatio: '1',
-          background: `linear-gradient(135deg, ${C.redDark} 0%, #0d0105 60%, #000 100%)`,
-          borderRadius: '10px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginBottom: '14px',
-          border: `1px solid ${C.border}`,
-          position: 'relative',
-          overflow: 'hidden',
-        }}>
-          {/* Decorative vinyl rings */}
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {[64, 44, 28].map((size, i) => (
-              <div key={i} style={{
-                position: 'absolute',
-                width: `${size}%`, height: `${size}%`,
-                borderRadius: '50%',
-                border: `1px solid rgba(230,57,70,${0.08 + i * 0.06})`,
-              }} />
-            ))}
-          </div>
-          <div style={{
-            width: '24px', height: '24px', borderRadius: '50%',
-            background: C.red, opacity: 0.35, position: 'relative', zIndex: 1,
-          }} />
-        </div>
+        <ArtworkBox track={selectedTrack} activeProjectId={activeProjectId} onUploaded={refreshTracks} />
 
         {editingTitle ? (
           <input
