@@ -34,7 +34,7 @@ function Badge({ label, color }: { label: string; color: string }) {
 }
 
 export default function TrackRow({ track, onDoubleClick }: TrackRowProps) {
-  const { selectedTrack, setSelectedTrack, playTrack, playerTrack, playerIsPlaying, refreshTracks } = useWorkspace();
+  const { selectedTrack, setSelectedTrack, playTrack, playerTrack, playerIsPlaying, refreshTracks, setActiveTab } = useWorkspace();
   const isSelected = selectedTrack?.id === track.id;
   const isPlaying = playerTrack?.id === track.id && playerIsPlaying;
   const isMastered = !!track.processed_file_path;
@@ -135,30 +135,34 @@ export default function TrackRow({ track, onDoubleClick }: TrackRowProps) {
           style={{
             position: 'absolute', right: '8px', top: '100%', zIndex: 400,
             background: '#1a1a1a', border: `1px solid ${C.border}`, borderRadius: '8px',
-            padding: '4px', minWidth: '130px', boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+            padding: '4px', minWidth: '148px', boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
           }}
         >
-          <button
-            onClick={() => { setMenuOpen(false); playTrack(track); }}
-            style={{
-              display: 'block', width: '100%', background: 'none', border: 'none',
-              color: 'rgba(255,255,255,0.7)', padding: '8px 12px', cursor: 'pointer',
-              textAlign: 'left', fontSize: '13px', borderRadius: '5px',
-            }}
-            onMouseOver={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
-            onMouseOut={e => (e.currentTarget.style.background = 'none')}
-          >▶ Play</button>
-          <button
-            onClick={() => { setMenuOpen(false); deleteTrack(); }}
-            data-testid={`delete-track-btn-${track.id}`}
-            style={{
-              display: 'block', width: '100%', background: 'none', border: 'none',
-              color: C.red, padding: '8px 12px', cursor: 'pointer',
-              textAlign: 'left', fontSize: '13px', borderRadius: '5px',
-            }}
-            onMouseOver={e => (e.currentTarget.style.background = 'rgba(230,57,70,0.12)')}
-            onMouseOut={e => (e.currentTarget.style.background = 'none')}
-          >✕ Delete</button>
+          {([
+            { icon: '▶', label: 'Play',   action: () => playTrack(track),                                              danger: false },
+            { icon: '✎', label: 'Write',  action: () => { setSelectedTrack(track); setActiveTab('write'); },           danger: false },
+            { icon: '⚙', label: 'Craft',  action: () => { setSelectedTrack(track); setActiveTab('craft'); },           danger: false },
+            { icon: '⬆', label: 'Master', action: () => { setSelectedTrack(track); setActiveTab('release'); },         danger: false },
+            { icon: '↗', label: 'Export', action: () => { setSelectedTrack(track); setActiveTab('release'); },         danger: false },
+            { icon: '✕', label: 'Delete', action: () => deleteTrack(),                                                  danger: true  },
+          ] as const).map(({ icon, label, action, danger }) => (
+            <button
+              key={label}
+              onClick={() => { setMenuOpen(false); action(); }}
+              data-testid={label === 'Delete' ? `delete-track-btn-${track.id}` : undefined}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                width: '100%', background: 'none', border: 'none',
+                color: danger ? C.red : 'rgba(255,255,255,0.7)', padding: '8px 12px', cursor: 'pointer',
+                textAlign: 'left', fontSize: '13px', borderRadius: '5px',
+              }}
+              onMouseOver={e => (e.currentTarget.style.background = danger ? 'rgba(230,57,70,0.12)' : 'rgba(255,255,255,0.08)')}
+              onMouseOut={e => (e.currentTarget.style.background = 'none')}
+            >
+              <span style={{ width: '14px', textAlign: 'center', flexShrink: 0, opacity: 0.7 }}>{icon}</span>
+              {label}
+            </button>
+          ))}
         </div>
       )}
 
