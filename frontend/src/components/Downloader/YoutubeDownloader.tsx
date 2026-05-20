@@ -54,7 +54,9 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
   const [result, setResult] = useState<{ musicId: string; title: string; duration?: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [focused, setFocused] = useState(false);
+  const [stalledSec, setStalledSec] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const stalledRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // WebSocket event listener
   useEffect(() => {
@@ -67,10 +69,12 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
           setProgress(data.progress ?? 0);
           setMessage(data.message ?? '');
         } else if (data.event === 'download.completed') {
+          if (stalledRef.current) { clearInterval(stalledRef.current); stalledRef.current = null; }
           setDlState('done');
           setResult({ musicId: data.result.musicId, title: data.result.title, duration: data.result.duration });
           onDownloaded?.(data.result.musicId, data.result.title);
         } else if (data.event === 'download.failed') {
+          if (stalledRef.current) { clearInterval(stalledRef.current); stalledRef.current = null; }
           setDlState('error');
           setError(data.error || 'Download failed');
         }
@@ -87,9 +91,12 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
     if (!isValidUrl || dlState === 'running') return;
     setDlState('running');
     setProgress(2);
+    setStalledSec(0);
     setMessage('Connecting...');
     setError(null);
     setResult(null);
+    if (stalledRef.current) clearInterval(stalledRef.current);
+    stalledRef.current = setInterval(() => setStalledSec(s => s + 1), 1000);
     try {
       const res = await fetch('/api/downloader/youtube', {
         method: 'POST',
@@ -106,9 +113,11 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
   }, [url, projectId, dlState, isValidUrl]);
 
   const reset = () => {
+    if (stalledRef.current) { clearInterval(stalledRef.current); stalledRef.current = null; }
     setDlState('idle');
     setUrl('');
     setProgress(0);
+    setStalledSec(0);
     setDownloadId(null);
     setResult(null);
     setError(null);
@@ -319,12 +328,18 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
             </div>
           </div>
 
-          <div style={{
-            marginTop: 10, fontSize: 9, color: 'rgba(255,255,255,0.18)',
-            fontFamily: 'monospace', letterSpacing: '0.07em',
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
-            ↳ {url}
+          <div style={{ marginTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{
+              fontSize: 9, color: 'rgba(255,255,255,0.18)',
+              fontFamily: 'monospace', letterSpacing: '0.07em',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+            }}>
+              ↳ {url}
+            </div>
+            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.22)', fontFamily: 'monospace', flexShrink: 0, marginLeft: 8 }}>
+              {stalledSec > 0 ? `${stalledSec}s` : ''}
+              {stalledSec > 15 && <span style={{ color: 'rgba(255,184,0,0.6)', marginLeft: 6 }}>· takes 1–3 min for long videos</span>}
+            </div>
           </div>
         </div>
       )}

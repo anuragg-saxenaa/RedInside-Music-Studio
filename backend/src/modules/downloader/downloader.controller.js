@@ -33,7 +33,9 @@ export const DownloaderController = {
 
       (async () => {
         try {
-          broadcast({ event: 'download.progress', downloadId, progress: 5, message: 'Starting download...' });
+          broadcast({ event: 'download.progress', downloadId, progress: 8, message: 'Fetching video info…' });
+          await new Promise(r => setTimeout(r, 400));
+          broadcast({ event: 'download.progress', downloadId, progress: 12, message: 'Starting download…' });
 
           const { filePath, title, duration } = await DownloaderService.download(url, outputDir, {
             onProgress: (progress, message) => {

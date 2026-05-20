@@ -6,9 +6,12 @@ import RightPanel from '../components/v4/layout/RightPanel';
 import PlayerBar from '../components/v4/layout/PlayerBar';
 import CentreWorkspace from '../components/v4/workspace/CentreWorkspace';
 import { useWorkspace } from '../contexts/WorkspaceContext';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 function StudioV4Inner() {
   const { isMockMode } = useWorkspace();
+  // Ensure window.__studioWs is always connected — YoutubeDownloader + VocalRemovalCard read it directly
+  useWebSocket(() => {});
   return (
     <AppShell
       titlebar={<Titlebar />}

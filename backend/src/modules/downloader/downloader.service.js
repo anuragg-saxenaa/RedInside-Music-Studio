@@ -29,6 +29,10 @@ export const DownloaderService = {
         '--audio-quality', '0',
         '--print-json',
         '--no-playlist',
+        '--concurrent-fragments', '4',
+        '--socket-timeout', '30',
+        '--retries', '3',
+        '--no-check-certificates',
         '-o', outputTemplate,
         url,
       ];
