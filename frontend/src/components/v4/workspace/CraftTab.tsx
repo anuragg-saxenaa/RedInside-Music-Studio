@@ -4,8 +4,31 @@ import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import AudioEditorPanel from '../../AudioEditor/AudioEditorPanel';
 import MedleyPanel from '../../Medley/MedleyPanel';
 import RemixSuggestions from '../shared/RemixSuggestions';
+import VoiceDesign from '../../VoiceDesign/VoiceDesign';
 
 type CraftSubTab = 'editor' | 'medley';
+
+function VoiceSection({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ border: `1px solid ${C.border}`, borderRadius: '8px', overflow: 'hidden', marginTop: '16px' }}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        style={{
+          width: '100%', background: 'rgba(255,255,255,0.04)', border: 'none',
+          borderBottom: open ? `1px solid ${C.border}` : 'none',
+          color: C.text, padding: '12px 16px', textAlign: 'left', cursor: 'pointer',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          fontSize: '13px', fontWeight: 600,
+        }}
+      >
+        Voice Design
+        <span style={{ color: C.textDim, fontSize: '10px' }}>{open ? '▲' : '▼'}</span>
+      </button>
+      {open && <div style={{ padding: '16px' }}>{children}</div>}
+    </div>
+  );
+}
 
 export default function CraftTab() {
   const { activeProjectId, selectedTrack, tracks } = useWorkspace();
@@ -55,6 +78,10 @@ export default function CraftTab() {
       {subTab === 'medley' && (
         <MedleyPanel projectId={activeProjectId} musicList={tracks} />
       )}
+
+      <VoiceSection>
+        <VoiceDesign projectId={activeProjectId} />
+      </VoiceSection>
     </div>
   );
 }
