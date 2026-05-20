@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import type { Project } from '../../../types';
@@ -44,6 +44,7 @@ export default function LeftSidebar() {
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
+  const [playlistTracks, setPlaylistTracks] = useState<Record<string, Array<{ id: string; title: string | null; version: number }>>>({});
 
   const sortedProjects = [...projects]
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
@@ -107,8 +108,22 @@ export default function LeftSidebar() {
     e.stopPropagation();
     await fetch(`/api/playlists/${id}`, { method: 'DELETE' });
     refreshPlaylists();
+    setPlaylistTracks(prev => { const n = { ...prev }; delete n[id]; return n; });
     if (activePlaylistId === id) setActivePlaylistId(null);
   };
+
+  // Re-fetch tracks for the currently-expanded playlist whenever playlists refresh
+  useEffect(() => {
+    if (activePlaylistId && playlistTracks[activePlaylistId] !== undefined) {
+      fetch(`/api/playlists/${activePlaylistId}/tracks`)
+        .then(r => r.json())
+        .then((ts: Array<{ id: string; title: string | null; version: number }>) =>
+          setPlaylistTracks(prev => ({ ...prev, [activePlaylistId]: ts }))
+        )
+        .catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playlists]);
 
   const sectionLabel: React.CSSProperties = {
     color: C.textDim,
@@ -449,37 +464,79 @@ export default function LeftSidebar() {
             ))}
 
             {/* User playlists */}
-            {playlists.map(pl => (
-              <div
-                key={pl.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => setActivePlaylistId(activePlaylistId === pl.id ? null : pl.id)}
-                onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setActivePlaylistId(activePlaylistId === pl.id ? null : pl.id)}
-                data-testid={`playlist-item-${pl.id}`}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '10px',
-                  padding: '7px 20px', cursor: 'pointer',
-                  color: activePlaylistId === pl.id ? C.text : 'rgba(255,255,255,0.5)',
-                  fontSize: '13px',
-                  background: activePlaylistId === pl.id ? 'rgba(230,57,70,0.08)' : 'transparent',
-                }}
-                onMouseOver={e => { if (activePlaylistId !== pl.id) (e.currentTarget as HTMLDivElement).style.color = 'rgba(255,255,255,0.8)'; }}
-                onMouseOut={e => { if (activePlaylistId !== pl.id) (e.currentTarget as HTMLDivElement).style.color = 'rgba(255,255,255,0.5)'; }}
-              >
-                <span style={{ fontSize: '11px', width: '16px', textAlign: 'center', color: 'rgba(255,255,255,0.2)' }}>♫</span>
-                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {pl.name}
-                </span>
-                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px' }}>{pl.track_count ?? 0}</span>
-                <button
-                  onClick={e => deletePlaylist(pl.id, e)}
-                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', cursor: 'pointer', fontSize: '14px', padding: '0 2px', lineHeight: 1 }}
-                  onMouseOver={e => (e.currentTarget.style.color = '#fff')}
-                  onMouseOut={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.2)')}
-                >×</button>
-              </div>
-            ))}
+            {playlists.map(pl => {
+              const expanded = activePlaylistId === pl.id;
+              const tracks = playlistTracks[pl.id];
+              return (
+                <div key={pl.id}>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      const next = expanded ? null : pl.id;
+                      setActivePlaylistId(next);
+                      if (next && !playlistTracks[pl.id]) {
+                        fetch(`/api/playlists/${pl.id}/tracks`)
+                          .then(r => r.json())
+                          .then((ts: Array<{ id: string; title: string | null; version: number }>) =>
+                            setPlaylistTracks(prev => ({ ...prev, [pl.id]: ts }))
+                          )
+                          .catch(() => {});
+                      }
+                    }}
+                    onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setActivePlaylistId(expanded ? null : pl.id)}
+                    data-testid={`playlist-item-${pl.id}`}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '10px',
+                      padding: '7px 20px', cursor: 'pointer',
+                      color: expanded ? C.text : 'rgba(255,255,255,0.5)',
+                      fontSize: '13px',
+                      background: expanded ? 'rgba(230,57,70,0.08)' : 'transparent',
+                    }}
+                    onMouseOver={e => { if (!expanded) (e.currentTarget as HTMLDivElement).style.color = 'rgba(255,255,255,0.8)'; }}
+                    onMouseOut={e => { if (!expanded) (e.currentTarget as HTMLDivElement).style.color = 'rgba(255,255,255,0.5)'; }}
+                  >
+                    <span style={{ fontSize: '10px', color: expanded ? C.red : 'rgba(255,255,255,0.2)', transition: 'transform 150ms', display: 'inline-block', transform: expanded ? 'rotate(90deg)' : 'none' }}>▶</span>
+                    <span style={{ fontSize: '11px', width: '14px', textAlign: 'center', color: 'rgba(255,255,255,0.2)', flexShrink: 0 }}>♫</span>
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {pl.name}
+                    </span>
+                    <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '10px', flexShrink: 0 }}>{pl.track_count ?? 0}</span>
+                    <button
+                      onClick={e => deletePlaylist(pl.id, e)}
+                      style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', cursor: 'pointer', fontSize: '14px', padding: '0 2px', lineHeight: 1, flexShrink: 0 }}
+                      onMouseOver={e => (e.currentTarget.style.color = '#fff')}
+                      onMouseOut={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.2)')}
+                    >×</button>
+                  </div>
+
+                  {expanded && (
+                    <div style={{ paddingLeft: '36px', paddingBottom: '4px' }}>
+                      {!tracks && (
+                        <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px', padding: '4px 0' }}>Loading…</div>
+                      )}
+                      {tracks && tracks.length === 0 && (
+                        <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px', padding: '4px 0' }}>No tracks yet</div>
+                      )}
+                      {tracks && tracks.map(t => (
+                        <div
+                          key={t.id}
+                          style={{
+                            fontSize: '12px', color: 'rgba(255,255,255,0.5)',
+                            padding: '4px 8px', borderRadius: '5px',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            cursor: 'default',
+                          }}
+                        >
+                          <span style={{ color: 'rgba(255,255,255,0.15)', marginRight: '6px', fontSize: '10px' }}>♪</span>
+                          {t.title || `Track v${t.version}`}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
 
             {/* Create playlist */}
             <div style={{ padding: '6px 16px 8px' }}>

@@ -34,11 +34,12 @@ function Badge({ label, color }: { label: string; color: string }) {
 }
 
 export default function TrackRow({ track, onDoubleClick }: TrackRowProps) {
-  const { selectedTrack, setSelectedTrack, playTrack, playerTrack, playerIsPlaying } = useWorkspace();
+  const { selectedTrack, setSelectedTrack, playTrack, playerTrack, playerIsPlaying, refreshTracks } = useWorkspace();
   const isSelected = selectedTrack?.id === track.id;
   const isPlaying = playerTrack?.id === track.id && playerIsPlaying;
   const isMastered = !!track.processed_file_path;
   const [bpm, setBpm] = useState<number | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     fetch(`/api/music/${track.id}/tags`)
@@ -47,55 +48,119 @@ export default function TrackRow({ track, onDoubleClick }: TrackRowProps) {
       .catch(() => {});
   }, [track.id]);
 
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = () => setMenuOpen(false);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [menuOpen]);
+
+  const deleteTrack = async () => {
+    if (!confirm(`Delete "${track.title || `Track v${track.version}`}"? This cannot be undone.`)) return;
+    await fetch(`/api/music/${track.id}`, { method: 'DELETE' });
+    if (selectedTrack?.id === track.id) setSelectedTrack(null);
+    refreshTracks();
+  };
+
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={() => setSelectedTrack(track)}
-      onDoubleClick={onDoubleClick}
-      onKeyDown={e => e.key === 'Enter' && setSelectedTrack(track)}
       data-testid={`track-row-${track.id}`}
-      style={{
-        display: 'flex', alignItems: 'center', gap: '12px',
-        padding: '10px 12px', borderRadius: '8px', cursor: 'pointer',
-        background: isSelected ? C.glassActive : 'transparent',
-        border: `1px solid ${isSelected ? C.borderActive : 'transparent'}`,
-        transition: 'all 120ms',
-      }}
-      onMouseOver={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)'; }}
-      onMouseOut={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+      style={{ position: 'relative' }}
     >
-      <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        {isPlaying ? (
-          <div style={{ display: 'flex', gap: '2px', alignItems: 'flex-end', height: '14px' }}>
-            {[1,2,3].map(i => (
-              <div key={i} style={{ width: '3px', background: C.red, borderRadius: '1px', height: `${8 + i * 2}px`, animation: `barPulse${i} 0.8s ease-in-out infinite alternate` }} />
-            ))}
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setSelectedTrack(track)}
+        onDoubleClick={onDoubleClick}
+        onKeyDown={e => e.key === 'Enter' && setSelectedTrack(track)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: '12px',
+          padding: '10px 12px', borderRadius: '8px', cursor: 'pointer',
+          background: isSelected ? C.glassActive : 'transparent',
+          border: `1px solid ${isSelected ? C.borderActive : 'transparent'}`,
+          transition: 'all 120ms',
+        }}
+        onMouseOver={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)'; }}
+        onMouseOut={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+      >
+        <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          {isPlaying ? (
+            <div style={{ display: 'flex', gap: '2px', alignItems: 'flex-end', height: '14px' }}>
+              {[1,2,3].map(i => (
+                <div key={i} style={{ width: '3px', background: C.red, borderRadius: '1px', height: `${8 + i * 2}px`, animation: `barPulse${i} 0.8s ease-in-out infinite alternate` }} />
+              ))}
+            </div>
+          ) : (
+            <svg width="10" height="12" viewBox="0 0 10 12" fill={isSelected ? C.red : C.textDim}>
+              <path d="M0 0L10 6L0 12V0Z"/>
+            </svg>
+          )}
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ color: C.text, fontSize: '13px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {track.title || `Track v${track.version}`}
           </div>
-        ) : (
-          <svg width="10" height="12" viewBox="0 0 10 12" fill={isSelected ? C.red : C.textDim}>
-            <path d="M0 0L10 6L0 12V0Z"/>
-          </svg>
-        )}
+          <div style={{ color: C.textDim, fontSize: '11px', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+            <span>{fmtDuration(track.duration_seconds)}{track.bitrate ? ` · ${track.bitrate}kbps` : ''}</span>
+            {isMastered && <Badge label="MASTERED" color={C.gold} />}
+            {track.is_instrumental && <Badge label="INSTRUMENTAL" color="#60a5fa" />}
+            {bpm && <Badge label={`${bpm} BPM`} color="rgba(255,255,255,0.5)" />}
+          </div>
+        </div>
+
+        <button
+          onClick={e => { e.stopPropagation(); playTrack(track); }}
+          data-testid={`play-btn-${track.id}`}
+          style={{ background: 'none', border: 'none', color: isSelected ? C.red : C.textDim, cursor: 'pointer', padding: '4px', fontSize: '12px' }}
+        >▶</button>
+
+        <button
+          onClick={e => { e.stopPropagation(); setMenuOpen(v => !v); }}
+          data-testid={`track-menu-btn-${track.id}`}
+          style={{
+            background: 'none', border: 'none',
+            color: menuOpen ? C.text : 'rgba(255,255,255,0.25)',
+            cursor: 'pointer', fontSize: '16px', padding: '2px 4px', lineHeight: 1,
+          }}
+          onMouseOver={e => (e.currentTarget.style.color = C.text)}
+          onMouseOut={e => { if (!menuOpen) e.currentTarget.style.color = 'rgba(255,255,255,0.25)'; }}
+        >⋯</button>
       </div>
 
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ color: C.text, fontSize: '13px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {track.title || `Track v${track.version}`}
+      {menuOpen && (
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            position: 'absolute', right: '8px', top: '100%', zIndex: 400,
+            background: '#1a1a1a', border: `1px solid ${C.border}`, borderRadius: '8px',
+            padding: '4px', minWidth: '130px', boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+          }}
+        >
+          <button
+            onClick={() => { setMenuOpen(false); playTrack(track); }}
+            style={{
+              display: 'block', width: '100%', background: 'none', border: 'none',
+              color: 'rgba(255,255,255,0.7)', padding: '8px 12px', cursor: 'pointer',
+              textAlign: 'left', fontSize: '13px', borderRadius: '5px',
+            }}
+            onMouseOver={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+            onMouseOut={e => (e.currentTarget.style.background = 'none')}
+          >▶ Play</button>
+          <button
+            onClick={() => { setMenuOpen(false); deleteTrack(); }}
+            data-testid={`delete-track-btn-${track.id}`}
+            style={{
+              display: 'block', width: '100%', background: 'none', border: 'none',
+              color: C.red, padding: '8px 12px', cursor: 'pointer',
+              textAlign: 'left', fontSize: '13px', borderRadius: '5px',
+            }}
+            onMouseOver={e => (e.currentTarget.style.background = 'rgba(230,57,70,0.12)')}
+            onMouseOut={e => (e.currentTarget.style.background = 'none')}
+          >✕ Delete</button>
         </div>
-        <div style={{ color: C.textDim, fontSize: '11px', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-          <span>{fmtDuration(track.duration_seconds)}{track.bitrate ? ` · ${track.bitrate}kbps` : ''}</span>
-          {isMastered && <Badge label="MASTERED" color={C.gold} />}
-          {track.is_instrumental && <Badge label="INSTRUMENTAL" color="#60a5fa" />}
-          {bpm && <Badge label={`${bpm} BPM`} color="rgba(255,255,255,0.5)" />}
-        </div>
-      </div>
-
-      <button
-        onClick={e => { e.stopPropagation(); playTrack(track); }}
-        data-testid={`play-btn-${track.id}`}
-        style={{ background: 'none', border: 'none', color: isSelected ? C.red : C.textDim, cursor: 'pointer', padding: '4px', fontSize: '12px' }}
-      >▶</button>
+      )}
 
       <style>{`
         @keyframes barPulse1 { from { height: 6px } to { height: 14px } }

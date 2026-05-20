@@ -111,6 +111,14 @@ export default function RightPanel() {
     refreshPlaylists();
   };
 
+  const deleteTrack = async () => {
+    if (!selectedTrack) return;
+    if (!confirm(`Delete "${selectedTrack.title || `Track v${selectedTrack.version}`}"? This cannot be undone.`)) return;
+    await fetch(`/api/music/${selectedTrack.id}`, { method: 'DELETE' });
+    setSelectedTrack(null);
+    refreshTracks();
+  };
+
   const copyShare = () => {
     if (!shareUrl) return;
     navigator.clipboard.writeText(shareUrl).catch(() => {});
@@ -233,28 +241,29 @@ export default function RightPanel() {
         <div style={sectionLabel}>Quick Actions</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
           {[
-            { label: '▶ Play',    action: () => playTrack(selectedTrack), testId: 'action-play' },
-            { label: '✎ Craft',  action: () => setActiveTab('craft'),    testId: 'action-edit' },
-            { label: '⬆ Master', action: () => setActiveTab('release'),  testId: 'action-master' },
-            { label: '↗ Export', action: () => setActiveTab('release'),  testId: 'action-export' },
-          ].map(({ label, action, testId }) => (
+            { label: '▶ Play',    action: () => playTrack(selectedTrack), testId: 'action-play',   danger: false },
+            { label: '✎ Craft',  action: () => setActiveTab('craft'),    testId: 'action-edit',   danger: false },
+            { label: '⬆ Master', action: () => setActiveTab('release'),  testId: 'action-master', danger: false },
+            { label: '↗ Export', action: () => setActiveTab('release'),  testId: 'action-export', danger: false },
+            { label: '✕ Delete', action: deleteTrack,                    testId: 'action-delete',  danger: true  },
+          ].map(({ label, action, testId, danger }) => (
             <button
               key={testId}
               onClick={action}
               data-testid={testId}
               style={{
-                background: 'rgba(255,255,255,0.05)',
-                border: `1px solid ${C.border}`,
+                background: danger ? 'rgba(230,57,70,0.06)' : 'rgba(255,255,255,0.05)',
+                border: `1px solid ${danger ? 'rgba(230,57,70,0.22)' : C.border}`,
                 borderRadius: '8px',
-                color: 'rgba(255,255,255,0.7)',
+                color: danger ? C.red : 'rgba(255,255,255,0.7)',
                 padding: '9px 8px',
                 fontSize: '12px',
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 150ms',
               }}
-              onMouseOver={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(230,57,70,0.1)'; (e.currentTarget as HTMLButtonElement).style.borderColor = C.borderActive; (e.currentTarget as HTMLButtonElement).style.color = C.text; }}
-              onMouseOut={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)'; (e.currentTarget as HTMLButtonElement).style.borderColor = C.border; (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.7)'; }}
+              onMouseOver={e => { (e.currentTarget as HTMLButtonElement).style.background = danger ? 'rgba(230,57,70,0.15)' : 'rgba(230,57,70,0.1)'; (e.currentTarget as HTMLButtonElement).style.borderColor = C.borderActive; (e.currentTarget as HTMLButtonElement).style.color = danger ? '#ff6b6b' : C.text; }}
+              onMouseOut={e => { (e.currentTarget as HTMLButtonElement).style.background = danger ? 'rgba(230,57,70,0.06)' : 'rgba(255,255,255,0.05)'; (e.currentTarget as HTMLButtonElement).style.borderColor = danger ? 'rgba(230,57,70,0.22)' : C.border; (e.currentTarget as HTMLButtonElement).style.color = danger ? C.red : 'rgba(255,255,255,0.7)'; }}
             >{label}</button>
           ))}
         </div>
