@@ -170,14 +170,20 @@ export const MusicController = {
   async update(req, res, next) {
     try {
       const { id } = req.params;
-      const { title } = req.body;
+      const { title, artist, genre, year, track_number, composer, lyrics_credit } = req.body;
 
       const music = await musicService.getMusic(id);
-      if (!music) {
-        return res.status(404).json({ error: 'Music not found' });
-      }
+      if (!music) return res.status(404).json({ error: 'Music not found' });
 
-      const updated = await musicService.updateMusicMetadata(id, { title });
+      const updated = await musicService.updateMusicMetadata(id, {
+        title,
+        artist,
+        genre,
+        year,
+        trackNumber: track_number,
+        composer,
+        lyricsCredit: lyrics_credit,
+      });
       res.json(updated);
     } catch (error) {
       next(error);

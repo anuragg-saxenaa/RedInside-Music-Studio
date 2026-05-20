@@ -221,13 +221,20 @@ export class MusicService {
   }
 
   async updateMusicMetadata(musicId, metadata) {
-    const { processedFilePath, durationSeconds, bitrate, title } = metadata;
+    const { processedFilePath, durationSeconds, bitrate, title,
+            artist, genre, year, trackNumber, composer, lyricsCredit } = metadata;
 
     return MusicModel.update(musicId, {
       processedFilePath,
       durationSeconds,
       bitrate,
       title,
+      artist,
+      genre,
+      year,
+      trackNumber,
+      composer,
+      lyricsCredit,
     });
   }
 

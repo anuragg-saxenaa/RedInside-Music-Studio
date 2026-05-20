@@ -113,6 +113,30 @@ export const MusicModel = {
         updates.push('title = ?');
         values.push(data.title);
       }
+      if (data.artist !== undefined) {
+        updates.push('artist = ?');
+        values.push(data.artist);
+      }
+      if (data.genre !== undefined) {
+        updates.push('genre = ?');
+        values.push(data.genre);
+      }
+      if (data.year !== undefined) {
+        updates.push('year = ?');
+        values.push(data.year);
+      }
+      if (data.trackNumber !== undefined) {
+        updates.push('track_number = ?');
+        values.push(data.trackNumber);
+      }
+      if (data.composer !== undefined) {
+        updates.push('composer = ?');
+        values.push(data.composer);
+      }
+      if (data.lyricsCredit !== undefined) {
+        updates.push('lyrics_credit = ?');
+        values.push(data.lyricsCredit);
+      }
 
       // Check if there are any updates to apply
       if (updates.length === 0) {
