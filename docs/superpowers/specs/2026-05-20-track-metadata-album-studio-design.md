@@ -122,8 +122,10 @@ Single-responsibility component. Receives `track: MusicGeneration`, `onClose: ()
 
 **Artwork column:**
 - Shows `<img>` if `track.artwork_url` exists, else placeholder box with ✦ Generate button
-- ✦ Generate button: opens prompt textarea inline, calls `POST /api/image/generate`, then saves result via `POST /api/projects/:projectId/artwork` with musicId, then refreshes
+- ✦ Generate button: opens prompt textarea inline, **pre-populated with the track's lyrics** (fetched via `GET /api/lyrics/:id` using `track.lyrics_id` — truncated to first 300 chars if long). User edits the prompt before generating.
+- Calls `POST /api/image/generate`, then saves result via `POST /api/projects/:projectId/artwork` with musicId, then refreshes
 - Artwork is 1:1 — generating replaces, never appends
+- If `track.lyrics_id` is null, prompt textarea starts empty
 
 **Metadata fields (all editable inputs):**
 - Title (full-width)
@@ -173,8 +175,14 @@ Prepend VideoPreview component at the top of ReleaseTab, inside a collapsible `<
 
 ## Artwork Flow (both per-song and album)
 
+**Per-song:**
 1. User clicks ✦ Generate
-2. Inline prompt textarea appears
+2. Inline prompt textarea appears, **pre-filled with track's lyrics** (first 300 chars from `GET /api/lyrics/:lyricsId` using `track.lyrics_id`). If no lyrics linked, textarea is empty.
+3. User edits/refines prompt, clicks Generate
+
+**Album:**
+1. User clicks ✦ Generate on album cover
+2. Prompt textarea appears empty (no single lyrics to pull from)
 3. User types prompt, clicks Generate
 4. Call `POST /api/image/generate` → returns `{ imageUrls: [url] }`
 5. Call backend proxy to fetch image bytes: `POST /api/projects/:id/artwork/fetch-image` → returns `{ base64 }`
