@@ -115,12 +115,12 @@ export default function TrackEditPanel({ track, onClose, onSaved }: TrackEditPan
         body: JSON.stringify({ imageUrl }),
       });
       const fetchData = await fetchRes.json();
-      if (!fetchRes.ok || !fetchData.base64) { setGenError('Failed to fetch image'); return; }
+      if (!fetchRes.ok || !fetchData.imageData) { setGenError('Failed to fetch image'); return; }
 
       const saveRes = await fetch(`/api/projects/${activeProjectId}/artwork`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ musicId: track.id, imageData: fetchData.base64 }),
+        body: JSON.stringify({ musicId: track.id, imageUrl: fetchData.imageData }),
       });
       const saveData = await saveRes.json();
       if (!saveRes.ok) { setGenError('Failed to save artwork'); return; }
