@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
-import type { Project } from '../../../types';
+import type { Project, MusicGeneration } from '../../../types';
 
 const MAX_PROJECTS_COLLAPSED = 5;
 const SEVEN_DAYS_MS = 7 * 24 * 3600 * 1000;
@@ -31,7 +31,7 @@ const SMART_PLAYLISTS = [
 ];
 
 export default function LeftSidebar() {
-  const { projects, activeProjectId, setActiveProjectId, refreshProjects, playlists, refreshPlaylists } = useWorkspace();
+  const { projects, activeProjectId, setActiveProjectId, refreshProjects, playlists, refreshPlaylists, playTrack, setSelectedTrack, playerTrack, playerIsPlaying } = useWorkspace();
   const [newProjectName, setNewProjectName] = useState('');
   const [creatingProject, setCreatingProject] = useState(false);
   const [showNewProjectInput, setShowNewProjectInput] = useState(false);
@@ -44,7 +44,7 @@ export default function LeftSidebar() {
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
-  const [playlistTracks, setPlaylistTracks] = useState<Record<string, Array<{ id: string; title: string | null; version: number }>>>({});
+  const [playlistTracks, setPlaylistTracks] = useState<Record<string, MusicGeneration[]>>({});
 
   const sortedProjects = [...projects]
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
@@ -117,7 +117,7 @@ export default function LeftSidebar() {
     if (activePlaylistId && playlistTracks[activePlaylistId] !== undefined) {
       fetch(`/api/playlists/${activePlaylistId}/tracks`)
         .then(r => r.json())
-        .then((ts: Array<{ id: string; title: string | null; version: number }>) =>
+        .then((ts: MusicGeneration[]) =>
           setPlaylistTracks(prev => ({ ...prev, [activePlaylistId]: ts }))
         )
         .catch(() => {});
@@ -478,7 +478,7 @@ export default function LeftSidebar() {
                       if (next && !playlistTracks[pl.id]) {
                         fetch(`/api/playlists/${pl.id}/tracks`)
                           .then(r => r.json())
-                          .then((ts: Array<{ id: string; title: string | null; version: number }>) =>
+                          .then((ts: MusicGeneration[]) =>
                             setPlaylistTracks(prev => ({ ...prev, [pl.id]: ts }))
                           )
                           .catch(() => {});
@@ -518,20 +518,34 @@ export default function LeftSidebar() {
                       {tracks && tracks.length === 0 && (
                         <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px', padding: '4px 0' }}>No tracks yet</div>
                       )}
-                      {tracks && tracks.map(t => (
-                        <div
-                          key={t.id}
-                          style={{
-                            fontSize: '12px', color: 'rgba(255,255,255,0.5)',
-                            padding: '4px 8px', borderRadius: '5px',
-                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                            cursor: 'default',
-                          }}
-                        >
-                          <span style={{ color: 'rgba(255,255,255,0.15)', marginRight: '6px', fontSize: '10px' }}>♪</span>
-                          {t.title || `Track v${t.version}`}
-                        </div>
-                      ))}
+                      {tracks && tracks.map(t => {
+                        const isTrackPlaying = playerTrack?.id === t.id && playerIsPlaying;
+                        return (
+                          <div
+                            key={t.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => { setSelectedTrack(t); playTrack(t); }}
+                            onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && (setSelectedTrack(t), playTrack(t))}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '6px',
+                              fontSize: '12px', color: isTrackPlaying ? C.red : 'rgba(255,255,255,0.5)',
+                              padding: '4px 8px', borderRadius: '5px',
+                              overflow: 'hidden', cursor: 'pointer',
+                              background: isTrackPlaying ? 'rgba(230,57,70,0.08)' : 'transparent',
+                            }}
+                            onMouseOver={e => { if (!isTrackPlaying) (e.currentTarget as HTMLDivElement).style.color = 'rgba(255,255,255,0.85)'; (e.currentTarget as HTMLDivElement).style.background = isTrackPlaying ? 'rgba(230,57,70,0.12)' : 'rgba(255,255,255,0.05)'; }}
+                            onMouseOut={e => { if (!isTrackPlaying) (e.currentTarget as HTMLDivElement).style.color = 'rgba(255,255,255,0.5)'; (e.currentTarget as HTMLDivElement).style.background = isTrackPlaying ? 'rgba(230,57,70,0.08)' : 'transparent'; }}
+                          >
+                            <span style={{ color: isTrackPlaying ? C.red : 'rgba(255,255,255,0.15)', fontSize: '10px', flexShrink: 0 }}>
+                              {isTrackPlaying ? '▶' : '♪'}
+                            </span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {t.title || `Track v${t.version}`}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
