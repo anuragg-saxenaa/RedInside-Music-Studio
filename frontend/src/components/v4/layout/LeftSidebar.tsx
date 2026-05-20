@@ -30,7 +30,11 @@ const SMART_PLAYLISTS = [
   { id: '__unmastered',    name: 'Unmastered',     icon: '◌' },
 ];
 
-export default function LeftSidebar() {
+interface LeftSidebarProps {
+  onOpenSearch?: () => void;
+}
+
+export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
   const { projects, activeProjectId, setActiveProjectId, refreshProjects, playlists, refreshPlaylists, tracks, playTrack, setSelectedTrack, playerTrack, playerIsPlaying } = useWorkspace();
   const [newProjectName, setNewProjectName] = useState('');
   const [creatingProject, setCreatingProject] = useState(false);
@@ -185,6 +189,21 @@ export default function LeftSidebar() {
 
       {/* Scrollable list area — projects + playlists scroll, brand+nav stay pinned */}
       <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', paddingBottom: '16px' }}>
+
+        {onOpenSearch && (
+          <div style={{ padding: '12px 16px 0' }}>
+            <button onClick={onOpenSearch} data-testid="open-global-search" style={{
+              display: 'flex', alignItems: 'center', gap: '6px', width: '100%',
+              background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`,
+              borderRadius: '8px', padding: '8px 12px', color: C.textDim,
+              fontSize: '12px', cursor: 'pointer', fontFamily: "'Outfit', 'DM Sans', sans-serif",
+            }}>
+              <span>🔍</span>
+              <span style={{ flex: 1, textAlign: 'left' }}>Search…</span>
+              <kbd style={{ fontSize: '10px', color: C.textDim, opacity: 0.6, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: '3px', padding: '1px 5px', fontFamily: "'JetBrains Mono', monospace" }}>⌘K</kbd>
+            </button>
+          </div>
+        )}
 
       {/* Projects */}
       <div style={{ borderBottom: `1px solid ${C.border}`, paddingBottom: '8px' }}>
@@ -538,9 +557,12 @@ export default function LeftSidebar() {
                             onMouseOver={e => { if (!isTrackPlaying) (e.currentTarget as HTMLDivElement).style.color = 'rgba(255,255,255,0.85)'; (e.currentTarget as HTMLDivElement).style.background = isTrackPlaying ? 'rgba(230,57,70,0.12)' : 'rgba(255,255,255,0.05)'; }}
                             onMouseOut={e => { if (!isTrackPlaying) (e.currentTarget as HTMLDivElement).style.color = 'rgba(255,255,255,0.5)'; (e.currentTarget as HTMLDivElement).style.background = isTrackPlaying ? 'rgba(230,57,70,0.08)' : 'transparent'; }}
                           >
-                            <span style={{ color: isTrackPlaying ? C.red : 'rgba(255,255,255,0.15)', fontSize: '10px', flexShrink: 0 }}>
-                              {isTrackPlaying ? '▶' : '♪'}
-                            </span>
+                            <span style={{
+                              width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0,
+                              background: isTrackPlaying ? '#E63946' : 'rgba(255,255,255,0.15)',
+                              animation: isTrackPlaying ? 'rds-pulse 1.1s ease-in-out infinite' : 'none',
+                              display: 'inline-block',
+                            }} />
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {t.title || `Track v${t.version}`}
                             </span>

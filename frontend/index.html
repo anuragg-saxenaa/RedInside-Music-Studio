@@ -15,6 +15,11 @@
       ::-webkit-scrollbar-thumb { background: #2A2A2A; border-radius: 4px; }
       ::-webkit-scrollbar-thumb:hover { background: #3A3A3A; }
       ::selection { background: #E63946; color: #FFFFFF; }
+
+      @keyframes rds-pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50%       { opacity: 0.4; transform: scale(0.6); }
+      }
     </style>
   </head>
   <body>
