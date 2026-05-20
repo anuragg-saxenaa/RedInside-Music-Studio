@@ -91,6 +91,8 @@ frontend/src/
 
 **AppShell grid:** `gridTemplateColumns: '232px 1fr 268px'` — left sidebar / centre / right panel
 
+**Fonts:** Outfit (UI) + DM Sans (fallback) + JetBrains Mono (timestamps/metadata) — loaded in `index.html` via Google Fonts
+
 **WorkspaceContext key exports:**
 - `projects`, `activeProjectId`, `setActiveProjectId`, `refreshProjects`
 - `tracks`, `selectedTrack`, `setSelectedTrack`, `refreshTracks`
@@ -98,6 +100,41 @@ frontend/src/
 - `playerTrack`, `playerIsPlaying`, `playerProgress`, `playerCurrentTime`, `playerDuration`, `playerVolume`
 - `togglePlay`, `seekTo`, `setPlayerVolume`, `playNext`, `playPrev`, `playTrack`
 - `activeTab`, `setActiveTab`
+- `isMockMode`
+
+**App flow:**
+```
+App.tsx (hash router)
+ ├── #/           → StudioV4 (full-viewport DAW)
+ │    ├── Titlebar (breadcrumb: Project › name, green Ready dot)
+ │    ├── LeftSidebar
+ │    │    ├── Projects: search, ⋯ (Rename/Delete), timestamps, Recent/Earlier groups
+ │    │    └── Playlists: collapsible, per-playlist expand shows tracks (lazy fetch)
+ │    ├── CentreWorkspace (TabBar + tab content)
+ │    │    ├── ♪ SOUNDS — TrackRow list; click row = play+select; ⋯ = Play/Write/Craft/Master/Export/Delete
+ │    │    ├── ✎ WRITE  — LyricsEditor
+ │    │    ├── ◈ CREATE — ArtworkGenerator / VideoPreview / VoiceDesign (collapsible sections)
+ │    │    ├── ⚙ CRAFT  — AudioEditorPanel + RemixSuggestions (presets wired) + MedleyMixer
+ │    │    └── ↗ RELEASE — ReadinessChecklist + SocialExportPanel + AudioMasteringPanel
+ │    ├── RightPanel (track selected)
+ │    │    ├── Track art + editable title (dblclick)
+ │    │    ├── BPM/key/duration tags
+ │    │    ├── Quick actions: Play / Craft / Master / Export / Delete
+ │    │    ├── Share: generate link → copy
+ │    │    ├── Playlists: add/remove membership
+ │    │    └── Timed notes: add at current playhead position
+ │    └── PlayerBar
+ │         ├── Track art thumbnail + marquee title (dblclick to rename)
+ │         ├── Prev / Play-Pause / Next controls
+ │         ├── Scrubber with drag-to-seek
+ │         └── Volume slider
+ ├── #/share/:token → ShareView (public, no auth)
+ ├── #/history      → History page
+ ├── #/viral        → ViralToolkit
+ └── #/settings     → Settings
+```
+
+**WebSocket:** `useWebSocket` mounted in `StudioV4Inner` — always connected. Sets `window.__studioWs`. Used by `YoutubeDownloader`, `VocalRemovalCard`, `MusicPlayer` for real-time job progress.
 
 ### Backend — Modular Monolith
 
@@ -133,24 +170,30 @@ backend/src/
 └── config/env.config.js
 ```
 
-### Key API Routes (Phase 4 additions)
+### Key API Routes
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/playlists` | List all playlists |
-| POST | `/api/playlists` | Create playlist |
-| DELETE | `/api/playlists/:id` | Delete playlist |
-| POST | `/api/playlists/:id/tracks` | Add track to playlist |
-| DELETE | `/api/playlists/:id/tracks/:musicId` | Remove track |
-| GET | `/api/music/:id/tags` | Get BPM/key tags (lazy) |
-| GET | `/api/music/:id/notes` | Get track notes |
-| PUT | `/api/music/:id/notes` | Save track notes |
-| PATCH | `/api/music/:id` | Update track title |
-| POST | `/api/projects/:id/share` | Generate share token |
-| GET | `/api/share/:token` | Resolve share token |
-| GET | `/api/projects` | List projects |
+| GET | `/api/projects` | List all projects |
 | PUT | `/api/projects/:id` | Rename project |
 | DELETE | `/api/projects/:id` | Delete project |
+| GET | `/api/music` | List tracks for project |
+| PATCH | `/api/music/:id` | Update track title |
+| DELETE | `/api/music/:id` | **Delete track** (removes file + DB row) |
+| GET | `/api/music/:id/tags` | Get BPM/key tags (lazy analysis) |
+| GET | `/api/music/:id/notes` | Get timed notes |
+| POST | `/api/music/:id/notes` | Add timed note |
+| DELETE | `/api/music/:id/notes/:noteId` | Delete note |
+| GET | `/api/playlists` | List all playlists (with track_count) |
+| POST | `/api/playlists` | Create playlist |
+| DELETE | `/api/playlists/:id` | Delete playlist |
+| GET | `/api/playlists/:id/tracks` | List tracks in playlist |
+| POST | `/api/playlists/:id/tracks` | Add track to playlist |
+| DELETE | `/api/playlists/:id/tracks/:musicId` | Remove track from playlist |
+| POST | `/api/projects/:id/share` | Generate share token |
+| GET | `/api/share/:token` | Resolve share token → project + tracks |
+| POST | `/api/downloader/youtube` | Start YouTube import (returns downloadId, progress via WS) |
+| POST | `/api/audio/social-export` | Export track as MP3 for social preset |
 
 ### Data Model
 - **SQLite** at `database/music-studio.sqlite`
@@ -224,7 +267,20 @@ Legacy tests (pre-Phase 4) archived in `frontend/tests/e2e/legacy/` — excluded
 ## Key Files
 - `backend/src/server.js` — Express entry, registers all routes
 - `frontend/src/App.tsx` — Hash router (studio → StudioV4, legacy pages)
-- `frontend/src/contexts/WorkspaceContext.tsx` — All UI state
-- `frontend/src/components/v4/shared/colors.ts` — Color tokens
+- `frontend/src/pages/StudioV4.tsx` — DAW root; mounts `useWebSocket` at app level
+- `frontend/src/contexts/WorkspaceContext.tsx` — All UI state + player state
+- `frontend/src/components/v4/shared/colors.ts` — Color tokens (C.red, C.gold, C.border, …)
+- `frontend/src/hooks/useWebSocket.ts` — WS hook; sets `window.__studioWs` on connect
+- `frontend/index.html` — Google Fonts (Outfit, DM Sans, JetBrains Mono) + scrollbar styles
+- `backend/src/modules/downloader/downloader.service.js` — yt-dlp wrapper (--concurrent-fragments 4)
 - `storage/` — Git-ignored, generated content
 - `config/.env` — API keys (git-ignored)
+
+## Known Behaviours / Gotchas
+- **YouTube import progress** requires `useWebSocket` to be mounted (it's in `StudioV4Inner`). `YoutubeDownloader` reads `window.__studioWs` directly via `addEventListener`.
+- **yt-dlp** speed: uses `--concurrent-fragments 4` for parallel chunk download. Long videos (>5 min) can still take 1-3 min. Progress updates arrive via WebSocket.
+- **Playlist track list in sidebar** is fetched lazily on first expand and re-fetched on every `refreshPlaylists` call (so adding from RightPanel reflects immediately).
+- **TrackRow click** = play + select. `⋯` menu has Play / Write / Craft / Master / Export / Delete.
+- **RemixSuggestions** (Craft tab) applies audio operations via `presetOperations` prop on `AudioEditorPanel` — not just cosmetic.
+- **PlayerBar rename** — double-click the title in the player bar to inline-rename (same PATCH /api/music/:id call as RightPanel).
+- **RightPanel delete** — Quick Actions grid includes ✕ Delete (red), confirms before calling DELETE /api/music/:id.
