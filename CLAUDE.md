@@ -338,7 +338,10 @@ Legacy tests (pre-Phase 4) archived in `frontend/tests/e2e/legacy/` — excluded
 - **RemixSuggestions** (Craft tab) applies audio operations via `presetOperations` prop on `AudioEditorPanel` — not just cosmetic.
 - **PlayerBar keyboard shortcuts** — Space (play/pause), ←/→ (seek ±5%), M (mute), N (next), P (prev). Guard: skips INPUT/TEXTAREA targets.
 - **PlayerBar drag-to-seek** — mousedown on scrubber starts drag, document mousemove/mouseup track position, visual shows dragProgress fraction while dragging, seekTo called on mouseup.
+- **Player auto-advance** — when track ends, `playNextRef.current()` is called from the `ended` listener. Uses refs (`isLoopingRef`, `isShuffledRef`, `playNextRef`) to avoid stale closure — toggling loop/shuffle mid-song takes effect immediately. Loop on = restart same track; loop off + last track = stop; shuffle = random next.
+- **playTrack syncs selectedTrack** — every call to `playTrack` (manual, Next button, auto-advance, shuffle) also calls `setSelectedTrack` so the Sounds tab highlight always matches the playing track.
 - **Global search (⌘K)** — searches tracks/playlists/projects; keyboard navigation (↑↓ to cursor, Enter to select/open, Esc to close). Opens from sidebar search button or global Cmd+K shortcut.
 - **Playlist sidebar dot** — tracks in sidebar playlists show pulsing red dot (rds-pulse keyframe) when playing; click plays and selects.
+- **Project delete (LeftSidebar)** — ⋯ menu → Delete swaps the project row to an inline confirmation strip (slide-in animation, red left border). Shows `Delete "name"?` with full name in `title` tooltip. Cancel restores row; Delete calls `deleteProject`. No browser `confirm()` dialog.
 - **RightPanel delete** — Quick Actions grid includes ✕ Delete (red), confirms before calling DELETE /api/music/:id.
 - **V4Tab type**: `'sounds' | 'write' | 'album' | 'craft' | 'release'` — note `album` not `create`.
