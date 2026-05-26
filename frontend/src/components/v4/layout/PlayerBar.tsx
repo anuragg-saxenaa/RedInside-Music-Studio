@@ -28,6 +28,7 @@ export default function PlayerBar() {
     togglePlay, seekTo, setPlayerVolume, playNext, playPrev, playTrack, tracks,
     selectedTrack, setSelectedTrack, refreshTracks,
     isLooping, isShuffled, toggleLoop, toggleShuffle,
+    setActiveTab,
   } = useWorkspace();
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
@@ -157,8 +158,20 @@ export default function PlayerBar() {
         flexShrink: 0,
       }}
     >
-      {/* Left — track info */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+      {/* Left — track info — clickable to jump to track in Sounds tab */}
+      <div
+        onClick={() => {
+          if (!playerTrack) return;
+          setActiveTab('sounds');
+          setSelectedTrack(playerTrack);
+          // Scroll to track row once tab renders
+          setTimeout(() => {
+            const el = document.querySelector(`[data-testid="track-row-${playerTrack.id}"]`);
+            el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 80);
+        }}
+        style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0, cursor: 'pointer' }}
+      >
         <style>{`
           @keyframes marquee-scroll {
             0%   { transform: translateX(0); }
