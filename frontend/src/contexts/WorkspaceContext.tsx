@@ -45,6 +45,8 @@ interface WorkspaceContextType {
 
 const WorkspaceContext = createContext<WorkspaceContextType | null>(null);
 
+const PERSIST_KEY = 'ris_player_track';
+
 // Module-level — persists across provider remounts (e.g. navigating away then back to Studio)
 let persistentAudio: HTMLAudioElement | null = null;
 let persistentTrack: MusicGeneration | null = null;
@@ -82,6 +84,40 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setPlayerCurrentTime(persistentAudio.currentTime);
         setPlayerDuration(persistentAudio.duration);
       }
+    } else {
+      // Full page refresh — restore from localStorage
+      try {
+        const saved = localStorage.getItem(PERSIST_KEY);
+        if (saved) {
+          const track: MusicGeneration = JSON.parse(saved);
+          persistentTrack = track;
+          const audio = new Audio(`/api/music/${track.id}/file`);
+          persistentAudio = audio;
+          audioRef.current = audio;
+          audio.volume = playerVolume;
+          setPlayerTrack(track);
+          setPlayerIsPlaying(true);
+          audio.addEventListener('timeupdate', () => {
+            if (audio.duration && isFinite(audio.duration)) {
+              setPlayerProgress(audio.currentTime / audio.duration);
+              setPlayerCurrentTime(audio.currentTime);
+              setPlayerDuration(audio.duration);
+            }
+          });
+          audio.addEventListener('loadedmetadata', () => {
+            if (isFinite(audio.duration)) setPlayerDuration(audio.duration);
+          });
+          audio.addEventListener('ended', () => {
+            if (isLooping) {
+              audio.currentTime = 0;
+              audio.play().catch(() => {});
+            } else {
+              setPlayerIsPlaying(false);
+            }
+          });
+          audio.play().catch(() => {});
+        }
+      } catch (_) { /* ignore corrupt localStorage */ }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -130,6 +166,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     persistentAudio = audio;
     audioRef.current = audio;
     persistentTrack = track;
+    try { localStorage.setItem(PERSIST_KEY, JSON.stringify(track)); } catch (_) { /* quota */ }
     audio.play().catch(() => {});
     setPlayerTrack(track);
     setPlayerIsPlaying(true);
