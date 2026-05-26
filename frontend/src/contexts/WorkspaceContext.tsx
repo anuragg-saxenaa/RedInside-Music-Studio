@@ -124,7 +124,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           audioRef.current = audio;
           audio.volume = playerVolume;
           setPlayerTrack(track);
-          setPlayerIsPlaying(true);
+          setPlayerIsPlaying(false);
           audio.addEventListener('timeupdate', () => {
             if (audio.duration && isFinite(audio.duration)) {
               setPlayerProgress(audio.currentTime / audio.duration);
@@ -143,7 +143,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
               setPlayerIsPlaying(false);
             }
           });
-          audio.play().catch(() => {});
         }
       } catch (_) { /* ignore corrupt localStorage */ }
     }
