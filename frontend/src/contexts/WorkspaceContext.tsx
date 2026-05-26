@@ -101,6 +101,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       .then(r => r.json())
       .then((list: MusicGeneration[]) => {
         setTracks(list);
+        if (selectedTrack) {
+          const updated = list.find(t => t.id === selectedTrack.id);
+          if (updated) setSelectedTrack(updated);
+        }
         if (list.length > 0 && !selectedTrack) setSelectedTrack(list[0]);
       })
       .catch(() => {});
