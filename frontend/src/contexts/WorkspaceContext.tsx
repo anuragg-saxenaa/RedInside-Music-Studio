@@ -46,18 +46,25 @@ interface WorkspaceContextType {
 const WorkspaceContext = createContext<WorkspaceContextType | null>(null);
 
 const PERSIST_KEY = 'ris_player_track';
+const UI_STATE_KEY = 'ris_ui_state';
+type UiState = { activeTab: V4Tab; activeProjectId: string | null; selectedTrackId: string | null };
 
 // Module-level — persists across provider remounts (e.g. navigating away then back to Studio)
 let persistentAudio: HTMLAudioElement | null = null;
 let persistentTrack: MusicGeneration | null = null;
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
+  // Read persisted UI state synchronously at render time
+  const savedUiState = (() => {
+    try { const s = localStorage.getItem(UI_STATE_KEY); return s ? (JSON.parse(s) as UiState) : null; } catch (_) { return null; }
+  })();
+
   const [projects, setProjects] = useState<Project[]>([]);
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(savedUiState?.activeProjectId ?? null);
   const [tracks, setTracks] = useState<MusicGeneration[]>([]);
   const [selectedTrack, setSelectedTrack] = useState<MusicGeneration | null>(null);
   const [selectedLyrics, setSelectedLyrics] = useState<LyricsGeneration | null>(null);
-  const [activeTab, setActiveTab] = useState<V4Tab>('sounds');
+  const [activeTab, setActiveTab] = useState<V4Tab>((savedUiState?.activeTab as V4Tab) ?? 'sounds');
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [playerTrack, setPlayerTrack] = useState<MusicGeneration | null>(persistentTrack);
   const [playerIsPlaying, setPlayerIsPlaying] = useState(false);
@@ -70,13 +77,34 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [isShuffled, setIsShuffled] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(persistentAudio);
 
-  // Mount: restore state from persistent audio if it was playing
+  // Persist UI state to localStorage
+  const persistUi = useCallback((tab: V4Tab, projId: string | null, trackId: string | null) => {
+    try { localStorage.setItem(UI_STATE_KEY, JSON.stringify({ activeTab: tab, activeProjectId: projId, selectedTrackId: trackId })); } catch (_) { /* quota */ }
+  }, []);
+
+  // Wrapped setters that persist
+  const setActiveProjectIdWrapped = useCallback((id: string | null) => {
+    setActiveProjectId(id);
+    persistUi(activeTab, id, selectedTrack?.id ?? null);
+  }, [activeTab, selectedTrack, persistUi]);
+
+  const setActiveTabWrapped = useCallback((tab: V4Tab) => {
+    setActiveTab(tab);
+    persistUi(tab, activeProjectId, selectedTrack?.id ?? null);
+  }, [activeProjectId, selectedTrack, persistUi]);
+
+  const setSelectedTrackWrapped = useCallback((t: MusicGeneration | null) => {
+    setSelectedTrack(t);
+    persistUi(activeTab, activeProjectId, t?.id ?? null);
+  }, [activeTab, activeProjectId, persistUi]);
+
+  // Mount: restore all persisted state
   useEffect(() => {
     fetch('/health').then(r => r.json()).then(d => { if (d.minimax === 'mock') setIsMockMode(true); }).catch(() => {});
-    refreshProjects();
-    refreshPlaylists();
+    fetch('/api/playlists').then(r => r.json()).then(setPlaylists).catch(() => {});
 
     if (persistentAudio) {
+      // In-session navigation: audio already playing
       setPlayerTrack(persistentTrack);
       setPlayerIsPlaying(!persistentAudio.paused && !persistentAudio.ended);
       if (persistentAudio.duration && isFinite(persistentAudio.duration)) {
@@ -85,7 +113,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setPlayerDuration(persistentAudio.duration);
       }
     } else {
-      // Full page refresh — restore from localStorage
+      // Full page refresh — restore audio from localStorage
       try {
         const saved = localStorage.getItem(PERSIST_KEY);
         if (saved) {
@@ -119,16 +147,60 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         }
       } catch (_) { /* ignore corrupt localStorage */ }
     }
+
+    // Load projects and restore active project/tab from localStorage
+    fetch('/api/projects')
+      .then(r => r.json())
+      .then((projs: Project[]) => {
+        setProjects(projs);
+        const saved: UiState | null = (() => {
+          try { const s = localStorage.getItem(UI_STATE_KEY); return s ? (JSON.parse(s) as UiState) : null; } catch (_) { return null; }
+        })();
+        if (saved?.activeProjectId) {
+          const exists = projs.find(p => p.id === saved.activeProjectId);
+          if (exists) setActiveProjectId(saved.activeProjectId);
+        }
+        if (saved?.activeTab) setActiveTab(saved.activeTab as V4Tab);
+      })
+      .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Fetch tracks and restore selected track when project changes
   useEffect(() => {
-    if (activeProjectId) refreshTracks();
-    else setTracks([]);
+    if (!activeProjectId) { setTracks([]); return; }
+    const saved: UiState | null = (() => {
+      try { const s = localStorage.getItem(UI_STATE_KEY); return s ? (JSON.parse(s) as UiState) : null; } catch (_) { return null; }
+    })();
+    fetch(`/api/projects/${activeProjectId}/music`)
+      .then(r => r.json())
+      .then((list: MusicGeneration[]) => {
+        setTracks(list);
+        // Sync stale selected/player tracks
+        if (selectedTrack) {
+          const u = list.find(t => t.id === selectedTrack.id);
+          if (u) setSelectedTrack(u);
+        }
+        if (playerTrack) {
+          const u = list.find(t => t.id === playerTrack.id);
+          if (u) setPlayerTrack(u);
+        }
+        // Restore selected track from persisted UI state
+        if (!selectedTrack && saved?.selectedTrackId) {
+          const match = list.find(t => t.id === saved.selectedTrackId);
+          if (match) setSelectedTrack(match);
+        }
+        if (list.length > 0 && !selectedTrack) setSelectedTrack(list[0]);
+      })
+      .catch(() => {});
   }, [activeProjectId]);
 
   const refreshProjects = useCallback(() => {
     fetch('/api/projects').then(r => r.json()).then(setProjects).catch(() => {});
+  }, []);
+
+  const refreshPlaylists = useCallback(() => {
+    fetch('/api/playlists').then(r => r.json()).then(setPlaylists).catch(() => {});
   }, []);
 
   const refreshTracks = useCallback(() => {
@@ -137,30 +209,17 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       .then(r => r.json())
       .then((list: MusicGeneration[]) => {
         setTracks(list);
-        if (selectedTrack) {
-          const updated = list.find(t => t.id === selectedTrack.id);
-          if (updated) setSelectedTrack(updated);
-        }
-        if (playerTrack) {
-          const updated = list.find(t => t.id === playerTrack.id);
-          if (updated) setPlayerTrack(updated);
-        }
+        if (selectedTrack) { const u = list.find(t => t.id === selectedTrack.id); if (u) setSelectedTrack(u); }
+        if (playerTrack) { const u = list.find(t => t.id === playerTrack.id); if (u) setPlayerTrack(u); }
         if (list.length > 0 && !selectedTrack) setSelectedTrack(list[0]);
       })
       .catch(() => {});
   }, [activeProjectId, selectedTrack, playerTrack]);
 
-  const refreshPlaylists = useCallback(() => {
-    fetch('/api/playlists').then(r => r.json()).then(setPlaylists).catch(() => {});
-  }, []);
-
   const activeProject = projects.find(p => p.id === activeProjectId) ?? null;
 
   const playTrack = useCallback((track: MusicGeneration) => {
-    if (persistentAudio) {
-      persistentAudio.pause();
-      persistentAudio.src = '';
-    }
+    if (persistentAudio) { persistentAudio.pause(); persistentAudio.src = ''; }
     const audio = new Audio(`/api/music/${track.id}/file`);
     audio.volume = playerVolume;
     persistentAudio = audio;
@@ -172,7 +231,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setPlayerIsPlaying(true);
     setPlayerProgress(0);
     setPlayerCurrentTime(0);
-
     const updateTime = () => {
       if (audio.duration && isFinite(audio.duration)) {
         setPlayerProgress(audio.currentTime / audio.duration);
@@ -183,24 +241,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     audio.addEventListener('timeupdate', updateTime);
     audio.addEventListener('loadedmetadata', updateTime);
     audio.addEventListener('ended', () => {
-      if (isLooping) {
-        audio.currentTime = 0;
-        audio.play().catch(() => {});
-      } else {
-        setPlayerIsPlaying(false);
-      }
+      if (isLooping) { audio.currentTime = 0; audio.play().catch(() => {}); }
+      else setPlayerIsPlaying(false);
     });
   }, [playerVolume, isLooping]);
 
   const togglePlay = useCallback(() => {
     if (!persistentAudio) return;
-    if (playerIsPlaying) {
-      persistentAudio.pause();
-      setPlayerIsPlaying(false);
-    } else {
-      persistentAudio.play().catch(() => {});
-      setPlayerIsPlaying(true);
-    }
+    if (playerIsPlaying) { persistentAudio.pause(); setPlayerIsPlaying(false); }
+    else { persistentAudio.play().catch(() => {}); setPlayerIsPlaying(true); }
   }, [playerIsPlaying]);
 
   const seekTo = useCallback((fraction: number) => {
@@ -217,22 +266,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (!playerTrack || tracks.length === 0) return;
     if (isShuffled && tracks.length > 1) {
       const others = tracks.filter(t => t.id !== playerTrack.id);
-      const next = others[Math.floor(Math.random() * others.length)];
-      playTrack(next);
+      playTrack(others[Math.floor(Math.random() * others.length)]);
       return;
     }
     const idx = tracks.findIndex(t => t.id === playerTrack.id);
     const isLast = idx === tracks.length - 1;
     if (isLast && !isLooping) return;
-    const next = tracks[(idx + 1) % tracks.length];
-    playTrack(next);
+    playTrack(tracks[(idx + 1) % tracks.length]);
   }, [playerTrack, tracks, isShuffled, isLooping, playTrack]);
 
   const playPrev = useCallback(() => {
     if (!playerTrack || tracks.length === 0) return;
     const idx = tracks.findIndex(t => t.id === playerTrack.id);
-    const prev = tracks[(idx - 1 + tracks.length) % tracks.length];
-    playTrack(prev);
+    playTrack(tracks[(idx - 1 + tracks.length) % tracks.length]);
   }, [playerTrack, tracks, playTrack]);
 
   const toggleLoop = useCallback(() => setIsLooping(v => !v), []);
@@ -240,10 +286,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   return (
     <WorkspaceContext.Provider value={{
-      projects, activeProjectId, activeProject, setActiveProjectId, refreshProjects,
-      tracks, selectedTrack, setSelectedTrack, refreshTracks,
+      projects, activeProjectId, activeProject, setActiveProjectId: setActiveProjectIdWrapped, refreshProjects,
+      tracks, selectedTrack, setSelectedTrack: setSelectedTrackWrapped, refreshTracks,
       selectedLyrics, setSelectedLyrics,
-      activeTab, setActiveTab,
+      activeTab: activeTab, setActiveTab: setActiveTabWrapped,
       playlists, refreshPlaylists,
       playerTrack, playerIsPlaying, playerProgress, playerCurrentTime, playerDuration, playerVolume,
       playTrack, togglePlay, seekTo, setPlayerVolume, playNext, playPrev,
