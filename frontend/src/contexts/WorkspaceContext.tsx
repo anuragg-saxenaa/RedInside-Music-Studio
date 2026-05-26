@@ -47,6 +47,7 @@ const WorkspaceContext = createContext<WorkspaceContextType | null>(null);
 
 const PERSIST_KEY = 'ris_player_track';
 const UI_STATE_KEY = 'ris_ui_state';
+type PersistedPlayer = { track: MusicGeneration; currentTime: number };
 type UiState = { activeTab: V4Tab; activeProjectId: string | null; selectedTrackId: string | null };
 
 // Module-level — persists across provider remounts (e.g. navigating away then back to Studio)
@@ -115,9 +116,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     } else {
       // Full page refresh — restore audio from localStorage
       try {
-        const saved = localStorage.getItem(PERSIST_KEY);
-        if (saved) {
-          const track: MusicGeneration = JSON.parse(saved);
+        const raw = localStorage.getItem(PERSIST_KEY);
+        if (raw) {
+          const { track, currentTime }: PersistedPlayer = JSON.parse(raw);
           persistentTrack = track;
           const audio = new Audio(`/api/music/${track.id}/file`);
           persistentAudio = audio;
@@ -130,10 +131,17 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
               setPlayerProgress(audio.currentTime / audio.duration);
               setPlayerCurrentTime(audio.currentTime);
               setPlayerDuration(audio.duration);
+              // Persist currentTime
+              try { localStorage.setItem(PERSIST_KEY, JSON.stringify({ track, currentTime: audio.currentTime })); } catch (_) { /* quota */ }
             }
           });
           audio.addEventListener('loadedmetadata', () => {
-            if (isFinite(audio.duration)) setPlayerDuration(audio.duration);
+            if (isFinite(audio.duration)) {
+              setPlayerDuration(audio.duration);
+              audio.currentTime = currentTime;
+              setPlayerCurrentTime(currentTime);
+              setPlayerProgress(audio.duration ? currentTime / audio.duration : 0);
+            }
           });
           audio.addEventListener('ended', () => {
             if (isLooping) {
@@ -224,7 +232,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     persistentAudio = audio;
     audioRef.current = audio;
     persistentTrack = track;
-    try { localStorage.setItem(PERSIST_KEY, JSON.stringify(track)); } catch (_) { /* quota */ }
+    try { localStorage.setItem(PERSIST_KEY, JSON.stringify({ track, currentTime: 0 })); } catch (_) { /* quota */ }
     audio.play().catch(() => {});
     setPlayerTrack(track);
     setPlayerIsPlaying(true);
@@ -235,6 +243,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setPlayerProgress(audio.currentTime / audio.duration);
         setPlayerCurrentTime(audio.currentTime);
         setPlayerDuration(audio.duration);
+        try { localStorage.setItem(PERSIST_KEY, JSON.stringify({ track, currentTime: audio.currentTime })); } catch (_) { /* quota */ }
       }
     };
     audio.addEventListener('timeupdate', updateTime);
