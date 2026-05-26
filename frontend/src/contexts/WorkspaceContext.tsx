@@ -45,6 +45,10 @@ interface WorkspaceContextType {
 
 const WorkspaceContext = createContext<WorkspaceContextType | null>(null);
 
+// Module-level — persists across provider remounts (e.g. navigating away then back to Studio)
+let persistentAudio: HTMLAudioElement | null = null;
+let persistentTrack: MusicGeneration | null = null;
+
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
@@ -53,7 +57,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [selectedLyrics, setSelectedLyrics] = useState<LyricsGeneration | null>(null);
   const [activeTab, setActiveTab] = useState<V4Tab>('sounds');
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [playerTrack, setPlayerTrack] = useState<MusicGeneration | null>(null);
+  const [playerTrack, setPlayerTrack] = useState<MusicGeneration | null>(persistentTrack);
   const [playerIsPlaying, setPlayerIsPlaying] = useState(false);
   const [playerProgress, setPlayerProgress] = useState(0);
   const [playerCurrentTime, setPlayerCurrentTime] = useState(0);
@@ -62,12 +66,24 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [isMockMode, setIsMockMode] = useState(false);
   const [isLooping, setIsLooping] = useState(false);
   const [isShuffled, setIsShuffled] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(persistentAudio);
 
+  // Mount: restore state from persistent audio if it was playing
   useEffect(() => {
     fetch('/health').then(r => r.json()).then(d => { if (d.minimax === 'mock') setIsMockMode(true); }).catch(() => {});
     refreshProjects();
     refreshPlaylists();
+
+    if (persistentAudio) {
+      setPlayerTrack(persistentTrack);
+      setPlayerIsPlaying(!persistentAudio.paused && !persistentAudio.ended);
+      if (persistentAudio.duration && isFinite(persistentAudio.duration)) {
+        setPlayerProgress(persistentAudio.currentTime / persistentAudio.duration);
+        setPlayerCurrentTime(persistentAudio.currentTime);
+        setPlayerDuration(persistentAudio.duration);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -97,18 +113,30 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const activeProject = projects.find(p => p.id === activeProjectId) ?? null;
 
   const playTrack = useCallback((track: MusicGeneration) => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = '';
+    if (persistentAudio) {
+      persistentAudio.pause();
+      persistentAudio.src = '';
     }
     const audio = new Audio(`/api/music/${track.id}/file`);
     audio.volume = playerVolume;
+    persistentAudio = audio;
     audioRef.current = audio;
+    persistentTrack = track;
     audio.play().catch(() => {});
     setPlayerTrack(track);
     setPlayerIsPlaying(true);
     setPlayerProgress(0);
     setPlayerCurrentTime(0);
+
+    const updateTime = () => {
+      if (audio.duration && isFinite(audio.duration)) {
+        setPlayerProgress(audio.currentTime / audio.duration);
+        setPlayerCurrentTime(audio.currentTime);
+        setPlayerDuration(audio.duration);
+      }
+    };
+    audio.addEventListener('timeupdate', updateTime);
+    audio.addEventListener('loadedmetadata', updateTime);
     audio.addEventListener('ended', () => {
       if (isLooping) {
         audio.currentTime = 0;
@@ -117,37 +145,27 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setPlayerIsPlaying(false);
       }
     });
-    audio.addEventListener('timeupdate', () => {
-      if (audio.duration && isFinite(audio.duration)) {
-        setPlayerProgress(audio.currentTime / audio.duration);
-        setPlayerCurrentTime(audio.currentTime);
-        setPlayerDuration(audio.duration);
-      }
-    });
-    audio.addEventListener('loadedmetadata', () => {
-      if (isFinite(audio.duration)) setPlayerDuration(audio.duration);
-    });
   }, [playerVolume, isLooping]);
 
   const togglePlay = useCallback(() => {
-    if (!audioRef.current) return;
+    if (!persistentAudio) return;
     if (playerIsPlaying) {
-      audioRef.current.pause();
+      persistentAudio.pause();
       setPlayerIsPlaying(false);
     } else {
-      audioRef.current.play().catch(() => {});
+      persistentAudio.play().catch(() => {});
       setPlayerIsPlaying(true);
     }
   }, [playerIsPlaying]);
 
   const seekTo = useCallback((fraction: number) => {
-    if (!audioRef.current || !isFinite(audioRef.current.duration)) return;
-    audioRef.current.currentTime = fraction * audioRef.current.duration;
+    if (!persistentAudio || !isFinite(persistentAudio.duration)) return;
+    persistentAudio.currentTime = fraction * persistentAudio.duration;
   }, []);
 
   const setPlayerVolume = useCallback((v: number) => {
     setPlayerVolumeState(v);
-    if (audioRef.current) audioRef.current.volume = v;
+    if (persistentAudio) persistentAudio.volume = v;
   }, []);
 
   const playNext = useCallback(() => {
