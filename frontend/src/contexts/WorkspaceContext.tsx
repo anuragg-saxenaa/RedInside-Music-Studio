@@ -105,10 +105,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           const updated = list.find(t => t.id === selectedTrack.id);
           if (updated) setSelectedTrack(updated);
         }
+        if (playerTrack) {
+          const updated = list.find(t => t.id === playerTrack.id);
+          if (updated) setPlayerTrack(updated);
+        }
         if (list.length > 0 && !selectedTrack) setSelectedTrack(list[0]);
       })
       .catch(() => {});
-  }, [activeProjectId, selectedTrack]);
+  }, [activeProjectId, selectedTrack, playerTrack]);
 
   const refreshPlaylists = useCallback(() => {
     fetch('/api/playlists').then(r => r.json()).then(setPlaylists).catch(() => {});
