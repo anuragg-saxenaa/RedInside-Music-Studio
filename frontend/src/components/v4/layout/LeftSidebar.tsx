@@ -49,6 +49,7 @@ export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
   const [playlistTracks, setPlaylistTracks] = useState<Record<string, MusicGeneration[]>>({});
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const sortedProjects = [...projects]
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
@@ -311,13 +312,41 @@ export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
                 data-testid={`project-item-${p.id}`}
                 style={{ position: 'relative' }}
               >
+                {/* Inline delete confirm — replaces row */}
+                {deleteTarget?.id === p.id && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '7px 10px 7px 20px',
+                    background: 'rgba(230,57,70,0.07)',
+                    borderLeft: `3px solid ${C.red}`,
+                    animation: 'ris-confirm-in 120ms ease',
+                  }}>
+                    <style>{`@keyframes ris-confirm-in { from { opacity: 0; transform: translateX(-4px) } to { opacity: 1; transform: translateX(0) } }`}</style>
+                    <span title={p.name} style={{ flex: 1, fontSize: '12px', color: 'rgba(255,255,255,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontStyle: 'italic', cursor: 'default' }}>
+                      Delete "{p.name}"?
+                    </span>
+                    <button
+                      onClick={e => { e.stopPropagation(); setDeleteTarget(null); }}
+                      style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '11px', fontWeight: 600, cursor: 'pointer', padding: '3px 7px', borderRadius: '5px', fontFamily: "'Outfit', sans-serif" }}
+                      onMouseOver={e => (e.currentTarget.style.color = '#fff')}
+                      onMouseOut={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}
+                    >Cancel</button>
+                    <button
+                      onClick={e => { e.stopPropagation(); deleteProject(deleteTarget.id); setDeleteTarget(null); }}
+                      style={{ background: 'rgba(230,57,70,0.15)', border: '1px solid rgba(230,57,70,0.35)', color: C.red, fontSize: '11px', fontWeight: 700, cursor: 'pointer', padding: '3px 9px', borderRadius: '5px', fontFamily: "'Outfit', sans-serif" }}
+                      onMouseOver={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(230,57,70,0.28)'; }}
+                      onMouseOut={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(230,57,70,0.15)'; }}
+                    >Delete</button>
+                  </div>
+                )}
+
                 <div
                   role="button"
                   tabIndex={0}
                   onClick={() => { if (!renaming) { setActiveProjectId(p.id); setProjectMenu(null); } }}
                   onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setActiveProjectId(p.id)}
                   style={{
-                    display: 'flex',
+                    display: deleteTarget?.id === p.id ? 'none' : 'flex',
                     alignItems: 'center',
                     gap: '10px',
                     padding: '8px 8px 8px 20px',
@@ -398,7 +427,7 @@ export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
                       onMouseOut={e => (e.currentTarget.style.background = 'none')}
                     >✏ Rename</button>
                     <button
-                      onClick={e => { e.stopPropagation(); if (confirm(`Delete "${p.name}"?`)) deleteProject(p.id); }}
+                      onClick={e => { e.stopPropagation(); setDeleteTarget({ id: p.id, name: p.name }); setProjectMenu(null); }}
                       style={{
                         display: 'block', width: '100%', background: 'none', border: 'none',
                         color: C.red, padding: '8px 12px', cursor: 'pointer',

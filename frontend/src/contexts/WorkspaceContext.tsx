@@ -77,6 +77,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [isLooping, setIsLooping] = useState(false);
   const [isShuffled, setIsShuffled] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(persistentAudio);
+  // Refs so ended handlers always read current values (stale closure prevention)
+  const isLoopingRef = useRef(false);
+  const isShuffledRef = useRef(false);
+  const playNextRef = useRef<() => void>(() => {});
 
   // Persist UI state to localStorage
   const persistUi = useCallback((tab: V4Tab, projId: string | null, trackId: string | null) => {
@@ -144,12 +148,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             }
           });
           audio.addEventListener('ended', () => {
-            if (isLooping) {
-              audio.currentTime = 0;
-              audio.play().catch(() => {});
-            } else {
-              setPlayerIsPlaying(false);
-            }
+            if (isLoopingRef.current) { audio.currentTime = 0; audio.play().catch(() => {}); }
+            else { setPlayerIsPlaying(false); playNextRef.current(); }
           });
         }
       } catch (_) { /* ignore corrupt localStorage */ }
@@ -235,6 +235,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     try { localStorage.setItem(PERSIST_KEY, JSON.stringify({ track, currentTime: 0 })); } catch (_) { /* quota */ }
     audio.play().catch(() => {});
     setPlayerTrack(track);
+    setSelectedTrack(track);
     setPlayerIsPlaying(true);
     setPlayerProgress(0);
     setPlayerCurrentTime(0);
@@ -249,10 +250,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     audio.addEventListener('timeupdate', updateTime);
     audio.addEventListener('loadedmetadata', updateTime);
     audio.addEventListener('ended', () => {
-      if (isLooping) { audio.currentTime = 0; audio.play().catch(() => {}); }
-      else setPlayerIsPlaying(false);
+      if (isLoopingRef.current) { audio.currentTime = 0; audio.play().catch(() => {}); }
+      else { setPlayerIsPlaying(false); playNextRef.current(); }
     });
-  }, [playerVolume, isLooping]);
+  }, [playerVolume]);
 
   const togglePlay = useCallback(() => {
     if (!persistentAudio) return;
@@ -272,16 +273,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const playNext = useCallback(() => {
     if (!playerTrack || tracks.length === 0) return;
-    if (isShuffled && tracks.length > 1) {
+    if (isShuffledRef.current && tracks.length > 1) {
       const others = tracks.filter(t => t.id !== playerTrack.id);
       playTrack(others[Math.floor(Math.random() * others.length)]);
       return;
     }
     const idx = tracks.findIndex(t => t.id === playerTrack.id);
     const isLast = idx === tracks.length - 1;
-    if (isLast && !isLooping) return;
+    if (isLast && !isLoopingRef.current) return;
     playTrack(tracks[(idx + 1) % tracks.length]);
-  }, [playerTrack, tracks, isShuffled, isLooping, playTrack]);
+  }, [playerTrack, tracks, playTrack]);
+
+  // Keep playNextRef current so ended handlers can call it without stale closure
+  useEffect(() => { playNextRef.current = playNext; }, [playNext]);
 
   const playPrev = useCallback(() => {
     if (!playerTrack || tracks.length === 0) return;
@@ -291,6 +295,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const toggleLoop = useCallback(() => setIsLooping(v => !v), []);
   const toggleShuffle = useCallback(() => setIsShuffled(v => !v), []);
+
+  // Keep refs in sync so ended handlers always see current values
+  useEffect(() => { isLoopingRef.current = isLooping; }, [isLooping]);
+  useEffect(() => { isShuffledRef.current = isShuffled; }, [isShuffled]);
 
   return (
     <WorkspaceContext.Provider value={{
