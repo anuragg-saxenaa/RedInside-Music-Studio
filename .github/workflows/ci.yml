@@ -12,23 +12,47 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    env:
+      CI: true
+      NODE_ENV: test
+      MINIMAX_BASE_URL: http://localhost:8999
+      MINIMAX_API_KEY: test-key-ci
+      PORT: 3000
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
 
-      - name: Install dependencies
-        run: cd backend && npm install
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Start Redis
         run: |
-          sudo apt-get update
           sudo apt-get install -y redis-server
           redis-server --daemonize yes
+          redis-cli ping
+
+      - name: Start MiniMax mock server
+        run: node backend/tests/minimax-mock-server.js &
+
+      - name: Wait for mock server
+        run: npx wait-on http://localhost:8999/health --timeout 10000 || true
+
+      - name: Start backend server
+        run: cd backend && MINIMAX_BASE_URL=http://localhost:8999 node src/server.js &
+
+      - name: Wait for backend
+        run: npx wait-on http://localhost:3000/health --timeout 15000
 
       - name: Run backend tests
         run: cd backend && npm test
@@ -38,17 +62,35 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    env:
+      CI: true
+      NODE_ENV: test
+      MINIMAX_BASE_URL: http://localhost:8999
+      MINIMAX_API_KEY: test-key-ci
+      PORT: 3000
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - name: Install dependencies
-        run: cd frontend && npm install
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install Redis
+        run: |
+          sudo apt-get install -y redis-server
+          redis-server --daemonize yes
+
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
 
       - name: Install Playwright browsers
         run: cd frontend && npx playwright install --with-deps chromium
@@ -58,25 +100,28 @@ jobs:
 
       - name: Run Playwright tests
         run: cd frontend && npx playwright test
-        env:
-          CI: true
 
   lint:
-    name: Lint
+    name: Lint & Type Check
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies
-        run: cd frontend && npm install
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: TypeScript check
+        run: cd frontend && npx tsc --noEmit
 
       - name: Run lint
         run: cd frontend && npm run lint

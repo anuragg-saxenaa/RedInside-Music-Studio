@@ -14,7 +14,8 @@ const result = dotenv.config({ path: path.resolve(__dirname, '../../../config/.e
 if (SHELL_MINIMAX_BASE_URL) {
   process.env.MINIMAX_BASE_URL = SHELL_MINIMAX_BASE_URL;
 }
-if (result.error && process.env.NODE_ENV !== 'test') {
+// In CI or test environments, missing .env is fine — use env vars directly
+if (result.error && process.env.NODE_ENV !== 'test' && !process.env.CI) {
   throw new Error(`Failed to load .env file: ${result.error.message}`);
 }
 
