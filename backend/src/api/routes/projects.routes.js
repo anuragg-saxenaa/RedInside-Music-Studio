@@ -3,10 +3,12 @@ import storage from '../../utils/storage.util.js';
 import path from 'path';
 import fs from 'fs';
 import { AlbumModel } from '../../modules/album/album.model.js';
+import db from '../../database/connection.js';
 
 export const ProjectsController = {
   async create(req, res, next) {
     try {
+      const userId = req.auth?.userId || 'admin';
       const { name, description, workflowMode } = req.body;
 
       if (!name || typeof name !== 'string') {
@@ -19,6 +21,7 @@ export const ProjectsController = {
         name,
         description,
         workflowMode,
+        userId,
       });
 
       res.status(201).json(project);
@@ -29,8 +32,9 @@ export const ProjectsController = {
 
   async getById(req, res, next) {
     try {
+      const userId = req.auth?.userId || 'admin';
       const { id } = req.params;
-      const project = ProjectModel.findById(id);
+      const project = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?').get(id, userId);
 
       if (!project) {
         return res.status(404).json({ error: 'Project not found' });
@@ -44,7 +48,8 @@ export const ProjectsController = {
 
   async getAll(req, res, next) {
     try {
-      const projects = ProjectModel.findAll();
+      const userId = req.auth?.userId || 'admin';
+      const projects = db.prepare('SELECT * FROM projects WHERE user_id = ? ORDER BY updated_at DESC').all(userId);
       res.json(projects);
     } catch (error) {
       next(error);
@@ -53,10 +58,11 @@ export const ProjectsController = {
 
   async update(req, res, next) {
     try {
+      const userId = req.auth?.userId || 'admin';
       const { id } = req.params;
       const { name, description, workflowMode } = req.body;
 
-      const existing = ProjectModel.findById(id);
+      const existing = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?').get(id, userId);
       if (!existing) {
         return res.status(404).json({ error: 'Project not found' });
       }
@@ -75,9 +81,10 @@ export const ProjectsController = {
 
   async delete(req, res, next) {
     try {
+      const userId = req.auth?.userId || 'admin';
       const { id } = req.params;
 
-      const existing = ProjectModel.findById(id);
+      const existing = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?').get(id, userId);
       if (!existing) {
         return res.status(404).json({ error: 'Project not found' });
       }

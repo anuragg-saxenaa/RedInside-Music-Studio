@@ -10,12 +10,13 @@ export const ProjectModel = {
       }
 
       const id = nanoid();
+      const userId = data.userId || 'admin';
       const stmt = db.prepare(`
-        INSERT INTO projects (id, name, description, workflow_mode)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO projects (id, name, description, workflow_mode, user_id)
+        VALUES (?, ?, ?, ?, ?)
       `);
 
-      stmt.run(id, data.name, data.description || null, data.workflowMode || 'hybrid');
+      stmt.run(id, data.name, data.description || null, data.workflowMode || 'hybrid', userId);
 
       return this.findById(id);
     } catch (error) {

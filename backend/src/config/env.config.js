@@ -47,6 +47,10 @@ const config = {
   storage: {
     path: process.env.STORAGE_PATH || '/Users/admin/Music/RedInside-Storage',
   },
+  clerk: {
+    publishableKey: process.env.CLERK_PUBLISHABLE_KEY || '',
+    secretKey: process.env.CLERK_SECRET_KEY || '',
+  },
 };
 
 export default config;
