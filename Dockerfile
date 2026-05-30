@@ -1,12 +1,13 @@
 FROM node:20-alpine
 
-WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@latest --activate && \
+    apk add --no-cache python3 make g++
 
-RUN rm -rf /app/node_modules 2>/dev/null || true
+WORKDIR /app
 
 COPY backend/package*.json ./backend/
 WORKDIR /app/backend
-RUN npm ci --omit=dev --no-audit --no-fund --ignore-scripts --force
+RUN pnpm install --prod --ignore-scripts
 
 WORKDIR /app
 COPY backend/ ./
