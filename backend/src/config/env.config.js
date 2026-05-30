@@ -14,8 +14,10 @@ const result = dotenv.config({ path: path.resolve(__dirname, '../../../config/.e
 if (SHELL_MINIMAX_BASE_URL) {
   process.env.MINIMAX_BASE_URL = SHELL_MINIMAX_BASE_URL;
 }
-// In CI, test, or production (Railway), missing .env is fine — use env vars directly
-if (result.error && !['test', 'production', 'CI'].includes(process.env.NODE_ENV) && !process.env.CI) {
+// Railway (and most cloud platforms) inject all config via env vars — no .env file needed
+if (result.error && process.env.RAILWAY) {
+  // Railway provides env vars directly — no .env needed, skip silently
+} else if (result.error && !['test', 'production', 'CI', 'development'].includes(process.env.NODE_ENV) && !process.env.CI) {
   throw new Error(`Failed to load .env file: ${result.error.message}`);
 }
 
