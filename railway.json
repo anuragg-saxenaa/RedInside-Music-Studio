@@ -1,1 +1,12 @@
-{"$schema":"https://railway.app/schema.json","production":{"environment":{"NODE_ENV":"production","PORT":"3000","STORAGE_DRIVER":"local"}}}
+{
+  "$schema": "https://railway.app/schema.json",
+  "production": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile",
+    "environment": {
+      "NODE_ENV": "production",
+      "PORT": "3000",
+      "STORAGE_DRIVER": "local"
+    }
+  }
+}
