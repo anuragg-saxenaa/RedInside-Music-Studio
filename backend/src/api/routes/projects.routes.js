@@ -50,7 +50,10 @@ export const ProjectsController = {
   async getAll(req, res, next) {
     try {
       const userId = req.auth.userId;
-      const result = await db.execute({ sql: 'SELECT * FROM projects WHERE user_id = ? ORDER BY updated_at DESC', args: [userId] });
+      // dev-user = no real auth configured; return all projects (single-user studio)
+      const result = userId === 'dev-user'
+        ? await db.execute('SELECT * FROM projects ORDER BY updated_at DESC')
+        : await db.execute({ sql: 'SELECT * FROM projects WHERE user_id = ? ORDER BY updated_at DESC', args: [userId] });
       res.json(result.rows);
     } catch (error) {
       next(error);
