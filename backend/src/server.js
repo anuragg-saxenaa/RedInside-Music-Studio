@@ -43,13 +43,14 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-if (!process.env.CLERK_SECRET_KEY && process.env.NODE_ENV !== 'test' && !process.env.CI) {
+if (!process.env.CLERK_SECRET_KEY && process.env.NODE_ENV === 'production') {
   throw new Error('CLERK_SECRET_KEY env var is required in production');
 }
 
-// Only enable Clerk auth when CLERK_SECRET_KEY is set (skip in CI/test with placeholder)
+// Enable Clerk auth only in production (skip in local dev and test)
 const clerkPublishableKey = process.env.CLERK_PUBLISHABLE_KEY;
-const hasRealClerkKey = clerkPublishableKey && clerkPublishableKey.startsWith('pk_test_') && !clerkPublishableKey.includes('placeholder');
+const isProduction = process.env.NODE_ENV === 'production';
+const hasRealClerkKey = isProduction && clerkPublishableKey && clerkPublishableKey.startsWith('pk_test_') && !clerkPublishableKey.includes('placeholder');
 
 if (hasRealClerkKey) {
   app.use(clerkMiddleware());
@@ -58,6 +59,12 @@ if (hasRealClerkKey) {
     if (req.path.startsWith('/share/')) return next();
     if (req.path === '/test/seed-project' || req.path.startsWith('/test/')) return next();
     return requireAuth()(req, res, next);
+  });
+} else {
+  // Local dev / test — inject a stable dev user so routes that read req.auth.userId work
+  app.use((req, res, next) => {
+    req.auth = { userId: process.env.DEV_USER_ID || 'dev-user' };
+    next();
   });
 }
 
