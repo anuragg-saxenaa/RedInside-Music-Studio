@@ -1,22 +1,40 @@
 // backend/src/utils/storage.util.js
 import fs from 'fs';
 import path from 'path';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import config from '../config/env.config.js';
+
+// R2 client (lazy init — only created if driver === 'r2')
+let s3Client = null;
+function getS3() {
+  if (!s3Client) {
+    s3Client = new S3Client({
+      region: 'auto',
+      endpoint: config.r2.endpoint,
+      credentials: {
+        accessKeyId: config.r2.accessKeyId,
+        secretAccessKey: config.r2.secretAccessKey,
+      },
+    });
+  }
+  return s3Client;
+}
 
 class StorageUtil {
   constructor() {
     this.basePath = config.storage.path;
+    this.driver = config.storage.driver;
+    this.bucket = config.r2?.bucketName || '';
   }
 
   validateProjectId(projectId) {
     if (!projectId || typeof projectId !== 'string') {
       throw new Error('projectId must be a non-empty string');
     }
-    // Only allow alphanumeric, hyphens, underscores
     if (!/^[a-zA-Z0-9_-]+$/.test(projectId)) {
       throw new Error('projectId contains invalid characters');
     }
-    // Prevent directory traversal
     if (projectId.includes('..') || projectId.includes('/') || projectId.includes('\\')) {
       throw new Error('projectId cannot contain path separators');
     }
@@ -27,7 +45,6 @@ class StorageUtil {
     if (!filename || typeof filename !== 'string') {
       throw new Error('filename must be a non-empty string');
     }
-    // Use path.basename to prevent traversal
     const safe = path.basename(filename);
     if (safe !== filename || safe.includes('..')) {
       throw new Error('Invalid filename');
@@ -35,61 +52,101 @@ class StorageUtil {
     return safe;
   }
 
+  // --- Path helpers ---
+
   getProjectDir(projectId) {
     projectId = this.validateProjectId(projectId);
+    if (this.driver === 'r2') return `projects/${projectId}`;
     return path.join(this.basePath, 'projects', projectId);
   }
 
   getGenerationsDir(projectId) {
+    if (this.driver === 'r2') return `${this.getProjectDir(projectId)}/generations`;
     return path.join(this.getProjectDir(projectId), 'generations');
   }
 
   getLyricsDir(projectId) {
-    return path.join(this.getGenerationsDir(projectId), 'lyrics');
+    if (this.driver === 'r2') return `${this.getProjectDir(projectId)}/generations/lyrics`;
+    return path.join(this.getProjectDir(projectId), 'generations', 'lyrics');
   }
 
   getMusicDir(projectId) {
-    return path.join(this.getGenerationsDir(projectId), 'music');
+    if (this.driver === 'r2') return `${this.getProjectDir(projectId)}/generations/music`;
+    return path.join(this.getProjectDir(projectId), 'generations', 'music');
   }
 
   getMedleyDir(projectId) {
-    return path.join(this.getGenerationsDir(projectId), 'medley');
+    if (this.driver === 'r2') return `${this.getProjectDir(projectId)}/generations/medley`;
+    return path.join(this.getProjectDir(projectId), 'generations', 'medley');
   }
 
   getVideoDir(projectId) {
-    return path.join(this.getGenerationsDir(projectId), 'video');
-  }
-
-  getMedleyFilePath(projectId, medleyId) {
-    return path.join(this.getMedleyDir(projectId), `medley-${medleyId}.mp3`);
+    if (this.driver === 'r2') return `${this.getProjectDir(projectId)}/generations/video`;
+    return path.join(this.getProjectDir(projectId), 'generations', 'video');
   }
 
   getArtworkDir(projectId) {
+    if (this.driver === 'r2') return `${this.getProjectDir(projectId)}/artwork`;
     return path.join(this.getProjectDir(projectId), 'artwork');
   }
 
-  getArtworkFilePath(projectId, filename) {
-    return path.join(this.getArtworkDir(projectId), filename);
-  }
-
-  getVideoFilePath(projectId, version) {
-    return path.join(this.getVideoDir(projectId), `v${version}.mp4`);
-  }
-
   getUploadDir(projectId) {
+    if (this.driver === 'r2') return `${this.getProjectDir(projectId)}/uploads`;
     return path.join(this.getProjectDir(projectId), 'uploads');
   }
 
   getMastersDir(projectId) {
+    if (this.driver === 'r2') return `${this.getProjectDir(projectId)}/masters`;
     return path.join(this.getProjectDir(projectId), 'masters');
   }
 
   getTempDir(projectId) {
+    if (this.driver === 'r2') return `${this.getProjectDir(projectId)}/temp`;
     return path.join(this.getProjectDir(projectId), 'temp');
   }
 
-  createProjectDirs(projectId) {
+  getLyricsFilePath(projectId, version) {
+    return `${this.getLyricsDir(projectId)}/v${version}.json`;
+  }
+
+  getMusicFilePath(projectId, version, type = 'processed') {
+    const filename = type === 'original' ? `v${version}-original.mp3` : `v${version}-processed.mp3`;
+    return `${this.getMusicDir(projectId)}/${filename}`;
+  }
+
+  getMedleyFilePath(projectId, medleyId) {
+    return `${this.getMedleyDir(projectId)}/medley-${medleyId}.mp3`;
+  }
+
+  getVideoFilePath(projectId, version) {
+    return `${this.getVideoDir(projectId)}/v${version}.mp4`;
+  }
+
+  getArtworkFilePath(projectId, filename) {
+    return `${this.getArtworkDir(projectId)}/${filename}`;
+  }
+
+  getTempFilePath(projectId, filename) {
     projectId = this.validateProjectId(projectId);
+    filename = this.validateFilename(filename);
+    if (this.driver === 'r2') return `projects/${projectId}/temp/${filename}`;
+    return path.join(this.basePath, 'projects', projectId, 'temp', filename);
+  }
+
+  // --- Internal helpers ---
+
+  // Convert a relative key to a full local path (local driver only)
+  // If key is already absolute, return it unchanged to avoid double-joining
+  _localPath(key) {
+    return path.isAbsolute(key) ? key : path.join(this.basePath, key);
+  }
+
+  // --- Core I/O (driver-aware) ---
+
+  createProjectDirs(projectId) {
+    // R2 has no directories — no-op
+    if (this.driver === 'r2') return;
+    this.validateProjectId(projectId);
     const dirs = [
       this.getLyricsDir(projectId),
       this.getMusicDir(projectId),
@@ -99,8 +156,7 @@ class StorageUtil {
       this.getArtworkDir(projectId),
       this.getUploadDir(projectId),
       this.getMastersDir(projectId),
-    ];
-
+    ].map(k => this._localPath(k));
     for (const dir of dirs) {
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
@@ -108,58 +164,82 @@ class StorageUtil {
     }
   }
 
-  getLyricsFilePath(projectId, version) {
-    return path.join(this.getLyricsDir(projectId), `v${version}.json`);
+  async saveAudioFile(buffer, keyOrPath) {
+    if (this.driver === 'r2') {
+      await getS3().send(new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: keyOrPath,
+        Body: buffer,
+        ContentType: 'audio/mpeg',
+      }));
+      return keyOrPath;
+    }
+    // keyOrPath may be a relative key or an absolute path (from upload.service.js)
+    const fullPath = path.isAbsolute(keyOrPath) ? keyOrPath : this._localPath(keyOrPath);
+    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+    fs.writeFileSync(fullPath, buffer);
+    return fullPath;
   }
 
-  getMusicFilePath(projectId, version, type = 'processed') {
-    const filename = type === 'original' ? `v${version}-original.mp3` : `v${version}-processed.mp3`;
-    return path.join(this.getMusicDir(projectId), filename);
+  async readFile(keyOrPath) {
+    if (this.driver === 'r2') {
+      const res = await getS3().send(new GetObjectCommand({ Bucket: this.bucket, Key: keyOrPath }));
+      const chunks = [];
+      for await (const chunk of res.Body) chunks.push(chunk);
+      return Buffer.concat(chunks);
+    }
+    return fs.readFileSync(this._localPath(keyOrPath));
   }
 
-  getTempFilePath(projectId, filename) {
-    projectId = this.validateProjectId(projectId);
-    filename = this.validateFilename(filename);
-    return path.join(this.getTempDir(projectId), filename);
-  }
-
-  saveLyrics(projectId, version, data) {
-    try {
-      projectId = this.validateProjectId(projectId);
-      this.createProjectDirs(projectId);
-      const filePath = this.getLyricsFilePath(projectId, version);
-      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-      return filePath;
-    } catch (error) {
-      throw new Error(`Failed to save lyrics: ${error.message}`);
+  async deleteFile(keyOrPath) {
+    if (this.driver === 'r2') {
+      await getS3().send(new DeleteObjectCommand({ Bucket: this.bucket, Key: keyOrPath }));
+      return;
+    }
+    const fullPath = this._localPath(keyOrPath);
+    if (fs.existsSync(fullPath)) {
+      fs.unlinkSync(fullPath);
     }
   }
 
-  saveAudioFile(buffer, filePath) {
-    try {
-      fs.writeFileSync(filePath, buffer);
-      return filePath;
-    } catch (error) {
-      throw new Error(`Failed to save audio file: ${error.message}`);
+  async saveLyrics(projectId, version, data) {
+    const key = this.getLyricsFilePath(projectId, version);
+    const buf = Buffer.from(JSON.stringify(data, null, 2));
+    if (this.driver === 'r2') {
+      await getS3().send(new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: buf,
+        ContentType: 'application/json',
+      }));
+      return key;
     }
+    const fullPath = this._localPath(key);
+    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+    fs.writeFileSync(fullPath, buf);
+    return fullPath;
   }
 
-  readFile(filePath) {
-    try {
-      return fs.readFileSync(filePath);
-    } catch (error) {
-      throw new Error(`Failed to read file: ${error.message}`);
+  async saveArtwork(key, buffer, contentType = 'image/png') {
+    if (this.driver === 'r2') {
+      await getS3().send(new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: buffer,
+        ContentType: contentType,
+      }));
+      return key;
     }
+    const fullPath = this._localPath(key);
+    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+    fs.writeFileSync(fullPath, buffer);
+    return fullPath;
   }
 
-  deleteFile(filePath) {
-    try {
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    } catch (error) {
-      throw new Error(`Failed to delete file: ${error.message}`);
-    }
+  // Generate presigned URL for direct R2 streaming (default 15min expiry)
+  async getPresignedUrl(key, expiresIn = 900) {
+    if (this.driver !== 'r2') throw new Error('getPresignedUrl only available with R2 driver');
+    return getSignedUrl(getS3(), new GetObjectCommand({ Bucket: this.bucket, Key: key }), { expiresIn });
   }
 }
 

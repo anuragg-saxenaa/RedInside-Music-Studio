@@ -11,6 +11,8 @@
     "db:migrate": "node src/database/migrate.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1057.0",
+    "@aws-sdk/s3-request-presigner": "^3.1057.0",
     "@clerk/express": "^2.1.22",
     "@libsql/client": "^0.17.3",
     "archiver": "^8.0.0",

@@ -48,7 +48,17 @@ const config = {
       `file:${path.join(__dirname, '../../../database', path.basename(process.env.DATABASE_PATH || 'music-studio.sqlite'))}`,
     authToken: process.env.TURSO_AUTH_TOKEN || undefined,
   },
+  r2: {
+    accountId: process.env.R2_ACCOUNT_ID || '',
+    accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
+    bucketName: process.env.R2_BUCKET_NAME || '',
+    endpoint: process.env.R2_ACCOUNT_ID
+      ? `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+      : '',
+  },
   storage: {
+    driver: process.env.STORAGE_DRIVER || 'local',  // 'local' or 'r2'
     path: process.env.STORAGE_PATH || '/Users/admin/Music/RedInside-Storage',
   },
   clerk: {

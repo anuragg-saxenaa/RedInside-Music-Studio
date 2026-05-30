@@ -22,7 +22,8 @@ export const MusicController = {
       }
 
       const validModels = ['music-2.6', 'music-cover'];
-      const defaultModel = SettingsModel.get('default_music_model')?.value || 'music-2.6';
+      const settingRow = await SettingsModel.get('default_music_model');
+      const defaultModel = settingRow?.value || 'music-2.6';
       const resolvedModel = model || defaultModel;
       if (!validModels.includes(resolvedModel)) {
         return res.status(400).json({
@@ -31,7 +32,7 @@ export const MusicController = {
       }
 
       // Validate project exists
-      const project = ProjectModel.findById(projectId);
+      const project = await ProjectModel.findById(projectId);
       if (!project) {
         return res.status(404).json({ error: 'Project not found' });
       }
@@ -43,7 +44,7 @@ export const MusicController = {
       }
 
       // Create job record in DB
-      const job = JobModel.create({
+      const job = await JobModel.create({
         projectId,
         type: 'generate-music',
         inputParams: { lyricsId, audioUrl, prompt, model, isInstrumental, audioSettings },
@@ -117,7 +118,13 @@ export const MusicController = {
         return res.status(404).json({ error: 'File not available yet' });
       }
 
-      // Check if file actually exists BEFORE trying to read
+      // R2 driver: redirect to presigned URL (browser streams direct from R2)
+      if (storage.driver === 'r2') {
+        const url = await storage.getPresignedUrl(filePath);
+        return res.redirect(302, url);
+      }
+
+      // Local driver: stream file directly
       if (!fs.existsSync(filePath)) {
         logger.error('Audio file not found on disk', { filePath, musicId: id });
         return res.status(404).json({
