@@ -3,6 +3,7 @@
   "production": {
     "builder": "DOCKERFILE",
     "dockerfilePath": "Dockerfile",
+    "rootDirectory": "/",
     "environment": {
       "NODE_ENV": "production",
       "PORT": "3000",

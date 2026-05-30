@@ -3,15 +3,12 @@ FROM node:20-alpine
 WORKDIR /app
 
 COPY backend/package*.json ./backend/
-COPY frontend/package*.json ./frontend/
+WORKDIR /app/backend
+RUN npm ci --omit=dev --no-audit --no-fund --ignore-scripts
 
-RUN corepack enable && \
-    cd backend && npm ci --omit=dev && \
-    cd ../frontend && npm ci --omit=dev
-
-COPY backend/ ./backend/
-COPY frontend/ ./frontend/
+WORKDIR /app
+COPY backend/ ./
 
 EXPOSE 3000
 
-CMD ["node", "backend/src/server.js"]
+CMD ["node", "src/server.js"]
