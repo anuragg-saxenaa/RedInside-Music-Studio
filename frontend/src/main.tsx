@@ -4,12 +4,19 @@ import App from './App';
 import { SharedAudioProvider } from './contexts/SharedAudioContext';
 import { ClerkProvider } from '@clerk/clerk-react';
 
-// Intercept all relative /api/ fetch calls and route them to the backend
+// Intercept all relative /api/ fetch calls: rewrite URL + inject Clerk JWT
 if (import.meta.env.VITE_API_BASE_URL) {
   const _fetch = window.fetch.bind(window);
-  window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     if (typeof input === 'string' && input.startsWith('/api')) {
       input = import.meta.env.VITE_API_BASE_URL + input;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const token = await (window as any).Clerk?.session?.getToken?.();
+        if (token) {
+          init = { ...(init || {}), headers: { Authorization: `Bearer ${token}`, ...(init?.headers || {}) } };
+        }
+      } catch { /* no Clerk session yet */ }
     }
     return _fetch(input, init);
   };
