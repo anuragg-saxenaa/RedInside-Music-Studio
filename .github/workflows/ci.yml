@@ -40,6 +40,7 @@ jobs:
       PORT: 3000
       TURSO_DATABASE_URL: file:./database/music-studio.sqlite
       TURSO_AUTH_TOKEN: ''
+      CLERK_PUBLISHABLE_KEY: pk_test_placeholder
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -89,6 +90,7 @@ jobs:
       VITE_API_BASE_URL: http://localhost:3000
       TURSO_DATABASE_URL: file:./database/music-studio.sqlite
       TURSO_AUTH_TOKEN: ''
+      CLERK_PUBLISHABLE_KEY: pk_test_placeholder
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
