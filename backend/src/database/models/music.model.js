@@ -3,7 +3,7 @@ import { nanoid } from 'nanoid';
 import fs from 'fs';
 
 export const MusicModel = {
-  create(data) {
+  async create(data) {
     try {
       // Validate input
       if (!data.model || typeof data.model !== 'string' || data.model.trim() === '') {
@@ -14,32 +14,31 @@ export const MusicModel = {
       }
 
       const id = nanoid();
-      const stmt = db.prepare(`
-        INSERT INTO music_generations (
+      await db.execute({
+        sql: `INSERT INTO music_generations (
           id, project_id, lyrics_id, version, model, prompt,
           audio_settings, is_instrumental, original_file_path,
           processed_file_path, duration_seconds, sample_rate, bitrate, format, artwork_url, title
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-
-      stmt.run(
-        id,
-        data.projectId,
-        data.lyricsId || null,
-        data.version,
-        data.model,
-        data.prompt || null,
-        data.audioSettings ? JSON.stringify(data.audioSettings) : null,
-        data.isInstrumental ? 1 : 0,
-        data.originalFilePath || null,
-        data.processedFilePath || null,
-        data.durationSeconds || null,
-        data.sampleRate || null,
-        data.bitrate || null,
-        data.format || null,
-        data.artworkUrl || null,
-        data.title || null
-      );
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          id,
+          data.projectId,
+          data.lyricsId || null,
+          data.version,
+          data.model,
+          data.prompt || null,
+          data.audioSettings ? JSON.stringify(data.audioSettings) : null,
+          data.isInstrumental ? 1 : 0,
+          data.originalFilePath || null,
+          data.processedFilePath || null,
+          data.durationSeconds || null,
+          data.sampleRate || null,
+          data.bitrate || null,
+          data.format || null,
+          data.artworkUrl || null,
+          data.title || null,
+        ],
+      });
 
       return this.findById(id);
     } catch (error) {
@@ -47,24 +46,24 @@ export const MusicModel = {
     }
   },
 
-  findById(id) {
-    const row = db.prepare('SELECT * FROM music_generations WHERE id = ?').get(id);
-    if (row && row.audio_settings) {
+  async findById(id) {
+    const result = await db.execute({ sql: 'SELECT * FROM music_generations WHERE id = ?', args: [id] });
+    const row = result.rows[0];
+    if (!row) return null;
+    if (row.audio_settings) {
       try {
         row.audio_settings = JSON.parse(row.audio_settings);
       } catch (e) {
         row.audio_settings = null;
       }
     }
-    if (row) {
-      row.is_instrumental = Boolean(row.is_instrumental);
-    }
+    row.is_instrumental = Boolean(row.is_instrumental);
     return row;
   },
 
-  findByProject(projectId) {
-    const rows = db.prepare('SELECT * FROM music_generations WHERE project_id = ? ORDER BY version DESC').all(projectId);
-    return rows.map(row => {
+  async findByProject(projectId) {
+    const result = await db.execute({ sql: 'SELECT * FROM music_generations WHERE project_id = ? ORDER BY version DESC', args: [projectId] });
+    return result.rows.map(row => {
       if (row.audio_settings) {
         try {
           row.audio_settings = JSON.parse(row.audio_settings);
@@ -84,7 +83,7 @@ export const MusicModel = {
     });
   },
 
-  update(id, data) {
+  async update(id, data) {
     try {
       const updates = [];
       const values = [];
@@ -144,8 +143,7 @@ export const MusicModel = {
       }
 
       values.push(id);
-      const stmt = db.prepare(`UPDATE music_generations SET ${updates.join(', ')} WHERE id = ?`);
-      stmt.run(...values);
+      await db.execute({ sql: `UPDATE music_generations SET ${updates.join(', ')} WHERE id = ?`, args: values });
 
       return this.findById(id);
     } catch (error) {
@@ -153,13 +151,13 @@ export const MusicModel = {
     }
   },
 
-  getNextVersion(projectId) {
-    const result = db.prepare('SELECT MAX(version) as max_version FROM music_generations WHERE project_id = ?').get(projectId);
-    return (result?.max_version || 0) + 1;
+  async getNextVersion(projectId) {
+    const result = await db.execute({ sql: 'SELECT MAX(version) as max_version FROM music_generations WHERE project_id = ?', args: [projectId] });
+    return ((result.rows[0]?.max_version) || 0) + 1;
   },
 
-  delete(id) {
-    const music = this.findById(id);
+  async delete(id) {
+    const music = await this.findById(id);
     if (!music) {
       const err = new Error('Music not found');
       err.statusCode = 404;
@@ -175,7 +173,7 @@ export const MusicModel = {
     }
 
     // Delete from database
-    db.prepare('DELETE FROM music_generations WHERE id = ?').run(id);
+    await db.execute({ sql: 'DELETE FROM music_generations WHERE id = ?', args: [id] });
     return true;
   },
 };

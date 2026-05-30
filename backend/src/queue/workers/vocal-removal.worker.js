@@ -12,7 +12,7 @@ import logger from '../../utils/logger.js';
 new Worker('vocal-removal', async (job) => {
   const { musicId, projectId, inputPath, originalTitle, jobId } = job.data;
 
-  if (jobId) JobModel.updateStatus(jobId, 'active');
+  if (jobId) await JobModel.updateStatus(jobId, 'active');
 
   const outputDir = path.join(os.tmpdir(), `vocal-removal-${job.id}`);
 
@@ -20,14 +20,14 @@ new Worker('vocal-removal', async (job) => {
     const result = await VocalRemovalService.removeVocals(inputPath, outputDir, {
       onProgress: (progress, message) => {
         job.updateProgress(progress);
-        if (jobId) JobModel.update(jobId, { progress });
+        if (jobId) await JobModel.update(jobId, { progress });
         broadcast({ event: 'job.progress', jobId: jobId || job.id, progress, message });
       },
     });
 
-    const version = MusicModel.getNextVersion(projectId);
+    const version = await MusicModel.getNextVersion(projectId);
     const title = `${originalTitle} (Instrumental)`;
-    const instrumental = MusicModel.create({
+    const instrumental = await MusicModel.create({
       projectId,
       title,
       model: 'vocal-removal',
@@ -38,12 +38,12 @@ new Worker('vocal-removal', async (job) => {
       version,
     });
 
-    ProjectModel.incrementVersion(projectId, 'music');
+    await ProjectModel.incrementVersion(projectId, 'music');
 
     const jobResult = { instrumentalMusicId: instrumental.id, engine: result.engine };
 
     if (jobId) {
-      JobModel.update(jobId, {
+      await JobModel.update(jobId, {
         status: 'completed',
         result: jobResult,
         progress: 100,
@@ -59,7 +59,7 @@ new Worker('vocal-removal', async (job) => {
     logger.info('Vocal removal job completed', { jobId: jobId || job.id, engine: result.engine });
     return jobResult;
   } catch (err) {
-    if (jobId) JobModel.updateStatus(jobId, 'failed', err.message);
+    if (jobId) await JobModel.updateStatus(jobId, 'failed', err.message);
     broadcast({ event: 'job.failed', jobId: jobId || job.id, error: err.message });
     throw err;
   }

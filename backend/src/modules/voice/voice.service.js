@@ -48,15 +48,16 @@ export class VoiceService {
     const id = nanoid();
 
     // Persist to voice_clones table
-    db.prepare(`
-      INSERT INTO voice_clones (id, project_id, name, file_id, filename, created_at)
-      VALUES (?, ?, ?, ?, ?, datetime('now'))
-    `).run(id, projectId, name, fileId, path.basename(audioFilePath));
+    await db.execute({
+      sql: `INSERT INTO voice_clones (id, project_id, name, file_id, filename, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))`,
+      args: [id, projectId, name, fileId, path.basename(audioFilePath)],
+    });
 
     return { id, projectId, name, voiceId: fileId };
   }
 
-  listClones(projectId) {
-    return db.prepare('SELECT * FROM voice_clones WHERE project_id = ? ORDER BY created_at DESC').all(projectId);
+  async listClones(projectId) {
+    const result = await db.execute({ sql: 'SELECT * FROM voice_clones WHERE project_id = ? ORDER BY created_at DESC', args: [projectId] });
+    return result.rows;
   }
 }

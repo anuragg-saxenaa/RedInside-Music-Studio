@@ -6,17 +6,12 @@ import { ProjectModel } from '../../database/models/project.model.js';
 import logger from '../../utils/logger.js';
 
 export class HistoryService {
-  /**
-   * Get all generations for a project grouped by type
-   * @param {string} projectId - Project ID
-   * @returns {Object} - { lyrics: [...], music: [...], video: [...], chains: [...] }
-   */
   async getProjectHistory(projectId) {
     if (!projectId || typeof projectId !== 'string') {
       throw new Error('Project ID is required and must be a string');
     }
 
-    const project = ProjectModel.findById(projectId);
+    const project = await ProjectModel.findById(projectId);
     if (!project) {
       const err = new Error(`Project not found: ${projectId}`);
       err.statusCode = 404;
@@ -27,52 +22,30 @@ export class HistoryService {
     return HistoryModel.getProjectGenerations(projectId);
   }
 
-  /**
-   * Get linked generations: lyrics → music → video
-   * @param {string} generationId - Either lyrics, music, or video ID
-   * @returns {Object} - { chain, lyrics, music, video }
-   */
   async getVersionChain(generationId) {
     if (!generationId || typeof generationId !== 'string') {
       throw new Error('Generation ID is required and must be a string');
     }
 
-    // Accept chain ID directly or generation ID contained in a chain
-    let chain = HistoryModel.findById(generationId) ||
-                HistoryModel.findByLyricsId(generationId) ||
-                HistoryModel.findByMusicId(generationId) ||
-                HistoryModel.findByVideoId(generationId);
+    let chain = await HistoryModel.findById(generationId) ||
+                await HistoryModel.findByLyricsId(generationId) ||
+                await HistoryModel.findByMusicId(generationId) ||
+                await HistoryModel.findByVideoId(generationId);
 
     if (!chain) {
-      // Generation might not be in a chain yet - find standalone generation
-      const lyrics = LyricsModel.findById(generationId);
+      const lyrics = await LyricsModel.findById(generationId);
       if (lyrics) {
-        return {
-          chain: null,
-          lyrics,
-          music: null,
-          video: null,
-        };
+        return { chain: null, lyrics, music: null, video: null };
       }
 
-      const music = MusicModel.findById(generationId);
+      const music = await MusicModel.findById(generationId);
       if (music) {
-        return {
-          chain: null,
-          lyrics: lyrics ? LyricsModel.findById(generationId) : null,
-          music,
-          video: null,
-        };
+        return { chain: null, lyrics: null, music, video: null };
       }
 
-      const video = VideoModel.findById(generationId);
+      const video = await VideoModel.findById(generationId);
       if (video) {
-        return {
-          chain: null,
-          lyrics: null,
-          music: null,
-          video,
-        };
+        return { chain: null, lyrics: null, music: null, video };
       }
 
       const err = new Error(`Generation not found: ${generationId}`);
@@ -80,28 +53,22 @@ export class HistoryService {
       throw err;
     }
 
-    // Fetch linked generations
     const result = { chain };
 
     if (chain.lyrics_id) {
-      result.lyrics = LyricsModel.findById(chain.lyrics_id);
+      result.lyrics = await LyricsModel.findById(chain.lyrics_id);
     }
     if (chain.music_id) {
-      result.music = MusicModel.findById(chain.music_id);
+      result.music = await MusicModel.findById(chain.music_id);
     }
     if (chain.video_id) {
-      result.video = VideoModel.findById(chain.video_id);
+      result.video = await VideoModel.findById(chain.video_id);
     }
 
     logger.info('Got version chain', { generationId, chainId: chain.id });
     return result;
   }
 
-  /**
-   * Load version settings and prepare for regeneration
-   * @param {string} generationId - Generation ID (lyrics, music, or video)
-   * @returns {Object} - { generation, nextVersion, type }
-   */
   async replayVersion(generationId, type) {
     if (!generationId || typeof generationId !== 'string') {
       throw new Error('Generation ID is required and must be a string');
@@ -114,15 +81,15 @@ export class HistoryService {
 
     // Determine type if not provided
     if (!type) {
-      const lyrics = LyricsModel.findById(generationId);
+      const lyrics = await LyricsModel.findById(generationId);
       if (lyrics) type = 'lyrics';
     }
     if (!type) {
-      const music = MusicModel.findById(generationId);
+      const music = await MusicModel.findById(generationId);
       if (music) type = 'music';
     }
     if (!type) {
-      const video = VideoModel.findById(generationId);
+      const video = await VideoModel.findById(generationId);
       if (video) type = 'video';
     }
 
@@ -136,74 +103,39 @@ export class HistoryService {
 
     let generation;
     if (type === 'lyrics') {
-      generation = LyricsModel.findById(generationId);
+      generation = await LyricsModel.findById(generationId);
       if (!generation) { const err = new Error(`Lyrics not found: ${generationId}`); err.statusCode = 404; throw err; }
     } else if (type === 'music') {
-      generation = MusicModel.findById(generationId);
+      generation = await MusicModel.findById(generationId);
       if (!generation) { const err = new Error(`Music not found: ${generationId}`); err.statusCode = 404; throw err; }
     } else if (type === 'video') {
-      generation = VideoModel.findById(generationId);
+      generation = await VideoModel.findById(generationId);
       if (!generation) { const err = new Error(`Video not found: ${generationId}`); err.statusCode = 404; throw err; }
     }
 
     // Get next version number for regeneration
     let nextVersion;
     if (type === 'lyrics') {
-      nextVersion = LyricsModel.getNextVersion(generation.project_id);
+      nextVersion = await LyricsModel.getNextVersion(generation.project_id);
     } else if (type === 'music') {
-      nextVersion = MusicModel.getNextVersion(generation.project_id);
+      nextVersion = await MusicModel.getNextVersion(generation.project_id);
     } else if (type === 'video') {
-      nextVersion = VideoModel.getNextVersion(generation.project_id);
+      nextVersion = await VideoModel.getNextVersion(generation.project_id);
     }
 
-    // Prepare regeneration params
-    let regenerationParams = {
-      projectId: generation.project_id,
-      version: nextVersion,
-    };
+    let regenerationParams = { projectId: generation.project_id, version: nextVersion };
 
     if (type === 'lyrics') {
-      regenerationParams = {
-        ...regenerationParams,
-        prompt: generation.prompt,
-        stylePreset: generation.style_preset,
-        mode: generation.mode,
-      };
+      regenerationParams = { ...regenerationParams, prompt: generation.prompt, stylePreset: generation.style_preset, mode: generation.mode };
     } else if (type === 'music') {
-      regenerationParams = {
-        ...regenerationParams,
-        model: generation.model,
-        prompt: generation.prompt,
-        lyricsId: generation.lyrics_id,
-        isInstrumental: Boolean(generation.is_instrumental),
-        audioSettings: generation.audio_settings,
-      };
+      regenerationParams = { ...regenerationParams, model: generation.model, prompt: generation.prompt, lyricsId: generation.lyrics_id, isInstrumental: Boolean(generation.is_instrumental), audioSettings: generation.audio_settings };
     } else if (type === 'video') {
-      regenerationParams = {
-        ...regenerationParams,
-        model: generation.model,
-        prompt: generation.prompt,
-        musicId: generation.music_id,
-        duration: generation.duration,
-        resolution: generation.resolution,
-      };
+      regenerationParams = { ...regenerationParams, model: generation.model, prompt: generation.prompt, musicId: generation.music_id, duration: generation.duration, resolution: generation.resolution };
     }
 
-    return {
-      generation,
-      type,
-      nextVersion,
-      regenerationParams,
-    };
+    return { generation, type, nextVersion, regenerationParams };
   }
 
-  /**
-   * Compare two versions of the same generation type
-   * @param {string} id1 - First generation ID
-   * @param {string} id2 - Second generation ID
-   * @param {string} type - Generation type ('lyrics', 'music', 'video')
-   * @returns {Object} - Comparison result with diff
-   */
   async compareVersions(id1, id2, type) {
     if (!id1 || !id2 || typeof id1 !== 'string' || typeof id2 !== 'string') {
       throw new Error('Two generation IDs are required');
@@ -219,14 +151,11 @@ export class HistoryService {
     let gen1, gen2;
 
     if (type === 'lyrics') {
-      gen1 = LyricsModel.findById(id1);
-      gen2 = LyricsModel.findById(id2);
+      [gen1, gen2] = await Promise.all([LyricsModel.findById(id1), LyricsModel.findById(id2)]);
     } else if (type === 'music') {
-      gen1 = MusicModel.findById(id1);
-      gen2 = MusicModel.findById(id2);
+      [gen1, gen2] = await Promise.all([MusicModel.findById(id1), MusicModel.findById(id2)]);
     } else if (type === 'video') {
-      gen1 = VideoModel.findById(id1);
-      gen2 = VideoModel.findById(id2);
+      [gen1, gen2] = await Promise.all([VideoModel.findById(id1), VideoModel.findById(id2)]);
     }
 
     if (!gen1 || !gen2) {
@@ -235,7 +164,6 @@ export class HistoryService {
       throw err;
     }
 
-    // Build comparison result
     const comparison = {
       type,
       versions: {
@@ -272,28 +200,14 @@ export class HistoryService {
     return comparison;
   }
 
-  /**
-   * Simple line-by-line diff for text content
-   * @param {string} text1 - Original text
-   * @param {string} text2 - New text
-   * @returns {Object} - { added: [...], removed: [...] }
-   */
   generateTextDiff(text1, text2) {
     const lines1 = text1.split('\n');
     const lines2 = text2.split('\n');
-
     const added = lines2.filter(line => !lines1.includes(line));
     const removed = lines1.filter(line => !lines2.includes(line));
-
     return { added, removed };
   }
 
-  /**
-   * Soft delete a generation - unlink from chain and cleanup files
-   * @param {string} generationId - Generation ID
-   * @param {string} type - Generation type ('lyrics', 'music', 'video')
-   * @returns {Object} - Deletion result
-   */
   async deleteVersion(generationId, type) {
     if (!generationId || typeof generationId !== 'string') {
       throw new Error('Generation ID is required and must be a string');
@@ -306,22 +220,17 @@ export class HistoryService {
 
     logger.info('Deleting version', { generationId, type });
 
-    // Find and unlink from chain
-    let chain = HistoryModel.findByLyricsId(generationId) ||
-                HistoryModel.findByMusicId(generationId) ||
-                HistoryModel.findByVideoId(generationId);
+    const chain = await HistoryModel.findByLyricsId(generationId) ||
+                  await HistoryModel.findByMusicId(generationId) ||
+                  await HistoryModel.findByVideoId(generationId);
 
     if (chain) {
       const updateData = {};
       if (type === 'lyrics') updateData.lyricsId = null;
       else if (type === 'music') updateData.musicId = null;
       else if (type === 'video') updateData.videoId = null;
-      HistoryModel.update(chain.id, updateData);
+      await HistoryModel.update(chain.id, updateData);
     }
-
-    // Note: We don't actually delete the generation record or files
-    // The generation remains accessible but is unlinked from chains
-    // This preserves the ability to recover if needed
 
     return {
       success: true,
@@ -331,12 +240,6 @@ export class HistoryService {
     };
   }
 
-  /**
-   * Link generations into a chain (called after generation completes)
-   * @param {string} projectId - Project ID
-   * @param {Object} generation - { type, id }
-   * @returns {Object} - Updated or new chain
-   */
   async linkGeneration(projectId, generation) {
     if (!projectId || !generation || !generation.type || !generation.id) {
       throw new Error('Project ID, generation type, and ID are required');
@@ -344,30 +247,23 @@ export class HistoryService {
 
     logger.info('Linking generation to chain', { projectId, generation });
 
-    // Find existing chain that has this type's ID as null
     let chain = null;
 
     if (generation.type === 'lyrics') {
-      // Look for chain with no lyrics yet
-      const chains = HistoryModel.findByProject(projectId);
+      const chains = await HistoryModel.findByProject(projectId);
       chain = chains.find(c => !c.lyrics_id);
     } else if (generation.type === 'music') {
-      // Look for chain with lyrics but no music
-      const chains = HistoryModel.findByProject(projectId);
+      const chains = await HistoryModel.findByProject(projectId);
       chain = chains.find(c => c.lyrics_id && !c.music_id);
     } else if (generation.type === 'video') {
-      // Look for chain with music but no video
-      const chains = HistoryModel.findByProject(projectId);
+      const chains = await HistoryModel.findByProject(projectId);
       chain = chains.find(c => c.music_id && !c.video_id);
     }
 
-    // If no suitable chain found, create new one
     if (!chain) {
-      const newChain = HistoryModel.create({ projectId });
-      chain = newChain;
+      chain = await HistoryModel.create({ projectId });
     }
 
-    // Update chain with this generation
     const updateData = {};
     if (generation.type === 'lyrics') updateData.lyricsId = generation.id;
     else if (generation.type === 'music') updateData.musicId = generation.id;

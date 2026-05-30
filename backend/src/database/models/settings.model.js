@@ -8,36 +8,40 @@ const DEFAULTS = [
   ['default_video_model', 'MiniMax-Hailuo-2.3'],
 ];
 
-function ensureDefaults() {
-  const insert = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
-  const insertMany = db.transaction((rows) => rows.forEach((r) => insert.run(r[0], r[1])));
-  insertMany(DEFAULTS);
+async function ensureDefaults() {
+  for (const [key, value] of DEFAULTS) {
+    await db.execute({ sql: 'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', args: [key, value] });
+  }
 }
 
-ensureDefaults();
+await ensureDefaults();
 
 export const SettingsModel = {
-  getAll() {
-    return db.prepare('SELECT key, value, updated_at FROM settings').all();
+  async getAll() {
+    const result = await db.execute('SELECT key, value, updated_at FROM settings');
+    return result.rows;
   },
 
-  get(key) {
-    return db.prepare('SELECT key, value, updated_at FROM settings WHERE key = ?').get(key);
+  async get(key) {
+    const result = await db.execute({ sql: 'SELECT key, value, updated_at FROM settings WHERE key = ?', args: [key] });
+    return result.rows[0] || null;
   },
 
-  set(key, value) {
-    db.prepare(
-      'INSERT INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP'
-    ).run(key, value);
+  async set(key, value) {
+    await db.execute({
+      sql: 'INSERT INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP',
+      args: [key, value],
+    });
     return this.get(key);
   },
 
-  setMany(updates) {
-    const upsert = db.prepare(
-      'INSERT INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP'
-    );
-    const tx = db.transaction((pairs) => pairs.forEach(([k, v]) => upsert.run(k, v)));
-    tx(Object.entries(updates));
+  async setMany(updates) {
+    for (const [k, v] of Object.entries(updates)) {
+      await db.execute({
+        sql: 'INSERT INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP',
+        args: [k, v],
+      });
+    }
     return this.getAll();
   },
 };

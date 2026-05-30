@@ -4,11 +4,14 @@ import { LyricsService } from '../../src/modules/lyrics/lyrics.service.js';
 import { ProjectModel } from '../../src/database/models/project.model.js';
 
 test('should generate lyrics', async () => {
-  const project = ProjectModel.create({ name: 'Test Project' });
+  const project = await ProjectModel.create({ name: 'Test Project' });
   const lyricsService = new LyricsService();
 
   // This will call actual MiniMax API - skip in CI
-  if (process.env.CI) return;
+  if (process.env.CI) {
+    await ProjectModel.delete(project.id);
+    return;
+  }
 
   const result = await lyricsService.generateLyrics({
     projectId: project.id,
@@ -21,5 +24,5 @@ test('should generate lyrics', async () => {
   assert.strictEqual(result.version, 1);
 
   // Cleanup
-  ProjectModel.delete(project.id);
+  await ProjectModel.delete(project.id);
 });

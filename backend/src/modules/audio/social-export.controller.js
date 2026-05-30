@@ -20,7 +20,7 @@ export const SocialExportController = {
       if (!musicId) return res.status(400).json({ error: 'musicId is required' });
       if (!PRESETS[preset]) return res.status(400).json({ error: `preset must be one of: ${Object.keys(PRESETS).join(', ')}` });
 
-      const music = MusicModel.findById(musicId);
+      const music = await MusicModel.findById(musicId);
       if (!music) return res.status(404).json({ error: 'Music not found' });
 
       const inputPath = music.processed_file_path || music.original_file_path;
@@ -42,9 +42,10 @@ export const SocialExportController = {
 
       execSync(ffmpegCmd, { stdio: 'pipe' });
 
-      db.prepare(
-        `INSERT INTO social_exports (id, music_id, preset, output_path) VALUES (?, ?, ?, ?)`
-      ).run(uuidv4(), musicId, preset, outputPath);
+      await db.execute({
+        sql: 'INSERT INTO social_exports (id, music_id, preset, output_path) VALUES (?, ?, ?, ?)',
+        args: [uuidv4(), musicId, preset, outputPath],
+      });
 
       const stat = fs.statSync(outputPath);
       const filename = `${(music.title || 'track').replace(/[^a-zA-Z0-9-_]/g, '_')}_${preset}.mp3`;

@@ -13,7 +13,7 @@ async function resolveFilePath(source) {
   const { musicId, inputPath } = source;
 
   if (musicId) {
-    const music = MusicModel.findById(musicId);
+    const music = await MusicModel.findById(musicId);
     if (!music) return null;
     const fp = music.processed_file_path || music.original_file_path;
     return fp && fs.existsSync(fp) ? fp : null;
@@ -43,7 +43,7 @@ export const FfmpegRoutes = [
         await ffmpegService.processAudio(resolvedPath, outputPath, { bitrate, format });
 
         if (musicId) {
-          MusicModel.update(musicId, { processedFilePath: outputPath, bitrate: bitrate * 1000 });
+          await MusicModel.update(musicId, { processedFilePath: outputPath, bitrate: bitrate * 1000 });
         }
 
         logger.info('Bitrate conversion complete', { outputPath, bitrate });

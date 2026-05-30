@@ -17,7 +17,7 @@ export const ProjectsController = {
         });
       }
 
-      const project = ProjectModel.create({
+      const project = await ProjectModel.create({
         name,
         description,
         workflowMode,
@@ -34,7 +34,8 @@ export const ProjectsController = {
     try {
       const userId = req.auth.userId;
       const { id } = req.params;
-      const project = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?').get(id, userId);
+      const result = await db.execute({ sql: 'SELECT * FROM projects WHERE id = ? AND user_id = ?', args: [id, userId] });
+      const project = result.rows[0];
 
       if (!project) {
         return res.status(404).json({ error: 'Project not found' });
@@ -49,8 +50,8 @@ export const ProjectsController = {
   async getAll(req, res, next) {
     try {
       const userId = req.auth.userId;
-      const projects = db.prepare('SELECT * FROM projects WHERE user_id = ? ORDER BY updated_at DESC').all(userId);
-      res.json(projects);
+      const result = await db.execute({ sql: 'SELECT * FROM projects WHERE user_id = ? ORDER BY updated_at DESC', args: [userId] });
+      res.json(result.rows);
     } catch (error) {
       next(error);
     }
@@ -62,12 +63,12 @@ export const ProjectsController = {
       const { id } = req.params;
       const { name, description, workflowMode } = req.body;
 
-      const existing = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?').get(id, userId);
-      if (!existing) {
+      const existingResult = await db.execute({ sql: 'SELECT * FROM projects WHERE id = ? AND user_id = ?', args: [id, userId] });
+      if (!existingResult.rows[0]) {
         return res.status(404).json({ error: 'Project not found' });
       }
 
-      const project = ProjectModel.update(id, {
+      const project = await ProjectModel.update(id, {
         name,
         description,
         workflowMode,
@@ -84,12 +85,12 @@ export const ProjectsController = {
       const userId = req.auth.userId;
       const { id } = req.params;
 
-      const existing = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?').get(id, userId);
-      if (!existing) {
+      const existingResult = await db.execute({ sql: 'SELECT * FROM projects WHERE id = ? AND user_id = ?', args: [id, userId] });
+      if (!existingResult.rows[0]) {
         return res.status(404).json({ error: 'Project not found' });
       }
 
-      ProjectModel.delete(id);
+      await ProjectModel.delete(id);
       res.status(204).send();
     } catch (error) {
       next(error);
@@ -162,7 +163,7 @@ export const ProjectsController = {
       if (musicId) {
         // Get the music to find the project
         const { MusicModel } = await import('../../database/models/music.model.js');
-        const music = MusicModel.findById(musicId);
+        const music = await MusicModel.findById(musicId);
         if (!music) {
           return res.status(404).json({ error: 'Music not found' });
         }
@@ -189,7 +190,6 @@ export const ProjectsController = {
           buffer = Buffer.from(await response.arrayBuffer());
         }
 
-        const ext = '.png';
         const artworkFilename = `music-${musicId}.png`;
         const artworkPath = path.join(artworkDir, artworkFilename);
 
@@ -197,7 +197,7 @@ export const ProjectsController = {
 
         // Update music record with artwork URL
         const artworkUrl = `/api/projects/${id}/artwork/${musicId}`;
-        MusicModel.update(musicId, { artworkUrl });
+        await MusicModel.update(musicId, { artworkUrl });
 
         res.json({ success: true, path: artworkPath, artworkUrl });
         return;
@@ -221,8 +221,7 @@ export const ProjectsController = {
         buffer = Buffer.from(await response.arrayBuffer());
       }
 
-      const ext = '.png';
-      const artworkPath = path.join(artworkDir, 'artwork' + ext);
+      const artworkPath = path.join(artworkDir, 'artwork.png');
 
       fs.writeFileSync(artworkPath, buffer);
 
@@ -237,7 +236,7 @@ export const ProjectsController = {
       const { id, musicId } = req.params;
 
       const { MusicModel } = await import('../../database/models/music.model.js');
-      const music = MusicModel.findById(musicId);
+      const music = await MusicModel.findById(musicId);
 
       if (!music) {
         return res.status(404).json({ error: 'Music not found' });
@@ -276,7 +275,7 @@ export const ProjectsController = {
       const { imageData } = req.body;
       if (!imageData) return res.status(400).json({ error: 'imageData is required' });
 
-      const album = AlbumModel.findById(albumId);
+      const album = await AlbumModel.findById(albumId);
       if (!album) return res.status(404).json({ error: 'Album not found' });
 
       const buffer = Buffer.from(
@@ -289,7 +288,7 @@ export const ProjectsController = {
       const artworkPath = path.join(artworkDir, `album-${albumId}.png`);
       fs.writeFileSync(artworkPath, buffer);
 
-      AlbumModel.update(albumId, { artworkPath });
+      await AlbumModel.update(albumId, { artworkPath });
 
       const artworkUrl = `/api/projects/${projectId}/albums/${albumId}/artwork`;
       res.json({ success: true, artworkUrl });
@@ -299,7 +298,7 @@ export const ProjectsController = {
   async getAlbumArtwork(req, res, next) {
     try {
       const { id: projectId, albumId } = req.params;
-      const album = AlbumModel.findById(albumId);
+      const album = await AlbumModel.findById(albumId);
       if (!album || !album.artwork_path) return res.status(404).json({ error: 'No artwork' });
       if (!fs.existsSync(album.artwork_path)) return res.status(404).json({ error: 'File not found' });
       res.setHeader('Content-Type', 'image/png');

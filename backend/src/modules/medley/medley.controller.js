@@ -38,7 +38,7 @@ export class MedleyController {
   static async listByProject(req, res) {
     try {
       const { projectId } = req.params;
-      const medleys = MedleyModel.findByProject(projectId);
+      const medleys = await MedleyModel.findByProject(projectId);
       res.json(medleys);
     } catch (error) {
       logger.error('Failed to list medleys', { error: error.message });
@@ -116,7 +116,7 @@ export class MedleyController {
       if (!sourceFilePath && musicId) {
         try {
           const { MusicModel } = await import('../../database/models/music.model.js');
-          const music = MusicModel.findById(musicId);
+          const music = await MusicModel.findById(musicId);
           if (music) {
             const fp = music.processed_file_path || music.original_file_path;
             if (fp && fs.existsSync(fp)) {
@@ -229,7 +229,7 @@ export class MedleyController {
   static async serveFile(req, res) {
     try {
       const { id } = req.params;
-      const medley = MedleyModel.findById(id);
+      const medley = await MedleyModel.findById(id);
       if (!medley) return res.status(404).json({ error: 'Medley not found' });
       if (!medley.output_file_path || !fs.existsSync(medley.output_file_path)) {
         return res.status(404).json({ error: 'Exported file not found — export the medley first' });
@@ -252,7 +252,7 @@ export class MedleyController {
   static async saveToMusic(req, res) {
     try {
       const { id } = req.params;
-      const medley = MedleyModel.findById(id);
+      const medley = await MedleyModel.findById(id);
       if (!medley) return res.status(404).json({ error: 'Medley not found' });
       if (!medley.output_file_path || !fs.existsSync(medley.output_file_path)) {
         return res.status(400).json({ error: 'Export the medley before saving to Music' });
@@ -269,8 +269,8 @@ export class MedleyController {
       const { MusicModel } = await import('../../database/models/music.model.js');
       const { ProjectModel } = await import('../../database/models/project.model.js');
 
-      const version = MusicModel.getNextVersion(medley.project_id);
-      const music = MusicModel.create({
+      const version = await MusicModel.getNextVersion(medley.project_id);
+      const music = await MusicModel.create({
         projectId: medley.project_id,
         version,
         originalFilePath: medley.output_file_path,
@@ -279,7 +279,7 @@ export class MedleyController {
         model: 'medley',
         durationSeconds,
       });
-      ProjectModel.incrementVersion(medley.project_id, 'music');
+      await ProjectModel.incrementVersion(medley.project_id, 'music');
 
       logger.info('Medley saved to music library', { medleyId: id, musicId: music.id });
       res.json({ musicId: music.id, version, title: medley.name });

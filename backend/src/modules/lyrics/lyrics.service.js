@@ -57,10 +57,10 @@ export class LyricsService {
       const structureTags = this.parseStructureTags(lyrics);
 
       // Get next version number
-      const version = LyricsModel.getNextVersion(projectId);
+      const version = await LyricsModel.getNextVersion(projectId);
 
       // Save to database
-      const lyricsRecord = LyricsModel.create({
+      const lyricsRecord = await LyricsModel.create({
         projectId,
         version,
         prompt: fullPrompt,
@@ -84,14 +84,13 @@ export class LyricsService {
       });
 
       // Increment project version
-      ProjectModel.incrementVersion(projectId, 'lyrics');
+      await ProjectModel.incrementVersion(projectId, 'lyrics');
 
       logger.info('Lyrics generated successfully', { lyricsId: lyricsRecord.id, version });
 
       return lyricsRecord;
     } catch (error) {
       logger.error('Failed to generate lyrics', { projectId: params.projectId, error: error.message });
-      // Preserve MinimaxError structure for frontend
       if (error.name === 'MinimaxError') {
         throw error;
       }
@@ -127,7 +126,7 @@ export class LyricsService {
       const { prompt: editInstruction, stylePreset } = edits;
 
       // Load existing lyrics
-      const existingLyrics = LyricsModel.findById(lyricsId);
+      const existingLyrics = await LyricsModel.findById(lyricsId);
       if (!existingLyrics) {
         const err = new Error(`Lyrics not found: ${lyricsId}`);
         err.statusCode = 404;
@@ -167,10 +166,10 @@ export class LyricsService {
       const structureTags = this.parseStructureTags(lyrics);
 
       // Get next version number
-      const version = LyricsModel.getNextVersion(existingLyrics.project_id);
+      const version = await LyricsModel.getNextVersion(existingLyrics.project_id);
 
       // Save to database
-      const lyricsRecord = LyricsModel.create({
+      const lyricsRecord = await LyricsModel.create({
         projectId: existingLyrics.project_id,
         version,
         prompt: fullPrompt,
@@ -194,14 +193,13 @@ export class LyricsService {
       });
 
       // Increment project version
-      ProjectModel.incrementVersion(existingLyrics.project_id, 'lyrics');
+      await ProjectModel.incrementVersion(existingLyrics.project_id, 'lyrics');
 
       logger.info('Lyrics edited successfully', { lyricsId: lyricsRecord.id, version, originalLyricsId: lyricsId });
 
       return lyricsRecord;
     } catch (error) {
       logger.error('Failed to edit lyrics', { lyricsId, error: error.message });
-      // Preserve MinimaxError structure for frontend
       if (error.name === 'MinimaxError' || error.statusCode) {
         throw error;
       }
@@ -210,7 +208,7 @@ export class LyricsService {
   }
 
   async getLyricsVersions(lyricsId) {
-    const lyrics = LyricsModel.findById(lyricsId);
+    const lyrics = await LyricsModel.findById(lyricsId);
     if (!lyrics) {
       const err = new Error(`Lyrics not found: ${lyricsId}`);
       err.statusCode = 404;
@@ -220,7 +218,7 @@ export class LyricsService {
   }
 
   async getLyricsDiff(lyricsId, version) {
-    const lyrics = LyricsModel.findById(lyricsId);
+    const lyrics = await LyricsModel.findById(lyricsId);
     if (!lyrics) {
       const err = new Error(`Lyrics not found: ${lyricsId}`);
       err.statusCode = 404;
@@ -228,7 +226,7 @@ export class LyricsService {
     }
 
     // Find the target version
-    const versions = LyricsModel.findByProject(lyrics.project_id);
+    const versions = await LyricsModel.findByProject(lyrics.project_id);
     const targetVersion = versions.find(v => v.version === parseInt(version, 10));
 
     if (!targetVersion) {

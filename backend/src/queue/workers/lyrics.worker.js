@@ -17,7 +17,7 @@ export const lyricsWorker = new Worker(
 
     try {
       // Update job status to active
-      JobModel.updateStatus(job.data.jobId, 'active');
+      await JobModel.updateStatus(job.data.jobId, 'active');
       broadcast({ type: 'job.started', jobId: job.data.jobId, jobType: 'generate-lyrics', projectId });
 
       // Generate lyrics
@@ -29,7 +29,7 @@ export const lyricsWorker = new Worker(
       });
 
       // Update job as completed
-      JobModel.update(job.data.jobId, {
+      await JobModel.update(job.data.jobId, {
         status: 'completed',
         progress: 100,
         result: { lyricsId: result.id, version: result.version },
@@ -39,7 +39,7 @@ export const lyricsWorker = new Worker(
       return result;
     } catch (error) {
       logger.error('Lyrics job failed', { jobId: job.id, error: error.message });
-      JobModel.updateStatus(job.data.jobId, 'failed', error.message);
+      await JobModel.updateStatus(job.data.jobId, 'failed', error.message);
       broadcast({ type: 'job.failed', jobId: job.data.jobId, jobType: 'generate-lyrics', projectId, error: error.message });
       throw error;
     }

@@ -8,10 +8,10 @@ import { MusicModel } from '../../src/database/models/music.model.js';
 
 const historyService = new HistoryService();
 
-test('should create generation chain', () => {
-  const project = ProjectModel.create({ name: 'Test History Project' });
+test('should create generation chain', async () => {
+  const project = await ProjectModel.create({ name: 'Test History Project' });
 
-  const chain = HistoryModel.create({
+  const chain = await HistoryModel.create({
     projectId: project.id,
   });
 
@@ -19,11 +19,11 @@ test('should create generation chain', () => {
   assert.strictEqual(chain.project_id, project.id);
 
   // Cleanup
-  ProjectModel.delete(project.id);
+  await ProjectModel.delete(project.id);
 });
 
 test('should get project history with no generations', async () => {
-  const project = ProjectModel.create({ name: 'Empty History Project' });
+  const project = await ProjectModel.create({ name: 'Empty History Project' });
 
   const history = await historyService.getProjectHistory(project.id);
 
@@ -33,19 +33,19 @@ test('should get project history with no generations', async () => {
   assert.ok(Array.isArray(history.chains));
 
   // Cleanup
-  ProjectModel.delete(project.id);
+  await ProjectModel.delete(project.id);
 });
 
 test('should get project history with generations', async () => {
-  const project = ProjectModel.create({ name: 'History with Generations' });
+  const project = await ProjectModel.create({ name: 'History with Generations' });
 
   // Create a chain and add some generations
-  const chain = HistoryModel.create({
+  const chain = await HistoryModel.create({
     projectId: project.id,
   });
 
   // Create lyrics
-  const lyrics = LyricsModel.create({
+  const lyrics = await LyricsModel.create({
     projectId: project.id,
     version: 1,
     content: 'Test lyrics content',
@@ -55,7 +55,7 @@ test('should get project history with generations', async () => {
   });
 
   // Update chain with lyrics
-  HistoryModel.update(chain.id, { lyricsId: lyrics.id });
+  await HistoryModel.update(chain.id, { lyricsId: lyrics.id });
 
   const history = await historyService.getProjectHistory(project.id);
 
@@ -64,24 +64,24 @@ test('should get project history with generations', async () => {
   assert.strictEqual(history.lyrics[0].id, lyrics.id);
 
   // Cleanup
-  ProjectModel.delete(project.id);
+  await ProjectModel.delete(project.id);
 });
 
 test('should get version chain by lyrics ID', async () => {
-  const project = ProjectModel.create({ name: 'Version Chain Test' });
+  const project = await ProjectModel.create({ name: 'Version Chain Test' });
 
-  const chain = HistoryModel.create({
+  const chain = await HistoryModel.create({
     projectId: project.id,
   });
 
-  const lyrics = LyricsModel.create({
+  const lyrics = await LyricsModel.create({
     projectId: project.id,
     version: 1,
     content: 'Chain lyrics',
     title: 'Chained Song',
   });
 
-  HistoryModel.update(chain.id, { lyricsId: lyrics.id });
+  await HistoryModel.update(chain.id, { lyricsId: lyrics.id });
 
   const result = await historyService.getVersionChain(lyrics.id);
 
@@ -91,7 +91,7 @@ test('should get version chain by lyrics ID', async () => {
   assert.strictEqual(result.lyrics.id, lyrics.id);
 
   // Cleanup
-  ProjectModel.delete(project.id);
+  await ProjectModel.delete(project.id);
 });
 
 test('should throw error for non-existent generation in getVersionChain', async () => {
@@ -104,9 +104,9 @@ test('should throw error for non-existent generation in getVersionChain', async 
 });
 
 test('should replay lyrics version', async () => {
-  const project = ProjectModel.create({ name: 'Replay Test' });
+  const project = await ProjectModel.create({ name: 'Replay Test' });
 
-  const lyrics = LyricsModel.create({
+  const lyrics = await LyricsModel.create({
     projectId: project.id,
     version: 1,
     content: 'Original lyrics',
@@ -125,13 +125,13 @@ test('should replay lyrics version', async () => {
   assert.strictEqual(result.regenerationParams.projectId, project.id);
 
   // Cleanup
-  ProjectModel.delete(project.id);
+  await ProjectModel.delete(project.id);
 });
 
 test('should throw error for invalid type in replayVersion', async () => {
-  const project = ProjectModel.create({ name: 'Invalid Replay Type' });
+  const project = await ProjectModel.create({ name: 'Invalid Replay Type' });
 
-  const lyrics = LyricsModel.create({
+  const lyrics = await LyricsModel.create({
     projectId: project.id,
     version: 1,
     content: 'Test',
@@ -146,13 +146,13 @@ test('should throw error for invalid type in replayVersion', async () => {
   );
 
   // Cleanup
-  ProjectModel.delete(project.id);
+  await ProjectModel.delete(project.id);
 });
 
 test('should compare two lyrics versions', async () => {
-  const project = ProjectModel.create({ name: 'Compare Versions Test' });
+  const project = await ProjectModel.create({ name: 'Compare Versions Test' });
 
-  const lyrics1 = LyricsModel.create({
+  const lyrics1 = await LyricsModel.create({
     projectId: project.id,
     version: 1,
     content: 'Original content',
@@ -160,7 +160,7 @@ test('should compare two lyrics versions', async () => {
     stylePreset: 'hinglish-urban',
   });
 
-  const lyrics2 = LyricsModel.create({
+  const lyrics2 = await LyricsModel.create({
     projectId: project.id,
     version: 2,
     content: 'Updated content',
@@ -176,7 +176,7 @@ test('should compare two lyrics versions', async () => {
   assert.ok(comparison.contentDiff);
 
   // Cleanup
-  ProjectModel.delete(project.id);
+  await ProjectModel.delete(project.id);
 });
 
 test('should throw error for non-existent versions in compareVersions', async () => {
@@ -189,16 +189,16 @@ test('should throw error for non-existent versions in compareVersions', async ()
 });
 
 test('should delete version (soft delete)', async () => {
-  const project = ProjectModel.create({ name: 'Delete Version Test' });
+  const project = await ProjectModel.create({ name: 'Delete Version Test' });
 
-  const lyrics = LyricsModel.create({
+  const lyrics = await LyricsModel.create({
     projectId: project.id,
     version: 1,
     content: 'To be deleted',
     title: 'Delete Me',
   });
 
-  const chain = HistoryModel.create({
+  const chain = await HistoryModel.create({
     projectId: project.id,
     lyricsId: lyrics.id,
   });
@@ -210,21 +210,21 @@ test('should delete version (soft delete)', async () => {
   assert.strictEqual(result.type, 'lyrics');
 
   // Verify chain was updated (lyrics_id set to null)
-  const updatedChain = HistoryModel.findById(chain.id);
+  const updatedChain = await HistoryModel.findById(chain.id);
   assert.strictEqual(updatedChain.lyrics_id, null);
 
   // Cleanup
-  ProjectModel.delete(project.id);
+  await ProjectModel.delete(project.id);
 });
 
 test('should link generation to chain', async () => {
-  const project = ProjectModel.create({ name: 'Link Generation Test' });
+  const project = await ProjectModel.create({ name: 'Link Generation Test' });
 
-  const chain = HistoryModel.create({
+  const chain = await HistoryModel.create({
     projectId: project.id,
   });
 
-  const lyrics = LyricsModel.create({
+  const lyrics = await LyricsModel.create({
     projectId: project.id,
     version: 1,
     content: 'Linked lyrics',
@@ -240,13 +240,13 @@ test('should link generation to chain', async () => {
   assert.strictEqual(result.lyrics_id, lyrics.id);
 
   // Cleanup
-  ProjectModel.delete(project.id);
+  await ProjectModel.delete(project.id);
 });
 
 test('should create new chain when linking first generation', async () => {
-  const project = ProjectModel.create({ name: 'New Chain Test' });
+  const project = await ProjectModel.create({ name: 'New Chain Test' });
 
-  const lyrics = LyricsModel.create({
+  const lyrics = await LyricsModel.create({
     projectId: project.id,
     version: 1,
     content: 'First generation',
@@ -263,28 +263,28 @@ test('should create new chain when linking first generation', async () => {
   assert.ok(result.id);
 
   // Cleanup
-  ProjectModel.delete(project.id);
+  await ProjectModel.delete(project.id);
 });
 
 test('should get project generations grouped by type', async () => {
-  const project = ProjectModel.create({ name: 'Grouped Generations Test' });
+  const project = await ProjectModel.create({ name: 'Grouped Generations Test' });
 
   // Create multiple generations of each type
-  const lyrics1 = LyricsModel.create({
+  const lyrics1 = await LyricsModel.create({
     projectId: project.id,
     version: 1,
     content: 'Lyrics v1',
     title: 'L1',
   });
 
-  const lyrics2 = LyricsModel.create({
+  const lyrics2 = await LyricsModel.create({
     projectId: project.id,
     version: 2,
     content: 'Lyrics v2',
     title: 'L2',
   });
 
-  const music1 = MusicModel.create({
+  const music1 = await MusicModel.create({
     projectId: project.id,
     version: 1,
     model: 'music-2.6',
@@ -297,5 +297,5 @@ test('should get project generations grouped by type', async () => {
   assert.strictEqual(history.video.length, 0);
 
   // Cleanup
-  ProjectModel.delete(project.id);
+  await ProjectModel.delete(project.id);
 });

@@ -2,12 +2,7 @@ import db from '../connection.js';
 import { nanoid } from 'nanoid';
 
 export const MedleyModel = {
-  /**
-   * Create a new medley
-   * @param {Object} data - Medley data
-   * @returns {Object} - Created medley
-   */
-  create(data) {
+  async create(data) {
     try {
       if (!data.projectId || typeof data.projectId !== 'string') {
         throw new Error('Project ID is required and must be a string');
@@ -17,20 +12,19 @@ export const MedleyModel = {
       }
 
       const id = nanoid();
-      const stmt = db.prepare(`
-        INSERT INTO medleys (id, project_id, name, description, output_file_path, total_duration, track_count)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `);
-
-      stmt.run(
-        id,
-        data.projectId,
-        data.name,
-        data.description || null,
-        data.outputFilePath || null,
-        data.totalDuration || null,
-        data.trackCount || 0
-      );
+      await db.execute({
+        sql: `INSERT INTO medleys (id, project_id, name, description, output_file_path, total_duration, track_count)
+              VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          id,
+          data.projectId,
+          data.name,
+          data.description || null,
+          data.outputFilePath || null,
+          data.totalDuration || null,
+          data.trackCount || 0,
+        ],
+      });
 
       return this.findById(id);
     } catch (error) {
@@ -38,28 +32,16 @@ export const MedleyModel = {
     }
   },
 
-  /**
-   * Find medley by ID
-   * @param {string} id - Medley ID
-   * @returns {Object|null} - Medley object
-   */
-  findById(id) {
-    const row = db.prepare('SELECT * FROM medleys WHERE id = ?').get(id);
-    return row || null;
+  async findById(id) {
+    const result = await db.execute({ sql: 'SELECT * FROM medleys WHERE id = ?', args: [id] });
+    return result.rows[0] || null;
   },
 
-  /**
-   * Find medley by ID with tracks
-   * @param {string} id - Medley ID
-   * @returns {Object|null} - Medley with tracks
-   */
-  findByIdWithTracks(id) {
-    const medley = this.findById(id);
+  async findByIdWithTracks(id) {
+    const medley = await this.findById(id);
     if (!medley) return null;
 
-    const tracks = db.prepare(
-      'SELECT * FROM medley_tracks WHERE medley_id = ? ORDER BY order_index ASC'
-    ).all(id);
+    const tracks = await this.getTracks(id);
 
     return {
       ...medley,
@@ -67,22 +49,12 @@ export const MedleyModel = {
     };
   },
 
-  /**
-   * Find all medleys for a project
-   * @param {string} projectId - Project ID
-   * @returns {Array} - Array of medleys
-   */
-  findByProject(projectId) {
-    return db.prepare('SELECT * FROM medleys WHERE project_id = ? ORDER BY created_at DESC').all(projectId);
+  async findByProject(projectId) {
+    const result = await db.execute({ sql: 'SELECT * FROM medleys WHERE project_id = ? ORDER BY created_at DESC', args: [projectId] });
+    return result.rows;
   },
 
-  /**
-   * Update medley
-   * @param {string} id - Medley ID
-   * @param {Object} data - Update data
-   * @returns {Object} - Updated medley
-   */
-  update(id, data) {
+  async update(id, data) {
     try {
       const updates = [];
       const values = [];
@@ -115,8 +87,7 @@ export const MedleyModel = {
       updates.push('updated_at = CURRENT_TIMESTAMP');
       values.push(id);
 
-      const stmt = db.prepare(`UPDATE medleys SET ${updates.join(', ')} WHERE id = ?`);
-      stmt.run(...values);
+      await db.execute({ sql: `UPDATE medleys SET ${updates.join(', ')} WHERE id = ?`, args: values });
 
       return this.findById(id);
     } catch (error) {
@@ -124,23 +95,13 @@ export const MedleyModel = {
     }
   },
 
-  /**
-   * Delete medley and its tracks
-   * @param {string} id - Medley ID
-   * @returns {boolean} - Success
-   */
-  delete(id) {
+  async delete(id) {
     // Tracks are deleted via CASCADE
-    const result = db.prepare('DELETE FROM medleys WHERE id = ?').run(id);
-    return result.changes > 0;
+    const result = await db.execute({ sql: 'DELETE FROM medleys WHERE id = ?', args: [id] });
+    return result.rowsAffected > 0;
   },
 
-  /**
-   * Add a track to medley
-   * @param {Object} data - Track data
-   * @returns {Object} - Created track
-   */
-  addTrack(data) {
+  async addTrack(data) {
     try {
       if (!data.medleyId || typeof data.medleyId !== 'string') {
         throw new Error('Medley ID is required and must be a string');
@@ -153,27 +114,26 @@ export const MedleyModel = {
       }
 
       const id = nanoid();
-      const stmt = db.prepare(`
-        INSERT INTO medley_tracks (id, medley_id, source_file_path, order_index, trim_start, trim_end, speed, volume, fade_in, fade_out, duration_seconds)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-
-      stmt.run(
-        id,
-        data.medleyId,
-        data.sourceFilePath,
-        data.orderIndex,
-        data.trimStart ?? 0,
-        data.trimEnd ?? null,
-        data.speed ?? 1.0,
-        data.volume ?? 1.0,
-        data.fadeIn ?? 0,
-        data.fadeOut ?? 0,
-        data.durationSeconds ?? null
-      );
+      await db.execute({
+        sql: `INSERT INTO medley_tracks (id, medley_id, source_file_path, order_index, trim_start, trim_end, speed, volume, fade_in, fade_out, duration_seconds)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          id,
+          data.medleyId,
+          data.sourceFilePath,
+          data.orderIndex,
+          data.trimStart ?? 0,
+          data.trimEnd ?? null,
+          data.speed ?? 1.0,
+          data.volume ?? 1.0,
+          data.fadeIn ?? 0,
+          data.fadeOut ?? 0,
+          data.durationSeconds ?? null,
+        ],
+      });
 
       // Update track count
-      this.updateTrackCount(data.medleyId);
+      await this.updateTrackCount(data.medleyId);
 
       return this.findTrackById(id);
     } catch (error) {
@@ -181,32 +141,17 @@ export const MedleyModel = {
     }
   },
 
-  /**
-   * Find track by ID
-   * @param {string} id - Track ID
-   * @returns {Object|null} - Track object
-   */
-  findTrackById(id) {
-    const row = db.prepare('SELECT * FROM medley_tracks WHERE id = ?').get(id);
-    return row || null;
+  async findTrackById(id) {
+    const result = await db.execute({ sql: 'SELECT * FROM medley_tracks WHERE id = ?', args: [id] });
+    return result.rows[0] || null;
   },
 
-  /**
-   * Get all tracks for a medley
-   * @param {string} medleyId - Medley ID
-   * @returns {Array} - Array of tracks
-   */
-  getTracks(medleyId) {
-    return db.prepare('SELECT * FROM medley_tracks WHERE medley_id = ? ORDER BY order_index ASC').all(medleyId);
+  async getTracks(medleyId) {
+    const result = await db.execute({ sql: 'SELECT * FROM medley_tracks WHERE medley_id = ? ORDER BY order_index ASC', args: [medleyId] });
+    return result.rows;
   },
 
-  /**
-   * Update a track
-   * @param {string} id - Track ID
-   * @param {Object} data - Update data
-   * @returns {Object} - Updated track
-   */
-  updateTrack(id, data) {
+  async updateTrack(id, data) {
     try {
       const updates = [];
       const values = [];
@@ -249,8 +194,7 @@ export const MedleyModel = {
       }
 
       values.push(id);
-      const stmt = db.prepare(`UPDATE medley_tracks SET ${updates.join(', ')} WHERE id = ?`);
-      stmt.run(...values);
+      await db.execute({ sql: `UPDATE medley_tracks SET ${updates.join(', ')} WHERE id = ?`, args: values });
 
       return this.findTrackById(id);
     } catch (error) {
@@ -258,46 +202,29 @@ export const MedleyModel = {
     }
   },
 
-  /**
-   * Delete a track
-   * @param {string} id - Track ID
-   * @returns {boolean} - Success
-   */
-  deleteTrack(id) {
-    const track = this.findTrackById(id);
+  async deleteTrack(id) {
+    const track = await this.findTrackById(id);
     if (!track) return false;
 
-    const result = db.prepare('DELETE FROM medley_tracks WHERE id = ?').run(id);
+    const result = await db.execute({ sql: 'DELETE FROM medley_tracks WHERE id = ?', args: [id] });
 
     // Update track count
-    if (result.changes > 0) {
-      this.updateTrackCount(track.medley_id);
+    if (result.rowsAffected > 0) {
+      await this.updateTrackCount(track.medley_id);
     }
 
-    return result.changes > 0;
+    return result.rowsAffected > 0;
   },
 
-  /**
-   * Reorder tracks for a medley
-   * @param {string} medleyId - Medley ID
-   * @param {Array<{trackId: string, orderIndex: number}>} orders - New order mapping
-   */
-  reorderTracks(medleyId, orders) {
-    const stmt = db.prepare('UPDATE medley_tracks SET order_index = ? WHERE id = ? AND medley_id = ?');
-
+  async reorderTracks(medleyId, orders) {
     for (const { trackId, orderIndex } of orders) {
-      stmt.run(orderIndex, trackId, medleyId);
+      await db.execute({ sql: 'UPDATE medley_tracks SET order_index = ? WHERE id = ? AND medley_id = ?', args: [orderIndex, trackId, medleyId] });
     }
   },
 
-  /**
-   * Update track count for a medley
-   * @param {string} medleyId - Medley ID
-   */
-  updateTrackCount(medleyId) {
-    const result = db.prepare('SELECT COUNT(*) as count FROM medley_tracks WHERE medley_id = ?').get(medleyId);
-    db.prepare('UPDATE medleys SET track_count = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-      .run(result.count, medleyId);
+  async updateTrackCount(medleyId) {
+    const result = await db.execute({ sql: 'SELECT COUNT(*) as count FROM medley_tracks WHERE medley_id = ?', args: [medleyId] });
+    await db.execute({ sql: 'UPDATE medleys SET track_count = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', args: [result.rows[0].count, medleyId] });
   },
 };
 

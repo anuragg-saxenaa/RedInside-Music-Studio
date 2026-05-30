@@ -250,18 +250,21 @@ export const MasteringController = {
         const db = (await import('../../database/connection.js')).default;
 
         // Ensure project exists in database (create if necessary)
-        let project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+        let projectResult = await db.execute({ sql: 'SELECT * FROM projects WHERE id = ?', args: [projectId] });
+        let project = projectResult.rows[0];
         if (!project) {
           try {
             // Insert directly with the provided projectId
-            db.prepare(`
-              INSERT INTO projects (id, name, description, workflow_mode)
-              VALUES (?, ?, ?, ?)
-            `).run(projectId, `Mastering Project ${projectId}`, null, 'hybrid');
-            project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+            await db.execute({
+              sql: 'INSERT INTO projects (id, name, description, workflow_mode) VALUES (?, ?, ?, ?)',
+              args: [projectId, `Mastering Project ${projectId}`, null, 'hybrid'],
+            });
+            const r2 = await db.execute({ sql: 'SELECT * FROM projects WHERE id = ?', args: [projectId] });
+            project = r2.rows[0];
           } catch (e) {
             // Project may already exist from concurrent request
-            project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+            const r3 = await db.execute({ sql: 'SELECT * FROM projects WHERE id = ?', args: [projectId] });
+            project = r3.rows[0];
           }
         }
 

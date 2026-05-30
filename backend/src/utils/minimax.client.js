@@ -18,8 +18,8 @@ class MinimaxClient {
     // Read from DB — allows Settings UI to set key without editing .env
     try {
       const { default: db } = await import('../database/connection.js');
-      const row = db.prepare('SELECT value FROM settings WHERE key = ?').get('minimax_api_key');
-      return row?.value || '';
+      const result = await db.execute({ sql: 'SELECT value FROM settings WHERE key = ?', args: ['minimax_api_key'] });
+      return result.rows[0]?.value || '';
     } catch {
       return '';
     }
