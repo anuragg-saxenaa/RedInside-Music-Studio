@@ -13,7 +13,9 @@ export interface WSEvent {
 
 type WSHandler = (event: WSEvent) => void;
 
-const WS_URL = `ws://${window.location.hostname}:3000`;
+const WS_URL = import.meta.env.VITE_API_BASE_URL
+  ? import.meta.env.VITE_API_BASE_URL.replace(/^https/, 'wss').replace(/^http/, 'ws')
+  : `ws://${window.location.hostname}:3000`;
 const RECONNECT_DELAY = 3000;
 
 export function useWebSocket(onEvent: WSHandler) {
