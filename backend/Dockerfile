@@ -12,4 +12,6 @@ COPY . .
 
 EXPOSE 3000
 
-CMD ["node", "src/server.js"]
+RUN mkdir -p /app/database /app/storage
+
+CMD ["sh", "-c", "node src/database/migrate.js && node src/server.js"]
