@@ -33,6 +33,7 @@ export const DownloaderService = {
         '--socket-timeout', '30',
         '--retries', '3',
         '--no-check-certificates',
+        '--extractor-args', 'youtube:player-client=android,ios,web',
         '-o', outputTemplate,
         url,
       ];
