@@ -21,7 +21,7 @@ export const LyricsController = {
       }
 
       // Validate project exists before calling MiniMax API
-      const project = ProjectModel.findById(projectId);
+      const project = await ProjectModel.findById(projectId);
       if (!project) {
         return res.status(404).json({ error: 'Project not found' });
       }

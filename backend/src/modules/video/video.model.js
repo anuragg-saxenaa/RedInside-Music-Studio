@@ -2,7 +2,7 @@ import db from '../../database/connection.js';
 import { nanoid } from 'nanoid';
 
 export const VideoModel = {
-  create(data) {
+  async create(data) {
     try {
       // Validate required fields
       if (!data.model || typeof data.model !== 'string' || data.model.trim() === '') {
@@ -13,28 +13,27 @@ export const VideoModel = {
       }
 
       const id = nanoid();
-      const stmt = db.prepare(`
-        INSERT INTO video_generations (
+      await db.execute({
+        sql: `INSERT INTO video_generations (
           id, project_id, music_id, version, model, prompt,
           duration, resolution, task_id, status, file_id, file_path, error_message
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-
-      stmt.run(
-        id,
-        data.projectId,
-        data.musicId || null,
-        data.version,
-        data.model,
-        data.prompt || null,
-        data.duration || null,
-        data.resolution || null,
-        data.taskId || null,
-        data.status || 'pending',
-        data.fileId || null,
-        data.filePath || null,
-        data.errorMessage || null
-      );
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          id,
+          data.projectId,
+          data.musicId || null,
+          data.version,
+          data.model,
+          data.prompt || null,
+          data.duration || null,
+          data.resolution || null,
+          data.taskId || null,
+          data.status || 'pending',
+          data.fileId || null,
+          data.filePath || null,
+          data.errorMessage || null,
+        ],
+      });
 
       return this.findById(id);
     } catch (error) {
@@ -42,23 +41,27 @@ export const VideoModel = {
     }
   },
 
-  findById(id) {
-    return db.prepare('SELECT * FROM video_generations WHERE id = ?').get(id);
+  async findById(id) {
+    const result = await db.execute({ sql: 'SELECT * FROM video_generations WHERE id = ?', args: [id] });
+    return result.rows[0] || null;
   },
 
-  findByProject(projectId) {
-    return db.prepare('SELECT * FROM video_generations WHERE project_id = ? ORDER BY version DESC').all(projectId);
+  async findByProject(projectId) {
+    const result = await db.execute({ sql: 'SELECT * FROM video_generations WHERE project_id = ? ORDER BY version DESC', args: [projectId] });
+    return result.rows;
   },
 
-  findByMusic(musicId) {
-    return db.prepare('SELECT * FROM video_generations WHERE music_id = ? ORDER BY version DESC').all(musicId);
+  async findByMusic(musicId) {
+    const result = await db.execute({ sql: 'SELECT * FROM video_generations WHERE music_id = ? ORDER BY version DESC', args: [musicId] });
+    return result.rows;
   },
 
-  findByTaskId(taskId) {
-    return db.prepare('SELECT * FROM video_generations WHERE task_id = ?').get(taskId);
+  async findByTaskId(taskId) {
+    const result = await db.execute({ sql: 'SELECT * FROM video_generations WHERE task_id = ?', args: [taskId] });
+    return result.rows[0] || null;
   },
 
-  update(id, data) {
+  async update(id, data) {
     try {
       const updates = [];
       const values = [];
@@ -93,8 +96,7 @@ export const VideoModel = {
       }
 
       values.push(id);
-      const stmt = db.prepare(`UPDATE video_generations SET ${updates.join(', ')} WHERE id = ?`);
-      stmt.run(...values);
+      await db.execute({ sql: `UPDATE video_generations SET ${updates.join(', ')} WHERE id = ?`, args: values });
 
       return this.findById(id);
     } catch (error) {
@@ -102,7 +104,7 @@ export const VideoModel = {
     }
   },
 
-  updateStatus(id, status, errorMessage = null) {
+  async updateStatus(id, status, errorMessage = null) {
     const updates = ['status = ?'];
     const values = [status];
 
@@ -116,14 +118,13 @@ export const VideoModel = {
     }
 
     values.push(id);
-    const stmt = db.prepare(`UPDATE video_generations SET ${updates.join(', ')} WHERE id = ?`);
-    stmt.run(...values);
+    await db.execute({ sql: `UPDATE video_generations SET ${updates.join(', ')} WHERE id = ?`, args: values });
 
     return this.findById(id);
   },
 
-  getNextVersion(projectId) {
-    const result = db.prepare('SELECT MAX(version) as max_version FROM video_generations WHERE project_id = ?').get(projectId);
-    return (result?.max_version || 0) + 1;
+  async getNextVersion(projectId) {
+    const result = await db.execute({ sql: 'SELECT MAX(version) as max_version FROM video_generations WHERE project_id = ?', args: [projectId] });
+    return ((result.rows[0]?.max_version) || 0) + 1;
   },
 };

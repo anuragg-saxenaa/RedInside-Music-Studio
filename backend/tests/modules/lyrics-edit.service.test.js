@@ -5,11 +5,11 @@ import { ProjectModel } from '../../src/database/models/project.model.js';
 import { LyricsModel } from '../../src/database/models/lyrics.model.js';
 
 test('should edit lyrics and create new version', async () => {
-  const project = ProjectModel.create({ name: 'Test Project' });
+  const project = await ProjectModel.create({ name: 'Test Project' });
   const lyricsService = new LyricsService();
 
   // This will call actual MiniMax API - skip in CI
-  if (process.env.CI) return;
+  if (process.env.CI) { await ProjectModel.delete(project.id); return; }
 
   // Generate initial lyrics
   const initial = await lyricsService.generateLyrics({
@@ -35,7 +35,7 @@ test('should edit lyrics and create new version', async () => {
   assert.strictEqual(edited.mode, 'edit');
 
   // Verify the original lyrics is still version 1
-  const original = LyricsModel.findById(initial.id);
+  const original = await LyricsModel.findById(initial.id);
   assert.strictEqual(original.version, 1);
 
   // Verify all versions are accessible
@@ -51,15 +51,15 @@ test('should edit lyrics and create new version', async () => {
   assert.ok(diff.diff);
 
   // Cleanup
-  ProjectModel.delete(project.id);
+  await ProjectModel.delete(project.id);
 });
 
 test('should get lyrics versions', async () => {
-  const project = ProjectModel.create({ name: 'Test Project' });
+  const project = await ProjectModel.create({ name: 'Test Project' });
   const lyricsService = new LyricsService();
 
   // This will call actual MiniMax API - skip in CI
-  if (process.env.CI) return;
+  if (process.env.CI) { await ProjectModel.delete(project.id); return; }
 
   // Generate initial lyrics
   const initial = await lyricsService.generateLyrics({
@@ -77,15 +77,15 @@ test('should get lyrics versions', async () => {
   assert.strictEqual(versions[0].version, 1);
 
   // Cleanup
-  ProjectModel.delete(project.id);
+  await ProjectModel.delete(project.id);
 });
 
 test('should get lyrics diff', async () => {
-  const project = ProjectModel.create({ name: 'Test Project' });
+  const project = await ProjectModel.create({ name: 'Test Project' });
   const lyricsService = new LyricsService();
 
   // This will call actual MiniMax API - skip in CI
-  if (process.env.CI) return;
+  if (process.env.CI) { await ProjectModel.delete(project.id); return; }
 
   // Generate initial lyrics
   const initial = await lyricsService.generateLyrics({
@@ -106,5 +106,5 @@ test('should get lyrics diff', async () => {
   assert.strictEqual(diff.diff.stylePreset, false);
 
   // Cleanup
-  ProjectModel.delete(project.id);
+  await ProjectModel.delete(project.id);
 });

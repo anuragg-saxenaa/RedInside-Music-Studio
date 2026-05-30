@@ -29,7 +29,7 @@ export class MusicService {
       // Validate lyricsId (optional for instrumental or cover mode)
       let lyricsContent = null;
       if (lyricsId) {
-        const lyrics = LyricsModel.findById(lyricsId);
+        const lyrics = await LyricsModel.findById(lyricsId);
         if (!lyrics) {
           const err = new Error(`Lyrics not found: ${lyricsId}`);
           err.statusCode = 404;
@@ -68,10 +68,8 @@ export class MusicService {
         }
       } else if (model === 'music-cover') {
         // Cover mode: two-step process
-        // Step 1: Preprocess audio to get cover_feature_id
         let coverFeatureId = null;
         if (filePath) {
-          // Read file and convert to base64
           const fileBuffer = fs.readFileSync(filePath);
           const audioBase64 = fileBuffer.toString('base64');
           logger.info('Calling preprocess with base64 audio', { fileSize: fileBuffer.length });
@@ -87,7 +85,6 @@ export class MusicService {
           throw new Error('Failed to preprocess audio for cover mode');
         }
 
-        // Step 2: Use cover_feature_id as audio_url for music generation
         requestParams.audio_url = coverFeatureId;
         if (prompt) {
           requestParams.prompt = prompt;
@@ -96,7 +93,6 @@ export class MusicService {
         if (!lyricsContent) {
           throw new Error('Lyrics content is empty');
         }
-        // Prompt comes before lyrics in API
         if (prompt) {
           requestParams.prompt = prompt;
         }
@@ -139,7 +135,7 @@ export class MusicService {
       const audioBuffer = Buffer.from(audioResponse.data);
 
       // Get next version number
-      const version = MusicModel.getNextVersion(projectId);
+      const version = await MusicModel.getNextVersion(projectId);
 
       // Create project directories if they don't exist
       storage.createProjectDirs(projectId);
@@ -148,8 +144,7 @@ export class MusicService {
       const originalFilePath = storage.getMusicFilePath(projectId, version, 'original');
       storage.saveAudioFile(audioBuffer, originalFilePath);
 
-      // Resolve duration: API returns extra_info at top level (not inside data)
-      // music_duration is in ms → convert to seconds
+      // Resolve duration
       const extraInfo = response.extra_info;
       let durationSeconds = extraInfo?.music_duration
         ? extraInfo.music_duration / 1000
@@ -166,7 +161,7 @@ export class MusicService {
       }
 
       // Create database record
-      const musicRecord = MusicModel.create({
+      const musicRecord = await MusicModel.create({
         projectId,
         lyricsId: lyricsId || null,
         version,
@@ -182,29 +177,28 @@ export class MusicService {
       });
 
       // Auto-master to Spotify quality if setting enabled (default: true)
-      const autoMaster = SettingsModel.get('auto_ffmpeg_320kbps')?.value !== 'false';
+      const settingRow = await SettingsModel.get('auto_ffmpeg_320kbps');
+      const autoMaster = settingRow?.value !== 'false';
       if (autoMaster && musicRecord.original_file_path) {
         const masteringService = new AudioMasteringService(storage.getMastersDir(projectId));
         const masteredPath = musicRecord.original_file_path.replace(/\.[^.]+$/, '_spotify_master.wav');
 
         try {
           await masteringService.masterToSpotify(musicRecord.original_file_path, masteredPath);
-          MusicModel.update(musicRecord.id, { processedFilePath: masteredPath });
+          await MusicModel.update(musicRecord.id, { processedFilePath: masteredPath });
         } catch (err) {
           console.error('Auto-mastering failed:', err);
-          // Continue without mastering - not critical
         }
       }
 
       // Increment project version
-      ProjectModel.incrementVersion(projectId, 'music');
+      await ProjectModel.incrementVersion(projectId, 'music');
 
       logger.info('Music generated successfully', { musicId: musicRecord.id, version });
 
       return musicRecord;
     } catch (error) {
       logger.error('Failed to generate music', { projectId: params.projectId, error: error.message });
-      // Preserve MinimaxError structure for frontend
       if (error.name === 'MinimaxError' || error.statusCode) {
         throw error;
       }
@@ -239,7 +233,7 @@ export class MusicService {
   }
 
   async deleteMusic(musicId) {
-    const music = MusicModel.findById(musicId);
+    const music = await MusicModel.findById(musicId);
     if (!music) {
       const err = new Error('Music not found');
       err.statusCode = 404;

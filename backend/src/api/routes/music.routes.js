@@ -84,7 +84,7 @@ export const MusicRoutes = [
         const processor = new AudioProcessor(inputPath);
         await processor.export(outputPath, { format: 'mp3', bitrate: 320 });
 
-        MusicModel.update(id, { processedFilePath: outputPath });
+        await MusicModel.update(id, { processedFilePath: outputPath });
 
         res.json({ message: 'Converted successfully', musicId: id });
       } catch (error) {

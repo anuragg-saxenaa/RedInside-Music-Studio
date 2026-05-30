@@ -55,11 +55,11 @@ export class ImageService {
     }
 
     // Store in database
-    const stmt = db.prepare(`
-      INSERT INTO image_generations (id, project_id, model, prompt, aspect_ratio, width, height, image_urls, seed, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    stmt.run(id, projectId, model || 'image-01', prompt, aspectRatio || '1:1', width, height, JSON.stringify(imageUrls), seed, new Date().toISOString());
+    await db.execute({
+      sql: `INSERT INTO image_generations (id, project_id, model, prompt, aspect_ratio, width, height, image_urls, seed, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [id, projectId, model || 'image-01', prompt, aspectRatio || '1:1', width, height, JSON.stringify(imageUrls), seed, new Date().toISOString()],
+    });
 
     return {
       id,
@@ -71,9 +71,9 @@ export class ImageService {
     };
   }
 
-  getByProject(projectId) {
-    const stmt = db.prepare('SELECT * FROM image_generations WHERE project_id = ? ORDER BY created_at DESC');
-    return stmt.all(projectId).map(row => ({
+  async getByProject(projectId) {
+    const result = await db.execute({ sql: 'SELECT * FROM image_generations WHERE project_id = ? ORDER BY created_at DESC', args: [projectId] });
+    return result.rows.map(row => ({
       ...row,
       imageUrls: JSON.parse(row.image_urls || '[]'),
     }));

@@ -110,9 +110,9 @@ export const HistoryController = {
         const { LyricsModel } = await import('../../database/models/lyrics.model.js');
         const { MusicModel } = await import('../../database/models/music.model.js');
         const { VideoModel } = await import('../video/video.model.js');
-        if (LyricsModel.findById(id)) type = 'lyrics';
-        else if (MusicModel.findById(id)) type = 'music';
-        else if (VideoModel.findById(id)) type = 'video';
+        if (await LyricsModel.findById(id)) type = 'lyrics';
+        else if (await MusicModel.findById(id)) type = 'music';
+        else if (await VideoModel.findById(id)) type = 'video';
         else return res.status(404).json({ error: 'Generation not found' });
       }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
+import { useAuthFetch } from '../../../hooks/useAuthFetch';
 import AudioMasteringPanel from '../../Mastering/AudioMasteringPanel';
 import ReadinessChecklist from '../release/ReadinessChecklist';
 import SocialExportPanel from '../release/SocialExportPanel';
@@ -30,11 +31,12 @@ function VideoSection({ children }: { children: React.ReactNode }) {
 
 export default function ReleaseTab() {
   const { activeProjectId, selectedTrack, tracks } = useWorkspace();
+  const authFetch = useAuthFetch();
   const [hasLyrics, setHasLyrics] = useState(false);
 
   useEffect(() => {
     if (!activeProjectId) return;
-    fetch(`/api/lyrics?projectId=${activeProjectId}`)
+    authFetch(`/api/lyrics?projectId=${activeProjectId}`)
       .then(r => r.json())
       .then((list: unknown[]) => setHasLyrics(Array.isArray(list) && list.length > 0))
       .catch(() => {});

@@ -15,10 +15,10 @@ export const ffmpegWorker = new Worker(
 
     try {
       // Update job status to active
-      JobModel.updateStatus(jobId, 'active');
+      await JobModel.updateStatus(jobId, 'active');
 
       // Update progress
-      JobModel.update(jobId, { progress: 10 });
+      await JobModel.update(jobId, { progress: 10 });
 
       // Process music file with FFmpeg
       const result = await ffmpegService.processMusic({
@@ -28,7 +28,7 @@ export const ffmpegWorker = new Worker(
       });
 
       // Update job as completed
-      JobModel.update(jobId, {
+      await JobModel.update(jobId, {
         status: 'completed',
         progress: 100,
         result: {
@@ -42,7 +42,7 @@ export const ffmpegWorker = new Worker(
       return result;
     } catch (error) {
       logger.error('FFmpeg job failed', { jobId: job.id, error: error.message });
-      JobModel.updateStatus(jobId, 'failed', error.message);
+      await JobModel.updateStatus(jobId, 'failed', error.message);
       throw error;
     }
   },

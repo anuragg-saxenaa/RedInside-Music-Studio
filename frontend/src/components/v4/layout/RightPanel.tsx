@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
+import { useAuthFetch } from '../../../hooks/useAuthFetch';
 import type { MusicNote, MusicTags, MusicGeneration } from '../../../types';
 
 function ArtworkBox({ track, activeProjectId, onUploaded }: {
@@ -8,6 +9,7 @@ function ArtworkBox({ track, activeProjectId, onUploaded }: {
   activeProjectId: string | null;
   onUploaded: () => void;
 }) {
+  const authFetch = useAuthFetch();
   const [hovered, setHovered] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [localUrl, setLocalUrl] = useState<string | null>(
@@ -33,7 +35,7 @@ function ArtworkBox({ track, activeProjectId, onUploaded }: {
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      const res = await fetch(`/api/projects/${activeProjectId}/artwork`, {
+      const res = await authFetch(`/api/projects/${activeProjectId}/artwork`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ musicId: track.id, imageUrl }),
@@ -146,6 +148,7 @@ const sectionLabel: React.CSSProperties = {
 
 export default function RightPanel() {
   const { selectedTrack, setSelectedTrack, playTrack, setActiveTab, playerCurrentTime, activeProjectId, playlists, refreshPlaylists, refreshTracks } = useWorkspace();
+  const authFetch = useAuthFetch();
   const [notes, setNotes] = useState<MusicNote[]>([]);
   const [newNoteText, setNewNoteText] = useState('');
   const [tags, setTags] = useState<MusicTags>({ bpm: null, key: null, mood: null });
@@ -162,15 +165,15 @@ export default function RightPanel() {
     setNotes([]);
     setTags({ bpm: null, key: null, mood: null });
     setShareUrl(null);
-    fetch(`/api/music/${selectedTrack.id}/notes`).then(r => r.json()).then(setNotes).catch(() => {});
-    fetch(`/api/music/${selectedTrack.id}/tags`).then(r => r.json()).then(setTags).catch(() => {});
+    authFetch(`/api/music/${selectedTrack.id}/notes`).then(r => r.json()).then(setNotes).catch(() => {});
+    authFetch(`/api/music/${selectedTrack.id}/tags`).then(r => r.json()).then(setTags).catch(() => {});
   }, [selectedTrack?.id]);
 
   useEffect(() => {
     if (!selectedTrack) { setTrackPlaylists([]); return; }
     Promise.all(
       playlists.map(pl =>
-        fetch(`/api/playlists/${pl.id}/tracks`)
+        authFetch(`/api/playlists/${pl.id}/tracks`)
           .then(r => r.json())
           .then((tracks: Array<{ music_id?: string; id?: string }>) =>
             tracks.some((t) => t.music_id === selectedTrack.id || t.id === selectedTrack.id)
@@ -183,7 +186,7 @@ export default function RightPanel() {
 
   const addNote = async () => {
     if (!selectedTrack || !newNoteText.trim()) return;
-    const res = await fetch(`/api/music/${selectedTrack.id}/notes`, {
+    const res = await authFetch(`/api/music/${selectedTrack.id}/notes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ timestamp_sec: playerCurrentTime, text: newNoteText.trim() }),
@@ -195,13 +198,13 @@ export default function RightPanel() {
 
   const deleteNote = async (noteId: string) => {
     if (!selectedTrack) return;
-    await fetch(`/api/music/${selectedTrack.id}/notes/${noteId}`, { method: 'DELETE' });
+    await authFetch(`/api/music/${selectedTrack.id}/notes/${noteId}`, { method: 'DELETE' });
     setNotes(prev => prev.filter(n => n.id !== noteId));
   };
 
   const generateShare = async () => {
     if (!activeProjectId) return;
-    const res = await fetch(`/api/projects/${activeProjectId}/share`, { method: 'POST' });
+    const res = await authFetch(`/api/projects/${activeProjectId}/share`, { method: 'POST' });
     const data = await res.json();
     setShareUrl(`${window.location.origin}/#/share/${data.token}`);
   };
@@ -209,7 +212,7 @@ export default function RightPanel() {
   const saveTitle = async () => {
     if (!selectedTrack || !titleDraft.trim()) { setEditingTitle(false); return; }
     const trimmed = titleDraft.trim();
-    await fetch(`/api/music/${selectedTrack.id}`, {
+    await authFetch(`/api/music/${selectedTrack.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: trimmed }),
@@ -221,7 +224,7 @@ export default function RightPanel() {
 
   const addToPlaylist = async (playlistId: string) => {
     if (!selectedTrack) return;
-    await fetch(`/api/playlists/${playlistId}/tracks`, {
+    await authFetch(`/api/playlists/${playlistId}/tracks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ musicId: selectedTrack.id }),
@@ -233,7 +236,7 @@ export default function RightPanel() {
 
   const removeFromPlaylist = async (playlistId: string) => {
     if (!selectedTrack) return;
-    await fetch(`/api/playlists/${playlistId}/tracks/${selectedTrack.id}`, { method: 'DELETE' });
+    await authFetch(`/api/playlists/${playlistId}/tracks/${selectedTrack.id}`, { method: 'DELETE' });
     setTrackPlaylists(prev => prev.filter(id => id !== playlistId));
     refreshPlaylists();
   };
@@ -241,7 +244,7 @@ export default function RightPanel() {
   const deleteTrack = async () => {
     if (!selectedTrack) return;
     if (!confirm(`Delete "${selectedTrack.title || `Track v${selectedTrack.version}`}"? This cannot be undone.`)) return;
-    await fetch(`/api/music/${selectedTrack.id}`, { method: 'DELETE' });
+    await authFetch(`/api/music/${selectedTrack.id}`, { method: 'DELETE' });
     setSelectedTrack(null);
     refreshTracks();
   };
@@ -257,7 +260,7 @@ export default function RightPanel() {
     if (!selectedTrack || exporting) return;
     setExporting(true);
     try {
-      const res = await fetch(`/api/music/${selectedTrack.id}/file`);
+      const res = await authFetch(`/api/music/${selectedTrack.id}/file`);
       if (!res.ok) throw new Error('Download failed');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);

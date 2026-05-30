@@ -1,20 +1,15 @@
-import Database from 'better-sqlite3';
+import { createClient } from '@libsql/client';
 import config from '../config/env.config.js';
 import logger from '../utils/logger.js';
-import fs from 'fs';
-import path from 'path';
 
-// Ensure database directory exists
-const dbDir = path.dirname(config.database.path);
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-}
-
-const db = new Database(config.database.path);
+const db = createClient({
+  url: config.database.url,
+  authToken: config.database.authToken,
+});
 
 // Enable foreign keys
-db.pragma('foreign_keys = ON');
+await db.execute('PRAGMA foreign_keys = ON');
 
-logger.info(`Database connected: ${config.database.path}`);
+logger.info(`Database connected: ${config.database.url}`);
 
 export default db;

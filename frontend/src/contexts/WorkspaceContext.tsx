@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useRef, useCallback, useEffect, type ReactNode } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 import type { Project, MusicGeneration, LyricsGeneration, Playlist, V4Tab } from '../types';
 
 interface WorkspaceContextType {
@@ -55,6 +56,19 @@ let persistentAudio: HTMLAudioElement | null = null;
 let persistentTrack: MusicGeneration | null = null;
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
+  const { getToken } = useAuth();
+
+  const authFetch = useCallback(async (url: string, options: RequestInit = {}) => {
+    const token = await getToken();
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+  }, [getToken]);
+
   // Read persisted UI state synchronously at render time
   const savedUiState = (() => {
     try { const s = localStorage.getItem(UI_STATE_KEY); return s ? (JSON.parse(s) as UiState) : null; } catch (_) { return null; }
@@ -105,8 +119,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   // Mount: restore all persisted state
   useEffect(() => {
-    fetch('/health').then(r => r.json()).then(d => { if (d.minimax === 'mock') setIsMockMode(true); }).catch(() => {});
-    fetch('/api/playlists').then(r => r.json()).then(setPlaylists).catch(() => {});
+    authFetch('/health').then(r => r.json()).then(d => { if (d.minimax === 'mock') setIsMockMode(true); }).catch(() => {});
+    authFetch('/api/playlists').then(r => r.json()).then(setPlaylists).catch(() => {});
 
     if (persistentAudio) {
       // In-session navigation: audio already playing
@@ -156,7 +170,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
 
     // Load projects and restore active project/tab from localStorage
-    fetch('/api/projects')
+    authFetch('/api/projects')
       .then(r => r.json())
       .then((projs: Project[]) => {
         setProjects(projs);
@@ -179,7 +193,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const saved: UiState | null = (() => {
       try { const s = localStorage.getItem(UI_STATE_KEY); return s ? (JSON.parse(s) as UiState) : null; } catch (_) { return null; }
     })();
-    fetch(`/api/projects/${activeProjectId}/music`)
+    authFetch(`/api/projects/${activeProjectId}/music`)
       .then(r => r.json())
       .then((list: MusicGeneration[]) => {
         setTracks(list);
@@ -203,16 +217,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [activeProjectId]);
 
   const refreshProjects = useCallback(() => {
-    fetch('/api/projects').then(r => r.json()).then(setProjects).catch(() => {});
-  }, []);
+    authFetch('/api/projects').then(r => r.json()).then(setProjects).catch(() => {});
+  }, [authFetch]);
 
   const refreshPlaylists = useCallback(() => {
-    fetch('/api/playlists').then(r => r.json()).then(setPlaylists).catch(() => {});
-  }, []);
+    authFetch('/api/playlists').then(r => r.json()).then(setPlaylists).catch(() => {});
+  }, [authFetch]);
 
   const refreshTracks = useCallback(() => {
     if (!activeProjectId) return;
-    fetch(`/api/projects/${activeProjectId}/music`)
+    authFetch(`/api/projects/${activeProjectId}/music`)
       .then(r => r.json())
       .then((list: MusicGeneration[]) => {
         setTracks(list);
@@ -221,7 +235,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         if (list.length > 0 && !selectedTrack) setSelectedTrack(list[0]);
       })
       .catch(() => {});
-  }, [activeProjectId, selectedTrack, playerTrack]);
+  }, [activeProjectId, selectedTrack, playerTrack, authFetch]);
 
   const activeProject = projects.find(p => p.id === activeProjectId) ?? null;
 

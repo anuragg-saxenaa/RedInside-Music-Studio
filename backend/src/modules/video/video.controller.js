@@ -14,7 +14,8 @@ export const VideoController = {
   async generate(req, res, next) {
     try {
       const { projectId, musicId, prompt, duration, resolution } = req.body;
-      const defaultModel = SettingsModel.get('default_video_model')?.value || 'MiniMax-Hailuo-02';
+      const settingRow = await SettingsModel.get('default_video_model');
+      const defaultModel = settingRow?.value || 'MiniMax-Hailuo-02';
       const model = req.body.model || defaultModel;
 
       if (!projectId) {
@@ -23,13 +24,13 @@ export const VideoController = {
         });
       }
 
-      const project = ProjectModel.findById(projectId);
+      const project = await ProjectModel.findById(projectId);
       if (!project) {
         return res.status(404).json({ error: 'Project not found' });
       }
 
       // Create job record in DB
-      const job = JobModel.create({
+      const job = await JobModel.create({
         projectId,
         type: 'generate-video',
         inputParams: { musicId, prompt, model, duration, resolution },
@@ -62,7 +63,7 @@ export const VideoController = {
   async getById(req, res, next) {
     try {
       const { id } = req.params;
-      const video = videoService.getVideo(id);
+      const video = await videoService.getVideo(id);
 
       if (!video) {
         return res.status(404).json({ error: 'Video not found' });
@@ -77,7 +78,7 @@ export const VideoController = {
   async getByProject(req, res, next) {
     try {
       const { projectId } = req.params;
-      const videos = videoService.getProjectVideos(projectId);
+      const videos = await videoService.getProjectVideos(projectId);
       res.json(videos);
     } catch (error) {
       next(error);
@@ -87,7 +88,7 @@ export const VideoController = {
   async getByMusic(req, res, next) {
     try {
       const { musicId } = req.params;
-      const videos = videoService.getMusicVideos(musicId);
+      const videos = await videoService.getMusicVideos(musicId);
       res.json(videos);
     } catch (error) {
       next(error);
@@ -97,7 +98,7 @@ export const VideoController = {
   async getStatus(req, res, next) {
     try {
       const { id } = req.params;
-      const video = videoService.getVideo(id);
+      const video = await videoService.getVideo(id);
 
       if (!video) {
         return res.status(404).json({ error: 'Video not found' });
@@ -120,7 +121,7 @@ export const VideoController = {
   async getFile(req, res, next) {
     try {
       const { id } = req.params;
-      const video = videoService.getVideo(id);
+      const video = await videoService.getVideo(id);
 
       if (!video) {
         return res.status(404).json({ error: 'Video not found' });
@@ -174,7 +175,7 @@ export const VideoController = {
 
       // Validate task exists in DB before hitting MiniMax
       const { VideoModel } = await import('./video.model.js');
-      const video = VideoModel.findByTaskId(taskId);
+      const video = await VideoModel.findByTaskId(taskId);
       if (!video) {
         return res.status(404).json({ error: 'Video task not found' });
       }

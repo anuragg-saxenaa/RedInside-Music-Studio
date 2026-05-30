@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
+import { useAuthFetch } from '../../../hooks/useAuthFetch';
 import type { MusicGeneration } from '../../../types';
 
 interface TrackRowProps {
@@ -37,6 +38,7 @@ function Badge({ label, color }: { label: string; color: string }) {
 
 export default function TrackRow({ track, onDoubleClick, onEdit, isEditOpen }: TrackRowProps) {
   const { selectedTrack, setSelectedTrack, playTrack, playerTrack, playerIsPlaying, refreshTracks, setActiveTab } = useWorkspace();
+  const authFetch = useAuthFetch();
   const isSelected = selectedTrack?.id === track.id;
   const isPlaying = playerTrack?.id === track.id && playerIsPlaying;
   const isMastered = !!track.processed_file_path;
@@ -44,7 +46,7 @@ export default function TrackRow({ track, onDoubleClick, onEdit, isEditOpen }: T
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/music/${track.id}/tags`)
+    authFetch(`/api/music/${track.id}/tags`)
       .then(r => r.json())
       .then((t: { bpm?: number | null }) => { if (t.bpm) setBpm(Math.round(t.bpm)); })
       .catch(() => {});
@@ -60,7 +62,7 @@ export default function TrackRow({ track, onDoubleClick, onEdit, isEditOpen }: T
 
   const deleteTrack = async () => {
     if (!confirm(`Delete "${track.title || `Track v${track.version}`}"? This cannot be undone.`)) return;
-    await fetch(`/api/music/${track.id}`, { method: 'DELETE' });
+    await authFetch(`/api/music/${track.id}`, { method: 'DELETE' });
     if (selectedTrack?.id === track.id) setSelectedTrack(null);
     refreshTracks();
   };

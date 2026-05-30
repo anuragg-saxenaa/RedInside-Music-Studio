@@ -2,7 +2,7 @@ import db from '../connection.js';
 import { nanoid } from 'nanoid';
 
 export const LyricsModel = {
-  create(data) {
+  async create(data) {
     try {
       // Validate input
       if (!data.content || typeof data.content !== 'string' || data.content.trim() === '') {
@@ -13,25 +13,24 @@ export const LyricsModel = {
       }
 
       const id = nanoid();
-      const stmt = db.prepare(`
-        INSERT INTO lyrics_generations (
+      await db.execute({
+        sql: `INSERT INTO lyrics_generations (
           id, project_id, version, prompt, mode, style_preset,
           content, title, style_tags, structure_tags
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-
-      stmt.run(
-        id,
-        data.projectId,
-        data.version,
-        data.prompt || null,
-        data.mode || 'write_full_song',
-        data.stylePreset || null,
-        data.content,
-        data.title || null,
-        data.styleTags || null,
-        data.structureTags ? JSON.stringify(data.structureTags) : null
-      );
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          id,
+          data.projectId,
+          data.version,
+          data.prompt || null,
+          data.mode || 'write_full_song',
+          data.stylePreset || null,
+          data.content,
+          data.title || null,
+          data.styleTags || null,
+          data.structureTags ? JSON.stringify(data.structureTags) : null,
+        ],
+      });
 
       return this.findById(id);
     } catch (error) {
@@ -39,9 +38,11 @@ export const LyricsModel = {
     }
   },
 
-  findById(id) {
-    const row = db.prepare('SELECT * FROM lyrics_generations WHERE id = ?').get(id);
-    if (row && row.structure_tags) {
+  async findById(id) {
+    const result = await db.execute({ sql: 'SELECT * FROM lyrics_generations WHERE id = ?', args: [id] });
+    const row = result.rows[0];
+    if (!row) return null;
+    if (row.structure_tags) {
       try {
         row.structure_tags = JSON.parse(row.structure_tags);
       } catch (e) {
@@ -51,9 +52,9 @@ export const LyricsModel = {
     return row;
   },
 
-  findByProject(projectId) {
-    const rows = db.prepare('SELECT * FROM lyrics_generations WHERE project_id = ? ORDER BY version DESC').all(projectId);
-    return rows.map(row => {
+  async findByProject(projectId) {
+    const result = await db.execute({ sql: 'SELECT * FROM lyrics_generations WHERE project_id = ? ORDER BY version DESC', args: [projectId] });
+    return result.rows.map(row => {
       if (row.structure_tags) {
         try {
           row.structure_tags = JSON.parse(row.structure_tags);
@@ -65,8 +66,8 @@ export const LyricsModel = {
     });
   },
 
-  getNextVersion(projectId) {
-    const result = db.prepare('SELECT MAX(version) as max_version FROM lyrics_generations WHERE project_id = ?').get(projectId);
-    return (result?.max_version || 0) + 1;
+  async getNextVersion(projectId) {
+    const result = await db.execute({ sql: 'SELECT MAX(version) as max_version FROM lyrics_generations WHERE project_id = ?', args: [projectId] });
+    return ((result.rows[0]?.max_version) || 0) + 1;
   },
 };

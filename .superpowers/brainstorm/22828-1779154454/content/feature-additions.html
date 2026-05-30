@@ -1,0 +1,89 @@
+<h2>What Else Can Phase 4 Add?</h2>
+<p class="subtitle">Pick the features that matter most. Multi-select — choose as many as you want.</p>
+
+<div class="options" data-multiselect>
+
+  <div class="option" data-choice="ab-compare" onclick="toggleSelect(this)">
+    <div class="letter">1</div>
+    <div class="content">
+      <h3>A/B Track Comparator</h3>
+      <p>Select two versions of a track and listen to them side by side. Click to switch instantly. Essential for "which mix is better?" decisions. SoundCloud and Splice both have this.</p>
+      <p style="color:#FFB800;font-size:11px;margin-top:6px;">💡 High impact — you have 3–5 versions of every track right now with no way to compare</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="social-export" onclick="toggleSelect(this)">
+    <div class="letter">2</div>
+    <div class="content">
+      <h3>Social Media Export Presets</h3>
+      <p>One-click export clips: TikTok (60s), Instagram Reels (30s), YouTube Shorts (60s), Twitter (2:20). Artwork baked into the video frame. FFmpeg already handles this — just needs UI.</p>
+      <p style="color:#FFB800;font-size:11px;margin-top:6px;">💡 High impact — turns the studio into a distribution tool, not just a creation tool</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="smart-playlists" onclick="toggleSelect(this)">
+    <div class="letter">3</div>
+    <div class="content">
+      <h3>Smart Playlists + Auto-Tags</h3>
+      <p>AI auto-detects BPM, key, mood, genre from audio. Smart playlists auto-populate: "All Punjabi tracks", "High energy &gt;120 BPM", "Unmastered". Manual tags too. Your library becomes searchable and organised.</p>
+      <p style="color:#FFB800;font-size:11px;margin-top:6px;">💡 High impact — directly solves "songs all over the place" problem</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="track-notes" onclick="toggleSelect(this)">
+    <div class="letter">4</div>
+    <div class="content">
+      <h3>Track Notes + Timestamps</h3>
+      <p>Leave notes pinned to specific timestamps on a track. "Fix the drop at 1:24", "Chorus needs more bass". Like SoundCloud comments but private. Shows on waveform as markers.</p>
+      <p style="color:#aaa;font-size:11px;margin-top:6px;">Medium impact — useful for iterative production workflow</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="waveform-cards" onclick="toggleSelect(this)">
+    <div class="letter">5</div>
+    <div class="content">
+      <h3>Waveform Previews on Track Cards</h3>
+      <p>Each track in the library shows a mini waveform instead of just a title. Visual fingerprint for each song — you instantly recognise tracks by shape. Click any part to seek. SoundCloud signature feature.</p>
+      <p style="color:#aaa;font-size:11px;margin-top:6px;">Medium impact — visual identity, makes the library feel premium</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="collab-share" onclick="toggleSelect(this)">
+    <div class="letter">6</div>
+    <div class="content">
+      <h3>Share Links (Read-Only Project View)</h3>
+      <p>Generate a link to share a project — collaborators see tracks, lyrics, artwork and can play everything. No login needed. Like Figma share links but for music. Token-protected URLs.</p>
+      <p style="color:#aaa;font-size:11px;margin-top:6px;">Medium impact — makes the studio shareable, useful for label pitches / collabs</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="remix-suggest" onclick="toggleSelect(this)">
+    <div class="letter">7</div>
+    <div class="content">
+      <h3>AI Remix Suggestions</h3>
+      <p>After generating a track, AI suggests 3 remix directions: "Slow it down + add reverb for lo-fi", "Speed up + add bass boost for gym", "Add echo for stadium feel". One-click applies the preset in Audio Editor.</p>
+      <p style="color:#aaa;font-size:11px;margin-top:6px;">Medium impact — creative discovery, reduces blank-page problem</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="release-checklist" onclick="toggleSelect(this)">
+    <div class="letter">8</div>
+    <div class="content">
+      <h3>Release Readiness Checklist</h3>
+      <p>Before export, show a checklist: ✅ Mastered to -14 LUFS · ✅ Artwork added · ⚠ No lyrics attached · ⚠ Title is "Version 1". Blocks accidental release of unfinished tracks. Like Spotify for Artists pre-release checks.</p>
+      <p style="color:#aaa;font-size:11px;margin-top:6px;">Low effort, high professionalism signal</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="section" style="margin-top:20px;background:#0d0d18;border:1px solid #1e1e2e;border-radius:8px;padding:16px;max-width:700px;">
+  <h3 style="color:#E63946;margin-bottom:8px;">My Recommendation: Start With 3</h3>
+  <p style="color:#ccc;font-size:12px;line-height:1.6;">
+    <strong style="color:#fff;">1 + 2 + 3</strong> together make the biggest UX leap with the least new backend work:<br><br>
+    • <strong style="color:#FFB800;">A/B Compare</strong> — pure frontend, uses existing audio files, solves an immediate pain<br>
+    • <strong style="color:#FFB800;">Social Export</strong> — FFmpeg already does this, just needs UI presets<br>
+    • <strong style="color:#FFB800;">Smart Playlists + Auto-Tags</strong> — solves the "songs everywhere" problem directly<br><br>
+    Items 4–8 can ship in a Phase 4.1 once the core workspace is stable.
+  </p>
+</div>

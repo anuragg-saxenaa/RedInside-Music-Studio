@@ -1,0 +1,44 @@
+<h2>Artwork & Create — Which approach?</h2>
+<p class="subtitle">How should artwork generation and song metadata be structured in the DAW?</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Track Art in Right Panel + Album Studio tab</h3>
+      <p>Per-track artwork lives in the Right Panel alongside tags/notes (already song-context). The "Create" tab becomes "Album Studio" — generate album cover, set album title, artist name, track order. Apple Music-style.</p>
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+        <span style="background:rgba(74,222,128,0.15);color:#4ade80;padding:2px 8px;border-radius:4px;font-size:11px">✓ Artwork always in song context</span>
+        <span style="background:rgba(74,222,128,0.15);color:#4ade80;padding:2px 8px;border-radius:4px;font-size:11px">✓ Album gets dedicated space</span>
+        <span style="background:rgba(251,191,36,0.15);color:#fbbf24;padding:2px 8px;border-radius:4px;font-size:11px">△ Right panel gets busier</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Artwork tab with Track / Album sub-tabs</h3>
+      <p>Rename "Create" → "Artwork". Two sub-tabs: <strong>Track Art</strong> (generates for selected song, shows its artwork, sets per-song metadata) and <strong>Album Art</strong> (select multiple songs, generate album cover, set album title + artist). Single focused destination.</p>
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+        <span style="background:rgba(74,222,128,0.15);color:#4ade80;padding:2px 8px;border-radius:4px;font-size:11px">✓ Clean separation</span>
+        <span style="background:rgba(74,222,128,0.15);color:#4ade80;padding:2px 8px;border-radius:4px;font-size:11px">✓ Doesn't crowd Right Panel</span>
+        <span style="background:rgba(74,222,128,0.15);color:#4ade80;padding:2px 8px;border-radius:4px;font-size:11px">✓ Album workflow natural</span>
+        <span style="background:rgba(251,191,36,0.15);color:#fbbf24;padding:2px 8px;border-radius:4px;font-size:11px">△ Video/Voice need a new home</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Song Edit Panel (inline) + Create for album only</h3>
+      <p>Each track row gets an "Edit" expanded panel (click ✎ icon) showing: artwork thumbnail, generate art button, per-song metadata fields (title, artist, BPM, key). Create tab handles album-level only: album cover, tracklist order, credits.</p>
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+        <span style="background:rgba(74,222,128,0.15);color:#4ade80;padding:2px 8px;border-radius:4px;font-size:11px">✓ Song editing in-place</span>
+        <span style="background:rgba(251,191,36,0.15);color:#fbbf24;padding:2px 8px;border-radius:4px;font-size:11px">△ Inline panels = complex layout</span>
+        <span style="background:rgba(251,191,36,0.15);color:#fbbf24;padding:2px 8px;border-radius:4px;font-size:11px">△ More implementation effort</span>
+      </div>
+    </div>
+  </div>
+</div>

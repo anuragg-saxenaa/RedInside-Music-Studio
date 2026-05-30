@@ -1,53 +1,56 @@
-import db from './connection.js';
+import { createClient } from '@libsql/client';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import logger from '../utils/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-function ensureMigrationsTable() {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS _migrations (
-      filename TEXT PRIMARY KEY,
-      applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-}
+const url = process.env.TURSO_DATABASE_URL ||
+  `file:${path.join(__dirname, '../../database/music-studio.sqlite')}`;
+const authToken = process.env.TURSO_AUTH_TOKEN;
 
-function getApplied() {
-  return new Set(
-    db.prepare('SELECT filename FROM _migrations').all().map(r => r.filename)
-  );
-}
+const db = createClient({ url, authToken });
 
-function runMigrations() {
-  ensureMigrationsTable();
-  const applied = getApplied();
+// Ensure migrations tracking table exists
+await db.execute(`
+  CREATE TABLE IF NOT EXISTS _migrations (
+    filename TEXT PRIMARY KEY,
+    applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
 
-  const migrationsDir = path.join(__dirname, 'migrations');
-  const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
+// Get applied migrations
+const appliedResult = await db.execute('SELECT filename FROM _migrations');
+const applied = new Set(appliedResult.rows.map(r => r.filename));
 
-  let ran = 0;
-  for (const file of files) {
-    if (applied.has(file)) {
-      logger.info(`Skipping migration (already applied): ${file}`);
-      continue;
-    }
+const migrationsDir = path.join(__dirname, 'migrations');
+const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
 
-    const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
-    logger.info(`Running migration: ${file}`);
-    db.exec(sql);
-    db.prepare('INSERT INTO _migrations (filename) VALUES (?)').run(file);
-    ran++;
+let ran = 0;
+for (const file of files) {
+  if (applied.has(file)) {
+    console.log(`Skipping migration (already applied): ${file}`);
+    continue;
   }
 
-  logger.info(`Migrations complete. ${ran} new, ${applied.size} already applied.`);
+  const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
+  // Split on ; to run each statement (libsql doesn't support multiple statements in one execute)
+  const statements = sql.split(';').map(s => s.trim()).filter(s => s.length > 0);
+  for (const stmt of statements) {
+    try {
+      await db.execute(stmt);
+    } catch (err) {
+      // Ignore "already exists" / "duplicate column" errors for idempotency
+      if (!err.message.includes('already exists') && !err.message.includes('duplicate column')) {
+        throw err;
+      }
+    }
+  }
+
+  await db.execute({ sql: 'INSERT INTO _migrations (filename) VALUES (?)', args: [file] });
+  console.log(`✓ ${file}`);
+  ran++;
 }
 
-// Run migrations if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  runMigrations();
-}
-
-export default runMigrations;
+console.log(`Migration complete. ${ran} new, ${applied.size} already applied.`);
+process.exit(0);

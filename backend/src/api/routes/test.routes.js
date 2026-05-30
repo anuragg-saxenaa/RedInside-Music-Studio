@@ -34,7 +34,7 @@ export const TestRoutes = [
           fs.writeFileSync(lyricsFilePath, JSON.stringify({ content: lyricsContent, style: 'hinglish-urban' }));
 
           // Create lyrics DB record so /api/projects/:id/lyrics returns data
-          LyricsModel.create({
+          await LyricsModel.create({
             projectId: project.id,
             version: 1,
             prompt: 'E2E test lyrics',
@@ -64,7 +64,7 @@ export const TestRoutes = [
           }
 
           // Create music record
-          const musicRecord = MusicModel.create({
+          const musicRecord = await MusicModel.create({
             projectId: project.id,
             version: 1,
             title: 'Test Music v1',
@@ -110,7 +110,7 @@ export const TestRoutes = [
         fs.mkdirSync(musicDir, { recursive: true });
 
         // Get next version
-        const existingMusic = MusicModel.findByProject(projectId);
+        const existingMusic = await MusicModel.findByProject(projectId);
         const version = existingMusic.length > 0 ? Math.max(...existingMusic.map(m => m.version)) + 1 : 1;
 
         // Copy test fixture as music file using storage paths
@@ -121,7 +121,7 @@ export const TestRoutes = [
         }
 
         // Create music record
-        const musicRecord = MusicModel.create({
+        const musicRecord = await MusicModel.create({
           projectId,
           version,
           title: `Test Music v${version}`,

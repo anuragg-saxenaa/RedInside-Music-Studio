@@ -6,8 +6,19 @@
 import db from '../../database/connection.js';
 import { nanoid } from 'nanoid';
 
+function parseJsonFields(row) {
+  if (!row) return null;
+  if (row.trends_used) {
+    try { row.trends_used = JSON.parse(row.trends_used); } catch (e) { row.trends_used = null; }
+  }
+  if (row.optimization_params) {
+    try { row.optimization_params = JSON.parse(row.optimization_params); } catch (e) { row.optimization_params = null; }
+  }
+  return row;
+}
+
 export const ViralModel = {
-  create(data) {
+  async create(data) {
     try {
       // Validate required fields
       if (!data.generationId || typeof data.generationId !== 'string') {
@@ -18,23 +29,22 @@ export const ViralModel = {
       }
 
       const id = nanoid();
-      const stmt = db.prepare(`
-        INSERT INTO viral_optimizations (
+      await db.execute({
+        sql: `INSERT INTO viral_optimizations (
           id, generation_id, generation_type, trends_used, hook_score,
           structure_template, reference_track_url, optimization_params
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-
-      stmt.run(
-        id,
-        data.generationId,
-        data.generationType,
-        data.trendsUsed ? JSON.stringify(data.trendsUsed) : null,
-        data.hookScore || null,
-        data.structureTemplate || null,
-        data.referenceTrackUrl || null,
-        data.optimizationParams ? JSON.stringify(data.optimizationParams) : null
-      );
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          id,
+          data.generationId,
+          data.generationType,
+          data.trendsUsed ? JSON.stringify(data.trendsUsed) : null,
+          data.hookScore || null,
+          data.structureTemplate || null,
+          data.referenceTrackUrl || null,
+          data.optimizationParams ? JSON.stringify(data.optimizationParams) : null,
+        ],
+      });
 
       return this.findById(id);
     } catch (error) {
@@ -42,100 +52,48 @@ export const ViralModel = {
     }
   },
 
-  findById(id) {
-    const row = db.prepare('SELECT * FROM viral_optimizations WHERE id = ?').get(id);
-    if (!row) return null;
-
-    // Parse JSON fields
-    if (row.trends_used) {
-      try {
-        row.trends_used = JSON.parse(row.trends_used);
-      } catch (e) {
-        row.trends_used = null;
-      }
-    }
-    if (row.optimization_params) {
-      try {
-        row.optimization_params = JSON.parse(row.optimization_params);
-      } catch (e) {
-        row.optimization_params = null;
-      }
-    }
-
-    return row;
+  async findById(id) {
+    const result = await db.execute({ sql: 'SELECT * FROM viral_optimizations WHERE id = ?', args: [id] });
+    return parseJsonFields(result.rows[0] || null);
   },
 
-  findByGeneration(generationId, generationType) {
-    const row = db.prepare(
-      'SELECT * FROM viral_optimizations WHERE generation_id = ? AND generation_type = ? ORDER BY applied_at DESC'
-    ).get(generationId, generationType);
-
-    if (!row) return null;
-
-    // Parse JSON fields
-    if (row.trends_used) {
-      try {
-        row.trends_used = JSON.parse(row.trends_used);
-      } catch (e) {
-        row.trends_used = null;
-      }
-    }
-    if (row.optimization_params) {
-      try {
-        row.optimization_params = JSON.parse(row.optimization_params);
-      } catch (e) {
-        row.optimization_params = null;
-      }
-    }
-
-    return row;
+  async findByGeneration(generationId, generationType) {
+    const result = await db.execute({
+      sql: 'SELECT * FROM viral_optimizations WHERE generation_id = ? AND generation_type = ? ORDER BY applied_at DESC',
+      args: [generationId, generationType],
+    });
+    return parseJsonFields(result.rows[0] || null);
   },
 
-  findByProject(projectId) {
-    // Get optimizations for lyrics generations
-    const lyricsRows = db.prepare(`
-      SELECT vo.* FROM viral_optimizations vo
-      INNER JOIN lyrics_generations g ON g.id = vo.generation_id
-      WHERE g.project_id = ?
-      ORDER BY vo.applied_at DESC
-    `).all(projectId);
+  async findByProject(projectId) {
+    const lyricsResult = await db.execute({
+      sql: `SELECT vo.* FROM viral_optimizations vo
+            INNER JOIN lyrics_generations g ON g.id = vo.generation_id
+            WHERE g.project_id = ?
+            ORDER BY vo.applied_at DESC`,
+      args: [projectId],
+    });
 
-    // Get optimizations for music generations
-    const musicRows = db.prepare(`
-      SELECT vo.* FROM viral_optimizations vo
-      INNER JOIN music_generations g ON g.id = vo.generation_id
-      WHERE g.project_id = ?
-      ORDER BY vo.applied_at DESC
-    `).all(projectId);
+    const musicResult = await db.execute({
+      sql: `SELECT vo.* FROM viral_optimizations vo
+            INNER JOIN music_generations g ON g.id = vo.generation_id
+            WHERE g.project_id = ?
+            ORDER BY vo.applied_at DESC`,
+      args: [projectId],
+    });
 
-    const allRows = [...lyricsRows, ...musicRows].sort((a, b) =>
+    const allRows = [...lyricsResult.rows, ...musicResult.rows].sort((a, b) =>
       new Date(b.applied_at) - new Date(a.applied_at)
     );
 
-    return allRows.map(row => {
-      if (row.trends_used) {
-        try {
-          row.trends_used = JSON.parse(row.trends_used);
-        } catch (e) {
-          row.trends_used = null;
-        }
-      }
-      if (row.optimization_params) {
-        try {
-          row.optimization_params = JSON.parse(row.optimization_params);
-        } catch (e) {
-          row.optimization_params = null;
-        }
-      }
-      return row;
-    });
+    return allRows.map(parseJsonFields);
   },
 
   getLatestByGeneration(generationId, generationType) {
     return this.findByGeneration(generationId, generationType);
   },
 
-  update(id, data) {
+  async update(id, data) {
     try {
       const updates = [];
       const values = [];
@@ -166,8 +124,7 @@ export const ViralModel = {
       }
 
       values.push(id);
-      const stmt = db.prepare(`UPDATE viral_optimizations SET ${updates.join(', ')} WHERE id = ?`);
-      stmt.run(...values);
+      await db.execute({ sql: `UPDATE viral_optimizations SET ${updates.join(', ')} WHERE id = ?`, args: values });
 
       return this.findById(id);
     } catch (error) {
@@ -175,11 +132,10 @@ export const ViralModel = {
     }
   },
 
-  delete(id) {
+  async delete(id) {
     try {
-      const stmt = db.prepare('DELETE FROM viral_optimizations WHERE id = ?');
-      const result = stmt.run(id);
-      return result.changes > 0;
+      const result = await db.execute({ sql: 'DELETE FROM viral_optimizations WHERE id = ?', args: [id] });
+      return result.rowsAffected > 0;
     } catch (error) {
       throw new Error(`Failed to delete viral optimization: ${error.message}`);
     }

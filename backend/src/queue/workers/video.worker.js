@@ -20,7 +20,7 @@ export const videoWorker = new Worker(
 
     try {
       // Update job status to active
-      JobModel.updateStatus(jobId, 'active');
+      await JobModel.updateStatus(jobId, 'active');
       broadcast({ type: 'job.started', jobId, jobType: 'generate-video', projectId });
 
       // Start video generation (initiates async task on MiniMax)
@@ -54,7 +54,7 @@ export const videoWorker = new Worker(
           }
 
           // Update job as completed
-          JobModel.update(jobId, {
+          await JobModel.update(jobId, {
             status: 'completed',
             progress: 100,
             result: { videoId: result.videoId, taskId: result.taskId, fileId: statusResult.fileId },
@@ -68,7 +68,7 @@ export const videoWorker = new Worker(
 
         // Update progress
         const progress = Math.min(95, Math.floor((pollCount / maxPollAttempts) * 100));
-        JobModel.update(jobId, { progress });
+        await JobModel.update(jobId, { progress });
         broadcast({ type: 'job.progress', jobId, jobType: 'generate-video', projectId, progress });
 
         pollCount++;
@@ -79,7 +79,7 @@ export const videoWorker = new Worker(
       throw new Error('Video generation timed out after maximum polling attempts');
     } catch (error) {
       logger.error('Video job failed', { jobId: job.id, error: error.message });
-      JobModel.updateStatus(jobId, 'failed', error.message);
+      await JobModel.updateStatus(jobId, 'failed', error.message);
       broadcast({ type: 'job.failed', jobId, jobType: 'generate-video', projectId, error: error.message });
       throw error;
     }

@@ -20,12 +20,12 @@ export const JobsController = {
         });
       }
 
-      const job = JobModel.create({ projectId, type, inputParams });
+      const job = await JobModel.create({ projectId, type, inputParams });
 
       // Add to appropriate queue
       if (type === 'ffmpeg-process' && inputParams?.musicId) {
         const { MusicModel } = await import('../../database/models/music.model.js');
-        const music = MusicModel.findById(inputParams.musicId);
+        const music = await MusicModel.findById(inputParams.musicId);
         if (music) {
           await addFfmpegJob({
             projectId,
@@ -45,7 +45,7 @@ export const JobsController = {
   async getById(req, res, next) {
     try {
       const { id } = req.params;
-      const job = JobModel.findById(id);
+      const job = await JobModel.findById(id);
 
       if (!job) {
         return res.status(404).json({ error: 'Job not found' });
@@ -60,7 +60,7 @@ export const JobsController = {
   async getByProject(req, res, next) {
     try {
       const { projectId } = req.params;
-      const jobs = JobModel.findByProject(projectId);
+      const jobs = await JobModel.findByProject(projectId);
       res.json(jobs);
     } catch (error) {
       next(error);
@@ -70,7 +70,7 @@ export const JobsController = {
   async cancel(req, res, next) {
     try {
       const { id } = req.params;
-      const job = JobModel.findById(id);
+      const job = await JobModel.findById(id);
 
       if (!job) {
         return res.status(404).json({ error: 'Job not found' });
@@ -80,7 +80,7 @@ export const JobsController = {
         return res.status(400).json({ error: 'Cannot cancel a finished job' });
       }
 
-      JobModel.updateStatus(id, 'cancelled');
+      await JobModel.updateStatus(id, 'cancelled');
       res.json({ message: 'Job cancelled', jobId: id });
     } catch (error) {
       next(error);

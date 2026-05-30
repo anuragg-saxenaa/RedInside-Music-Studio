@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
+import { useAuthFetch } from '../../../hooks/useAuthFetch';
 import type { MusicGeneration } from '../../../types';
 
 interface TrackEditPanelProps {
@@ -21,6 +22,7 @@ interface FormState {
 
 export default function TrackEditPanel({ track, onClose, onSaved }: TrackEditPanelProps) {
   const { activeProjectId, refreshTracks } = useWorkspace();
+  const authFetch = useAuthFetch();
   const [form, setForm] = useState<FormState>({
     title: track.title ?? '',
     artist: track.artist ?? '',
@@ -44,7 +46,7 @@ export default function TrackEditPanel({ track, onClose, onSaved }: TrackEditPan
   const [genError, setGenError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/music/${track.id}/tags`)
+    authFetch(`/api/music/${track.id}/tags`)
       .then(r => r.json())
       .then((t: { bpm?: number; key_signature?: string }) => {
         if (t.bpm) setBpm(Math.round(t.bpm));
@@ -55,7 +57,7 @@ export default function TrackEditPanel({ track, onClose, onSaved }: TrackEditPan
 
   useEffect(() => {
     if (!showGenerate || !track.lyrics_id || artPrompt) return;
-    fetch(`/api/lyrics/${track.lyrics_id}`)
+    authFetch(`/api/lyrics/${track.lyrics_id}`)
       .then(r => r.json())
       .then((l: { content?: string }) => {
         if (l.content) setArtPrompt(l.content.slice(0, 300));
@@ -70,7 +72,7 @@ export default function TrackEditPanel({ track, onClose, onSaved }: TrackEditPan
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/music/${track.id}`, {
+      const res = await authFetch(`/api/music/${track.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -98,7 +100,7 @@ export default function TrackEditPanel({ track, onClose, onSaved }: TrackEditPan
     setGenerating(true);
     setGenError(null);
     try {
-      const genRes = await fetch('/api/image/generate', {
+      const genRes = await authFetch('/api/image/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId: activeProjectId, prompt: artPrompt.trim(), aspectRatio: '1:1', n: 1 }),
@@ -109,7 +111,7 @@ export default function TrackEditPanel({ track, onClose, onSaved }: TrackEditPan
       const imageUrl = genData.imageUrls?.[0];
       if (!imageUrl) { setGenError('No image returned'); return; }
 
-      const fetchRes = await fetch(`/api/projects/${activeProjectId}/artwork/fetch-image`, {
+      const fetchRes = await authFetch(`/api/projects/${activeProjectId}/artwork/fetch-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageUrl }),
@@ -117,7 +119,7 @@ export default function TrackEditPanel({ track, onClose, onSaved }: TrackEditPan
       const fetchData = await fetchRes.json();
       if (!fetchRes.ok || !fetchData.imageData) { setGenError('Failed to fetch image'); return; }
 
-      const saveRes = await fetch(`/api/projects/${activeProjectId}/artwork`, {
+      const saveRes = await authFetch(`/api/projects/${activeProjectId}/artwork`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ musicId: track.id, imageUrl: fetchData.imageData }),

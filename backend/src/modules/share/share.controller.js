@@ -13,15 +13,16 @@ export const ShareController = {
   async create(req, res, next) {
     try {
       const { id: projectId } = req.params;
-      const project = ProjectModel.findById(projectId);
+      const project = await ProjectModel.findById(projectId);
       if (!project) return res.status(404).json({ error: 'Project not found' });
 
       const token = generateToken();
       const expiresAt = new Date(Date.now() + THIRTY_DAYS_MS).toISOString();
 
-      db.prepare(
-        `INSERT INTO project_shares (id, project_id, token, expires_at) VALUES (?, ?, ?, ?)`
-      ).run(uuidv4(), projectId, token, expiresAt);
+      await db.execute({
+        sql: 'INSERT INTO project_shares (id, project_id, token, expires_at) VALUES (?, ?, ?, ?)',
+        args: [uuidv4(), projectId, token, expiresAt],
+      });
 
       res.status(201).json({ token, url: `/share/${token}`, expiresAt });
     } catch (e) { next(e); }
@@ -30,16 +31,18 @@ export const ShareController = {
   async view(req, res, next) {
     try {
       const { token } = req.params;
-      const share = db.prepare(
-        `SELECT * FROM project_shares WHERE token = ? AND expires_at > CURRENT_TIMESTAMP`
-      ).get(token);
+      const shareResult = await db.execute({
+        sql: 'SELECT * FROM project_shares WHERE token = ? AND expires_at > CURRENT_TIMESTAMP',
+        args: [token],
+      });
+      const share = shareResult.rows[0];
 
       if (!share) return res.status(404).json({ error: 'Share link not found or expired' });
 
-      const project = ProjectModel.findById(share.project_id);
+      const project = await ProjectModel.findById(share.project_id);
       if (!project) return res.status(404).json({ error: 'Project not found' });
 
-      const music = MusicModel.findByProject(share.project_id);
+      const music = await MusicModel.findByProject(share.project_id);
 
       res.json({ project, music, expiresAt: share.expires_at });
     } catch (e) { next(e); }

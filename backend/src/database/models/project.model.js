@@ -2,7 +2,7 @@ import db from '../connection.js';
 import { nanoid } from 'nanoid';
 
 export const ProjectModel = {
-  create(data) {
+  async create(data) {
     try {
       // Validate input
       if (!data.name || typeof data.name !== 'string' || data.name.trim() === '') {
@@ -10,12 +10,12 @@ export const ProjectModel = {
       }
 
       const id = nanoid();
-      const stmt = db.prepare(`
-        INSERT INTO projects (id, name, description, workflow_mode)
-        VALUES (?, ?, ?, ?)
-      `);
-
-      stmt.run(id, data.name, data.description || null, data.workflowMode || 'hybrid');
+      const userId = data.userId || 'admin';
+      await db.execute({
+        sql: `INSERT INTO projects (id, name, description, workflow_mode, user_id)
+              VALUES (?, ?, ?, ?, ?)`,
+        args: [id, data.name, data.description || null, data.workflowMode || 'hybrid', userId],
+      });
 
       return this.findById(id);
     } catch (error) {
@@ -23,15 +23,17 @@ export const ProjectModel = {
     }
   },
 
-  findById(id) {
-    return db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
+  async findById(id) {
+    const result = await db.execute({ sql: 'SELECT * FROM projects WHERE id = ?', args: [id] });
+    return result.rows[0] || null;
   },
 
-  findAll() {
-    return db.prepare('SELECT * FROM projects ORDER BY created_at DESC').all();
+  async findAll() {
+    const result = await db.execute('SELECT * FROM projects ORDER BY created_at DESC');
+    return result.rows;
   },
 
-  update(id, data) {
+  async update(id, data) {
     try {
       const updates = [];
       const values = [];
@@ -68,8 +70,7 @@ export const ProjectModel = {
       updates.push('updated_at = CURRENT_TIMESTAMP');
       values.push(id);
 
-      const stmt = db.prepare(`UPDATE projects SET ${updates.join(', ')} WHERE id = ?`);
-      stmt.run(...values);
+      await db.execute({ sql: `UPDATE projects SET ${updates.join(', ')} WHERE id = ?`, args: values });
 
       return this.findById(id);
     } catch (error) {
@@ -77,21 +78,21 @@ export const ProjectModel = {
     }
   },
 
-  incrementVersion(id, type) {
+  async incrementVersion(id, type) {
     try {
       // Add validation to prevent SQL injection
       if (!['lyrics', 'music', 'video'].includes(type)) {
         throw new Error(`Invalid version type: ${type}`);
       }
       const field = `current_${type}_version`;
-      db.prepare(`UPDATE projects SET ${field} = ${field} + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(id);
+      await db.execute({ sql: `UPDATE projects SET ${field} = ${field} + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, args: [id] });
     } catch (error) {
       throw new Error(`Failed to increment version: ${error.message}`);
     }
   },
 
-  delete(id) {
-    db.prepare('DELETE FROM voice_clones WHERE project_id = ?').run(id);
-    db.prepare('DELETE FROM projects WHERE id = ?').run(id);
+  async delete(id) {
+    await db.execute({ sql: 'DELETE FROM voice_clones WHERE project_id = ?', args: [id] });
+    await db.execute({ sql: 'DELETE FROM projects WHERE id = ?', args: [id] });
   },
 };

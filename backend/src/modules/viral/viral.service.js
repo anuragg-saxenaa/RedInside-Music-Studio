@@ -174,7 +174,7 @@ export class ViralToolkitService {
       const { trendsUsed, hookScore, structureTemplate, referenceTrackUrl, optimizationParams } = optimizations;
 
       // Validate lyrics exists
-      const lyrics = LyricsModel.findById(lyricsId);
+      const lyrics = await LyricsModel.findById(lyricsId);
       if (!lyrics) {
         const err = new Error(`Lyrics not found: ${lyricsId}`);
         err.statusCode = 404;
@@ -182,7 +182,7 @@ export class ViralToolkitService {
       }
 
       // Create optimization record
-      const optimization = ViralModel.create({
+      const optimization = await ViralModel.create({
         generationId: lyricsId,
         generationType: 'lyrics',
         trendsUsed,
@@ -213,7 +213,7 @@ export class ViralToolkitService {
    */
   async getOptimizationForLyrics(lyricsId) {
     try {
-      return ViralModel.getLatestByGeneration(lyricsId, 'lyrics');
+      return await ViralModel.getLatestByGeneration(lyricsId, 'lyrics');
     } catch (error) {
       logger.error('Failed to get optimization for lyrics', { error: error.message, lyricsId });
       throw error;

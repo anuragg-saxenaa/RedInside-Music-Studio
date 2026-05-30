@@ -2,33 +2,29 @@ import db from '../database/connection.js';
 import { nanoid } from 'nanoid';
 
 export const JobModel = {
-  create(data) {
+  async create(data) {
     const id = nanoid();
-    const stmt = db.prepare(`
-      INSERT INTO jobs (id, project_id, type, status, progress, input_params, result, error_message)
-      VALUES (?, ?, ?, 'queued', 0, ?, NULL, NULL)
-    `);
-
-    stmt.run(
-      id,
-      data.projectId,
-      data.type,
-      data.inputParams ? JSON.stringify(data.inputParams) : null
-    );
+    await db.execute({
+      sql: `INSERT INTO jobs (id, project_id, type, status, progress, input_params, result, error_message)
+            VALUES (?, ?, ?, 'queued', 0, ?, NULL, NULL)`,
+      args: [id, data.projectId, data.type, data.inputParams ? JSON.stringify(data.inputParams) : null],
+    });
 
     return this.findById(id);
   },
 
-  findById(id) {
-    const row = db.prepare('SELECT * FROM jobs WHERE id = ?').get(id);
-    if (row && row.input_params) {
+  async findById(id) {
+    const result = await db.execute({ sql: 'SELECT * FROM jobs WHERE id = ?', args: [id] });
+    const row = result.rows[0];
+    if (!row) return null;
+    if (row.input_params) {
       try {
         row.input_params = JSON.parse(row.input_params);
       } catch (e) {
         row.input_params = null;
       }
     }
-    if (row && row.result) {
+    if (row.result) {
       try {
         row.result = JSON.parse(row.result);
       } catch (e) {
@@ -38,11 +34,12 @@ export const JobModel = {
     return row;
   },
 
-  findByProject(projectId) {
-    return db.prepare('SELECT * FROM jobs WHERE project_id = ? ORDER BY created_at DESC').all(projectId);
+  async findByProject(projectId) {
+    const result = await db.execute({ sql: 'SELECT * FROM jobs WHERE project_id = ? ORDER BY created_at DESC', args: [projectId] });
+    return result.rows;
   },
 
-  update(id, data) {
+  async update(id, data) {
     const updates = [];
     const values = [];
 
@@ -76,13 +73,12 @@ export const JobModel = {
     }
 
     values.push(id);
-    const stmt = db.prepare(`UPDATE jobs SET ${updates.join(', ')} WHERE id = ?`);
-    stmt.run(...values);
+    await db.execute({ sql: `UPDATE jobs SET ${updates.join(', ')} WHERE id = ?`, args: values });
 
     return this.findById(id);
   },
 
-  updateStatus(id, status, errorMessage = null) {
+  async updateStatus(id, status, errorMessage = null) {
     const updates = ['status = ?'];
     const values = [status];
 
@@ -98,8 +94,7 @@ export const JobModel = {
     }
 
     values.push(id);
-    const stmt = db.prepare(`UPDATE jobs SET ${updates.join(', ')} WHERE id = ?`);
-    stmt.run(...values);
+    await db.execute({ sql: `UPDATE jobs SET ${updates.join(', ')} WHERE id = ?`, args: values });
 
     return this.findById(id);
   },

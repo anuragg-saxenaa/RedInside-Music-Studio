@@ -51,8 +51,8 @@ export const DownloaderController = {
           const destFile = path.join(musicDir, `${downloadId}.mp3`);
           fs.copyFileSync(filePath, destFile);
 
-          const version = MusicModel.getNextVersion(projectId);
-          const music = MusicModel.create({
+          const version = await MusicModel.getNextVersion(projectId);
+          const music = await MusicModel.create({
             projectId,
             title,
             model: 'youtube-download',
@@ -62,7 +62,7 @@ export const DownloaderController = {
             version,
           });
 
-          ProjectModel.incrementVersion(projectId, 'music');
+          await ProjectModel.incrementVersion(projectId, 'music');
 
           broadcast({
             event: 'download.completed',

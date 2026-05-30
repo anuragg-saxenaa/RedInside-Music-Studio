@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { C } from '../shared/colors';
 import GlassPanel from '../shared/GlassPanel';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
+import { useAuthFetch } from '../../../hooks/useAuthFetch';
 
 const SMART_PLAYLISTS = [
   { id: '__all_mastered', name: 'All Mastered' },
@@ -11,6 +12,7 @@ const SMART_PLAYLISTS = [
 
 export default function PlaylistSection() {
   const { playlists, refreshPlaylists } = useWorkspace();
+  const authFetch = useAuthFetch();
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
@@ -19,7 +21,7 @@ export default function PlaylistSection() {
     if (!newName.trim()) return;
     setCreating(true);
     try {
-      await fetch('/api/playlists', {
+      await authFetch('/api/playlists', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newName.trim() }),
@@ -33,7 +35,7 @@ export default function PlaylistSection() {
 
   const deletePlaylist = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    await fetch(`/api/playlists/${id}`, { method: 'DELETE' });
+    await authFetch(`/api/playlists/${id}`, { method: 'DELETE' });
     refreshPlaylists();
     if (activePlaylistId === id) setActivePlaylistId(null);
   };

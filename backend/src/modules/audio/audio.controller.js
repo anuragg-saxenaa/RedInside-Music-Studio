@@ -38,7 +38,7 @@ async function convertMusicUrlToPath(url) {
     const [, musicId] = musicMatch;
     try {
       const { MusicModel } = await import('../../database/models/music.model.js');
-      const music = MusicModel.findById(musicId);
+      const music = await MusicModel.findById(musicId);
       if (music) {
         const filePath = music.processed_file_path || music.original_file_path;
         if (filePath && fs.existsSync(filePath)) {
@@ -83,7 +83,7 @@ async function resolveInputPath(body) {
   if (musicId) {
     try {
       const { MusicModel } = await import('../../database/models/music.model.js');
-      const music = MusicModel.findById(musicId);
+      const music = await MusicModel.findById(musicId);
       if (music) {
         const fp = music.processed_file_path || music.original_file_path;
         if (fp && fs.existsSync(fp)) return fp;
@@ -386,7 +386,7 @@ export const AudioController = {
       // If it looks like a music ID (not an absolute path), look up in DB
       if (!filePath.startsWith('/')) {
         const { MusicModel } = await import('../../database/models/music.model.js');
-        const music = MusicModel.findById(filePath);
+        const music = await MusicModel.findById(filePath);
         if (!music) {
           return res.status(404).json({ error: 'Music not found' });
         }
@@ -586,7 +586,7 @@ export const AudioController = {
       if (!projectId) return res.status(400).json({ error: 'projectId is required' });
 
       const { MusicModel } = await import('../../database/models/music.model.js');
-      const music = MusicModel.findById(musicId);
+      const music = await MusicModel.findById(musicId);
       if (!music) return res.status(404).json({ error: 'Music not found' });
 
       const inputPath = music.processed_file_path || music.original_file_path;
@@ -594,7 +594,7 @@ export const AudioController = {
         return res.status(404).json({ error: 'Audio file not found on disk' });
       }
 
-      const sqliteJob = JobModel.create({
+      const sqliteJob = await JobModel.create({
         projectId,
         type: 'vocal-removal',
         inputParams: { musicId, inputPath },

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
+import { useAuthFetch } from '../../../hooks/useAuthFetch';
 
 function fmtTime(s: number) {
   if (!s || !isFinite(s)) return '0:00';
@@ -30,6 +31,7 @@ export default function PlayerBar() {
     isLooping, isShuffled, toggleLoop, toggleShuffle,
     setActiveTab,
   } = useWorkspace();
+  const authFetch = useAuthFetch();
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const isDragging = useRef(false);
@@ -47,7 +49,7 @@ export default function PlayerBar() {
   const saveTitle = async () => {
     if (!playerTrack || !titleDraft.trim()) { setEditingTitle(false); return; }
     const trimmed = titleDraft.trim();
-    await fetch(`/api/music/${playerTrack.id}`, {
+    await authFetch(`/api/music/${playerTrack.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: trimmed }),

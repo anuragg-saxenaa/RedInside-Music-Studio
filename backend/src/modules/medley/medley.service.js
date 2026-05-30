@@ -12,7 +12,7 @@ async function resolveTrackFilePath(sourceFilePath) {
     const match = sourceFilePath.match(/^\/api\/music\/([^/]+)\/file$/);
     if (match) {
       const { MusicModel } = await import('../../database/models/music.model.js');
-      const music = MusicModel.findById(match[1]);
+      const music = await MusicModel.findById(match[1]);
       if (music) {
         const fp = music.processed_file_path || music.original_file_path;
         if (fp && fs.existsSync(fp)) return fp;
@@ -49,7 +49,7 @@ export class MedleyService {
       throw new Error('Medley name is required');
     }
 
-    const project = ProjectModel.findById(projectId);
+    const project = await ProjectModel.findById(projectId);
     if (!project) {
       const err = new Error(`Project not found: ${projectId}`);
       err.statusCode = 404;
@@ -59,7 +59,7 @@ export class MedleyService {
     // Create storage directories
     storage.createProjectDirs(projectId);
 
-    const medley = MedleyModel.create({
+    const medley = await MedleyModel.create({
       projectId,
       name,
       description,
@@ -75,7 +75,7 @@ export class MedleyService {
    * @returns {Object} - Medley with tracks
    */
   async getMedley(medleyId) {
-    const medley = MedleyModel.findByIdWithTracks(medleyId);
+    const medley = await MedleyModel.findByIdWithTracks(medleyId);
     if (!medley) {
       const err = new Error(`Medley not found: ${medleyId}`);
       err.statusCode = 404;
@@ -91,14 +91,14 @@ export class MedleyService {
    * @returns {Object} - Updated medley
    */
   async updateMedley(medleyId, updates) {
-    const medley = MedleyModel.findById(medleyId);
+    const medley = await MedleyModel.findById(medleyId);
     if (!medley) {
       const err = new Error(`Medley not found: ${medleyId}`);
       err.statusCode = 404;
       throw err;
     }
 
-    const updated = MedleyModel.update(medleyId, {
+    const updated = await MedleyModel.update(medleyId, {
       name: updates.name,
       description: updates.description,
     });
@@ -113,7 +113,7 @@ export class MedleyService {
    * @returns {boolean} - Success
    */
   async deleteMedley(medleyId) {
-    const medley = MedleyModel.findById(medleyId);
+    const medley = await MedleyModel.findById(medleyId);
     if (!medley) {
       const err = new Error(`Medley not found: ${medleyId}`);
       err.statusCode = 404;
@@ -129,7 +129,7 @@ export class MedleyService {
       }
     }
 
-    const result = MedleyModel.delete(medleyId);
+    const result = await MedleyModel.delete(medleyId);
     logger.info('Medley deleted', { medleyId });
     return result;
   }
@@ -141,7 +141,7 @@ export class MedleyService {
    * @returns {Object} - Created track
    */
   async addTrack(medleyId, trackData) {
-    const medley = MedleyModel.findById(medleyId);
+    const medley = await MedleyModel.findById(medleyId);
     if (!medley) {
       const err = new Error(`Medley not found: ${medleyId}`);
       err.statusCode = 404;
@@ -154,10 +154,10 @@ export class MedleyService {
     }
 
     // Get next order index
-    const existingTracks = MedleyModel.getTracks(medleyId);
+    const existingTracks = await MedleyModel.getTracks(medleyId);
     const orderIndex = existingTracks.length;
 
-    const track = MedleyModel.addTrack({
+    const track = await MedleyModel.addTrack({
       medleyId,
       sourceFilePath: trackData.sourceFilePath,
       orderIndex,
@@ -182,14 +182,14 @@ export class MedleyService {
    * @returns {Object} - Updated track
    */
   async updateTrack(medleyId, trackId, updates) {
-    const track = MedleyModel.findTrackById(trackId);
+    const track = await MedleyModel.findTrackById(trackId);
     if (!track || track.medley_id !== medleyId) {
       const err = new Error(`Track not found: ${trackId}`);
       err.statusCode = 404;
       throw err;
     }
 
-    const updated = MedleyModel.updateTrack(trackId, {
+    const updated = await MedleyModel.updateTrack(trackId, {
       trimStart: updates.trimStart,
       trimEnd: updates.trimEnd,
       speed: updates.speed,
@@ -208,14 +208,14 @@ export class MedleyService {
    * @param {Array<{trackId: string, orderIndex: number}>} orders - New order
    */
   async reorderTracks(medleyId, orders) {
-    const medley = MedleyModel.findById(medleyId);
+    const medley = await MedleyModel.findById(medleyId);
     if (!medley) {
       const err = new Error(`Medley not found: ${medleyId}`);
       err.statusCode = 404;
       throw err;
     }
 
-    MedleyModel.reorderTracks(medleyId, orders);
+    await MedleyModel.reorderTracks(medleyId, orders);
     logger.info('Tracks reordered', { medleyId, orders });
   }
 
@@ -226,14 +226,14 @@ export class MedleyService {
    * @returns {boolean} - Success
    */
   async removeTrack(medleyId, trackId) {
-    const track = MedleyModel.findTrackById(trackId);
+    const track = await MedleyModel.findTrackById(trackId);
     if (!track || track.medley_id !== medleyId) {
       const err = new Error(`Track not found: ${trackId}`);
       err.statusCode = 404;
       throw err;
     }
 
-    const result = MedleyModel.deleteTrack(trackId);
+    const result = await MedleyModel.deleteTrack(trackId);
     logger.info('Track removed from medley', { medleyId, trackId });
     return result;
   }
@@ -245,7 +245,7 @@ export class MedleyService {
    * @returns {Object} - Export result
    */
   async exportMedley(medleyId, options = {}) {
-    const medley = MedleyModel.findByIdWithTracks(medleyId);
+    const medley = await MedleyModel.findByIdWithTracks(medleyId);
     if (!medley) {
       const err = new Error(`Medley not found: ${medleyId}`);
       err.statusCode = 404;
@@ -290,7 +290,7 @@ export class MedleyService {
     });
 
     // Update medley with output info
-    MedleyModel.update(medleyId, {
+    await MedleyModel.update(medleyId, {
       outputFilePath: result.filePath,
       totalDuration: result.duration,
     });
@@ -313,7 +313,7 @@ export class MedleyService {
    * @returns {number} - Total duration in seconds
    */
   async getTotalDuration(medleyId) {
-    const medley = MedleyModel.findByIdWithTracks(medleyId);
+    const medley = await MedleyModel.findByIdWithTracks(medleyId);
     if (!medley) {
       const err = new Error(`Medley not found: ${medleyId}`);
       err.statusCode = 404;

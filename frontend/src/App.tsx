@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 import History from './pages/History';
 import ViralToolkit from './pages/ViralToolkit';
 import Settings from './pages/Settings';
 import StudioV4 from './pages/StudioV4';
 import ShareView from './pages/ShareView';
+import Login from './pages/Login';
 import type { Project, LyricsGeneration, MusicGeneration } from './types';
 import { SharedAudioProvider } from './contexts/SharedAudioContext';
 
@@ -11,9 +13,11 @@ import { SharedAudioProvider } from './contexts/SharedAudioContext';
 export type { Project, LyricsGeneration, MusicGeneration };
 
 function App() {
+  const { isSignedIn, isLoaded } = useAuth();
 
-  const [currentView, setCurrentView] = useState<'studio' | 'history' | 'viral' | 'settings' | 'share'>(() => {
+  const [currentView, setCurrentView] = useState<'studio' | 'history' | 'viral' | 'settings' | 'share' | 'login'>(() => {
     if (window.location.hash.startsWith('#/share/')) return 'share';
+    if (window.location.hash === '#/login') return 'login';
     if (window.location.hash === '#/history') return 'history';
     if (window.location.hash === '#/viral') return 'viral';
     if (window.location.hash === '#/settings') return 'settings';
@@ -25,12 +29,20 @@ function App() {
     return match ? match[1] : '';
   });
 
+  // Force studio view when signed in — handles post-sign-in redirect where hash doesn't change
+  useEffect(() => {
+    if (isSignedIn && currentView === 'login') {
+      setCurrentView('studio');
+    }
+  }, [isSignedIn, currentView]);
+
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash;
       if (hash === '#/history') setCurrentView('history');
       else if (hash === '#/viral') setCurrentView('viral');
       else if (hash === '#/settings') setCurrentView('settings');
+      else if (hash === '#/login') setCurrentView('login');
       else if (hash.startsWith('#/share/')) {
         const match = hash.match(/^#\/share\/(.+)$/);
         if (match) { setShareToken(match[1]); setCurrentView('share'); }
@@ -40,6 +52,14 @@ function App() {
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
+
+  if (!isLoaded) return null;
+
+  if (!isSignedIn && currentView !== 'share' && currentView !== 'login') {
+    return <Login />;
+  }
+
+  if (currentView === 'login') return <Login />;
 
   // StudioV4 is a full-viewport DAW — render it directly, no wrapper
   if (currentView === 'share') {
