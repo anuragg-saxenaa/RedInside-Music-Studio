@@ -41,6 +41,8 @@ jobs:
       TURSO_DATABASE_URL: file:./database/music-studio.sqlite
       TURSO_AUTH_TOKEN: ''
       CLERK_PUBLISHABLE_KEY: pk_test_placeholder
+      STORAGE_DRIVER: local
+      STORAGE_PATH: /tmp/redinside-storage
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
