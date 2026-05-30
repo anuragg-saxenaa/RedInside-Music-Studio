@@ -56,9 +56,8 @@ const config = {
     accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
     bucketName: process.env.R2_BUCKET_NAME || '',
-    endpoint: process.env.R2_ACCOUNT_ID
-      ? `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
-      : '',
+    endpoint: process.env.R2_ENDPOINT ||
+      (process.env.R2_ACCOUNT_ID ? `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : ''),
   },
   storage: {
     driver: process.env.STORAGE_DRIVER || 'local',  // 'local' or 'r2'
