@@ -1,0 +1,10 @@
+[phases.setup]
+nixpkgs = ['nodejs_20']
+
+[phases.install]
+cmds = ['npm ci --omit=dev']
+phaseType = 'start'
+
+[start]
+cmd = 'node backend/src/server.js'
+targetPort = 3000
