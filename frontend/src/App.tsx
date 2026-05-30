@@ -49,7 +49,6 @@ function App() {
   if (!isLoaded) return null;
 
   if (!isSignedIn && currentView !== 'share' && currentView !== 'login') {
-    window.location.hash = '#/login';
     return <Login />;
   }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
+import { useAuthFetch } from '../../../hooks/useAuthFetch';
 import type { Project, MusicGeneration } from '../../../types';
 
 const MAX_PROJECTS_COLLAPSED = 5;
@@ -36,6 +37,7 @@ interface LeftSidebarProps {
 
 export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
   const { projects, activeProjectId, setActiveProjectId, refreshProjects, playlists, refreshPlaylists, tracks, playTrack, setSelectedTrack, playerTrack, playerIsPlaying } = useWorkspace();
+  const authFetch = useAuthFetch();
   const [newProjectName, setNewProjectName] = useState('');
   const [creatingProject, setCreatingProject] = useState(false);
   const [showNewProjectInput, setShowNewProjectInput] = useState(false);
@@ -60,7 +62,7 @@ export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
     if (!newProjectName.trim()) return;
     setCreatingProject(true);
     try {
-      const res = await fetch('/api/projects', {
+      const res = await authFetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newProjectName.trim() }),
@@ -76,14 +78,14 @@ export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
   };
 
   const deleteProject = async (id: string) => {
-    await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+    await authFetch(`/api/projects/${id}`, { method: 'DELETE' });
     refreshProjects();
     setProjectMenu(null);
   };
 
   const renameProject = async (id: string) => {
     if (!renameDraft.trim()) { setRenamingId(null); return; }
-    await fetch(`/api/projects/${id}`, {
+    await authFetch(`/api/projects/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: renameDraft.trim() }),
@@ -97,7 +99,7 @@ export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
     if (!newPlaylistName.trim()) return;
     setCreatingPlaylist(true);
     try {
-      await fetch('/api/playlists', {
+      await authFetch('/api/playlists', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newPlaylistName.trim() }),
@@ -111,7 +113,7 @@ export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
 
   const deletePlaylist = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    await fetch(`/api/playlists/${id}`, { method: 'DELETE' });
+    await authFetch(`/api/playlists/${id}`, { method: 'DELETE' });
     refreshPlaylists();
     setPlaylistTracks(prev => { const n = { ...prev }; delete n[id]; return n; });
     if (activePlaylistId === id) setActivePlaylistId(null);
@@ -121,7 +123,7 @@ export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
   // tracks dependency catches renames: refreshTracks() updates tracks but not playlists
   useEffect(() => {
     if (activePlaylistId && playlistTracks[activePlaylistId] !== undefined) {
-      fetch(`/api/playlists/${activePlaylistId}/tracks`)
+      authFetch(`/api/playlists/${activePlaylistId}/tracks`)
         .then(r => r.json())
         .then((ts: MusicGeneration[]) =>
           setPlaylistTracks(prev => ({ ...prev, [activePlaylistId]: ts }))
@@ -525,7 +527,7 @@ export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
                       const next = expanded ? null : pl.id;
                       setActivePlaylistId(next);
                       if (next && !playlistTracks[pl.id]) {
-                        fetch(`/api/playlists/${pl.id}/tracks`)
+                        authFetch(`/api/playlists/${pl.id}/tracks`)
                           .then(r => r.json())
                           .then((ts: MusicGeneration[]) =>
                             setPlaylistTracks(prev => ({ ...prev, [pl.id]: ts }))

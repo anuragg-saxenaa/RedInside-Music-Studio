@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
+import { useAuthFetch } from '../../../hooks/useAuthFetch';
 import type { Album, MusicGeneration } from '../../../types';
 
 export default function AlbumTab() {
   const { activeProjectId, tracks } = useWorkspace();
+  const authFetch = useAuthFetch();
   const [albums, setAlbums] = useState<Album[]>([]);
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
   const [albumTracks, setAlbumTracks] = useState<MusicGeneration[]>([]);
@@ -24,7 +26,7 @@ export default function AlbumTab() {
 
   const loadAlbums = () => {
     if (!activeProjectId) return;
-    fetch(`/api/projects/${activeProjectId}/albums`)
+    authFetch(`/api/projects/${activeProjectId}/albums`)
       .then(r => r.json())
       .then((list: Album[]) => setAlbums(list))
       .catch(() => {});
@@ -33,7 +35,7 @@ export default function AlbumTab() {
   useEffect(loadAlbums, [activeProjectId]);
 
   const loadAlbumTracks = (albumId: string) => {
-    fetch(`/api/projects/${activeProjectId}/albums/${albumId}/tracks`)
+    authFetch(`/api/projects/${activeProjectId}/albums/${albumId}/tracks`)
       .then(r => r.json())
       .then((list: MusicGeneration[]) => setAlbumTracks(list))
       .catch(() => {});
@@ -57,7 +59,7 @@ export default function AlbumTab() {
     if (!activeProjectId) return;
     setCreating(true);
     try {
-      const res = await fetch(`/api/projects/${activeProjectId}/albums`, {
+      const res = await authFetch(`/api/projects/${activeProjectId}/albums`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'New Album' }),
@@ -72,7 +74,7 @@ export default function AlbumTab() {
     if (!selectedAlbumId || !activeProjectId) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/projects/${activeProjectId}/albums/${selectedAlbumId}`, {
+      const res = await authFetch(`/api/projects/${activeProjectId}/albums/${selectedAlbumId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -91,7 +93,7 @@ export default function AlbumTab() {
   const deleteAlbum = async () => {
     if (!selectedAlbumId || !activeProjectId) return;
     if (!confirm(`Delete album "${selectedAlbum?.title}"? This cannot be undone.`)) return;
-    await fetch(`/api/projects/${activeProjectId}/albums/${selectedAlbumId}`, { method: 'DELETE' });
+    await authFetch(`/api/projects/${activeProjectId}/albums/${selectedAlbumId}`, { method: 'DELETE' });
     setAlbums(prev => prev.filter(a => a.id !== selectedAlbumId));
     setSelectedAlbumId(null);
     setAlbumTracks([]);
@@ -99,7 +101,7 @@ export default function AlbumTab() {
 
   const addTrack = async (musicId: string) => {
     if (!selectedAlbumId || !activeProjectId) return;
-    await fetch(`/api/projects/${activeProjectId}/albums/${selectedAlbumId}/tracks`, {
+    await authFetch(`/api/projects/${activeProjectId}/albums/${selectedAlbumId}/tracks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ musicId }),
@@ -109,14 +111,14 @@ export default function AlbumTab() {
 
   const removeTrack = async (musicId: string) => {
     if (!selectedAlbumId || !activeProjectId) return;
-    await fetch(`/api/projects/${activeProjectId}/albums/${selectedAlbumId}/tracks/${musicId}`, { method: 'DELETE' });
+    await authFetch(`/api/projects/${activeProjectId}/albums/${selectedAlbumId}/tracks/${musicId}`, { method: 'DELETE' });
     setAlbumTracks(prev => prev.filter(t => t.id !== musicId));
   };
 
   const reorder = async (newOrder: MusicGeneration[]) => {
     if (!selectedAlbumId || !activeProjectId) return;
     setAlbumTracks(newOrder);
-    await fetch(`/api/projects/${activeProjectId}/albums/${selectedAlbumId}/tracks/reorder`, {
+    await authFetch(`/api/projects/${activeProjectId}/albums/${selectedAlbumId}/tracks/reorder`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ order: newOrder.map(t => t.id) }),
@@ -128,7 +130,7 @@ export default function AlbumTab() {
     setGenerating(true);
     setGenError(null);
     try {
-      const genRes = await fetch('/api/image/generate', {
+      const genRes = await authFetch('/api/image/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId: activeProjectId, prompt: artPrompt.trim(), aspectRatio: '1:1', n: 1 }),
@@ -139,7 +141,7 @@ export default function AlbumTab() {
       const imageUrl = genData.imageUrls?.[0];
       if (!imageUrl) { setGenError('No image returned'); return; }
 
-      const fetchRes = await fetch(`/api/projects/${activeProjectId}/artwork/fetch-image`, {
+      const fetchRes = await authFetch(`/api/projects/${activeProjectId}/artwork/fetch-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageUrl }),
@@ -147,7 +149,7 @@ export default function AlbumTab() {
       const fetchData = await fetchRes.json();
       if (!fetchRes.ok || !fetchData.imageData) { setGenError('Failed to fetch image'); return; }
 
-      const saveRes = await fetch(`/api/projects/${activeProjectId}/albums/${selectedAlbumId}/artwork`, {
+      const saveRes = await authFetch(`/api/projects/${activeProjectId}/albums/${selectedAlbumId}/artwork`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageData: fetchData.imageData }),

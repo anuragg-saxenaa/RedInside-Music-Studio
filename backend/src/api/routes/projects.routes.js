@@ -8,7 +8,7 @@ import db from '../../database/connection.js';
 export const ProjectsController = {
   async create(req, res, next) {
     try {
-      const userId = req.auth?.userId || 'admin';
+      const userId = req.auth.userId;
       const { name, description, workflowMode } = req.body;
 
       if (!name || typeof name !== 'string') {
@@ -32,7 +32,7 @@ export const ProjectsController = {
 
   async getById(req, res, next) {
     try {
-      const userId = req.auth?.userId || 'admin';
+      const userId = req.auth.userId;
       const { id } = req.params;
       const project = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?').get(id, userId);
 
@@ -48,7 +48,7 @@ export const ProjectsController = {
 
   async getAll(req, res, next) {
     try {
-      const userId = req.auth?.userId || 'admin';
+      const userId = req.auth.userId;
       const projects = db.prepare('SELECT * FROM projects WHERE user_id = ? ORDER BY updated_at DESC').all(userId);
       res.json(projects);
     } catch (error) {
@@ -58,7 +58,7 @@ export const ProjectsController = {
 
   async update(req, res, next) {
     try {
-      const userId = req.auth?.userId || 'admin';
+      const userId = req.auth.userId;
       const { id } = req.params;
       const { name, description, workflowMode } = req.body;
 
@@ -81,7 +81,7 @@ export const ProjectsController = {
 
   async delete(req, res, next) {
     try {
-      const userId = req.auth?.userId || 'admin';
+      const userId = req.auth.userId;
       const { id } = req.params;
 
       const existing = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?').get(id, userId);

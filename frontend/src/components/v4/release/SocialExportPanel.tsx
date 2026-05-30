@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { C } from '../shared/colors';
+import { useAuthFetch } from '../../../hooks/useAuthFetch';
 import type { MusicGeneration } from '../../../types';
 
 const PRESETS = [
@@ -14,6 +15,7 @@ interface SocialExportPanelProps {
 }
 
 export default function SocialExportPanel({ track }: SocialExportPanelProps) {
+  const authFetch = useAuthFetch();
   const [exporting, setExporting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,7 +24,7 @@ export default function SocialExportPanel({ track }: SocialExportPanelProps) {
     setExporting(preset);
     setError(null);
     try {
-      const res = await fetch('/api/audio/social-export', {
+      const res = await authFetch('/api/audio/social-export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ musicId: track.id, preset }),

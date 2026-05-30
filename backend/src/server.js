@@ -43,6 +43,10 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+if (!process.env.CLERK_SECRET_KEY && process.env.NODE_ENV !== 'test' && !process.env.CI) {
+  throw new Error('CLERK_SECRET_KEY env var is required in production');
+}
+
 app.use(clerkMiddleware());
 
 app.use('/api', (req, res, next) => {
