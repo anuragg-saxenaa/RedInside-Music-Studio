@@ -60,10 +60,6 @@ if (hasRealClerkKey) {
     return requireAuth()(req, res, next);
   });
 }
-  if (req.path.startsWith('/share/')) return next();
-  if (req.path === '/test/seed-project' || req.path.startsWith('/test/')) return next();
-  return requireAuth()(req, res, next);
-});
 
 // Request logging
 app.use((req, res, next) => {
