@@ -52,7 +52,7 @@ jobs:
       - run: node backend/tests/minimax-mock-server.js &
       - run: npx wait-on http://localhost:8999/health --timeout 10000 || true
       - run: cd backend && node src/server.js &
-      - run: npx wait-on http://localhost:3000/health --timeout 15000
+      - run: npx wait-on http://localhost:3000/health --timeout 30000
       - run: cd backend && npm test
 
   frontend-tests:
