@@ -1,6 +1,6 @@
 FROM node:20-alpine
 
-RUN corepack enable && corepack prepare pnpm@latest --activate && \
+RUN corepack enable && corepack prepare pnpm@9 --activate && \
     apk add --no-cache python3 make g++
 
 WORKDIR /app
