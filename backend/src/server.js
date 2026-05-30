@@ -49,6 +49,8 @@ if (!process.env.CLERK_SECRET_KEY && process.env.NODE_ENV !== 'test' && !process
 
 app.use(clerkMiddleware());
 
+// Clerk middleware skips these paths (no auth needed)
+app.use('/health', (_req, res, next) => next());
 app.use('/api', (req, res, next) => {
   if (req.path.startsWith('/share/')) return next();
   if (req.path === '/test/seed-project' || req.path.startsWith('/test/')) return next();
