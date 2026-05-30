@@ -58,3 +58,13 @@ Thumbs.db
 
 # Playwright test results (screenshots, traces)
 frontend/test-results/
+
+# Graphify knowledge graph output
+graphify-out/
+
+# Superpowers brainstorm artifacts
+.superpowers/brainstorm/
+
+# Backend dev artifacts
+backend/database/
+backend/verify-migrations.js
