@@ -148,7 +148,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         if (raw) {
           const { track, currentTime }: PersistedPlayer = JSON.parse(raw);
           persistentTrack = track;
-          const audio = new Audio(`/api/music/${track.id}/file`);
+          const audio = new Audio(`${API_BASE}/api/music/${track.id}/file`);
           persistentAudio = audio;
           audioRef.current = audio;
           audio.volume = playerVolume;
@@ -251,7 +251,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const playTrack = useCallback((track: MusicGeneration) => {
     if (persistentAudio) { persistentAudio.pause(); persistentAudio.src = ''; }
-    const audio = new Audio(`/api/music/${track.id}/file`);
+    const audio = new Audio(`${API_BASE}/api/music/${track.id}/file`);
     audio.volume = playerVolume;
     persistentAudio = audio;
     audioRef.current = audio;

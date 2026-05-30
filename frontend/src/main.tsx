@@ -26,16 +26,16 @@ if (import.meta.env.VITE_API_BASE_URL) {
 if (import.meta.env.VITE_API_BASE_URL) {
   const BASE = import.meta.env.VITE_API_BASE_URL;
   const patchEl = (el: Element) => {
-    if (el.tagName === 'IMG') {
-      const img = el as HTMLImageElement;
-      const attr = img.getAttribute('src') || '';
-      if (attr.startsWith('/api')) img.setAttribute('src', BASE + attr);
+    const tag = el.tagName;
+    if (tag === 'IMG' || tag === 'AUDIO' || tag === 'SOURCE') {
+      const attr = (el as HTMLElement).getAttribute('src') || '';
+      if (attr.startsWith('/api')) (el as HTMLElement).setAttribute('src', BASE + attr);
     }
   };
   const obs = new MutationObserver(muts => {
     for (const m of muts) {
       m.addedNodes.forEach(n => {
-        if (n.nodeType === 1) { patchEl(n as Element); (n as Element).querySelectorAll?.('img[src^="/api"]').forEach(patchEl); }
+        if (n.nodeType === 1) { patchEl(n as Element); (n as Element).querySelectorAll?.('img[src^="/api"],audio[src^="/api"],source[src^="/api"]').forEach(patchEl); }
       });
       if (m.type === 'attributes' && m.target.nodeType === 1) patchEl(m.target as Element);
     }
