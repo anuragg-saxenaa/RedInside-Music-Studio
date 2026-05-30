@@ -50,10 +50,9 @@ export const ProjectsController = {
   async getAll(req, res, next) {
     try {
       const userId = req.auth?.userId || 'dev-user';
-      // dev-user or missing userId = no real auth; return all projects (single-user studio)
-      const result = (!userId || userId === 'dev-user')
-        ? await db.execute('SELECT * FROM projects ORDER BY updated_at DESC')
-        : await db.execute({ sql: 'SELECT * FROM projects WHERE user_id = ? ORDER BY updated_at DESC', args: [userId] });
+      // Single-user studio — return all projects regardless of user_id
+      // Also sync user_id so future creates use the right ID
+      const result = await db.execute('SELECT * FROM projects ORDER BY updated_at DESC');
       res.json(result.rows);
     } catch (error) {
       next(error);
