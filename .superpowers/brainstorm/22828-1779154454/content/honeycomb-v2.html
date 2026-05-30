@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phase 4 — Honeycomb v2</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, 'SF Pro Display', 'Inter', sans-serif; background:#000; color:#fff; padding:24px; }
+h1 { font-size:18px; font-weight:700; margin-bottom:4px; }
+.sub { color:#555; font-size:12px; margin-bottom:24px; }
+
+.app {
+  width:100%; max-width:960px; height:590px;
+  border-radius:20px; overflow:hidden;
+  display:flex; flex-direction:column; position:relative;
+  border:1px solid rgba(230,57,70,0.3);
+  box-shadow:0 0 0 1px rgba(230,57,70,0.1), 0 40px 100px rgba(0,0,0,0.95), 0 0 60px rgba(180,20,30,0.12);
+}
+
+/* ── Canvas BG ── */
+#hc { position:absolute; inset:0; width:100%; height:100%; z-index:0; }
+
+/* glass */
+.glass {
+  background:rgba(0,0,0,0.55);
+  backdrop-filter:blur(18px) saturate(1.2);
+  -webkit-backdrop-filter:blur(18px) saturate(1.2);
+  border:1px solid rgba(230,57,70,0.16);
+}
+.glass-active {
+  background:rgba(230,57,70,0.09);
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+  border:1px solid rgba(230,57,70,0.36);
+}
+
+.ui { position:relative; z-index:1; display:flex; flex-direction:column; height:100%; }
+
+/* titlebar */
+.titlebar {
+  height:40px; display:flex; align-items:center; padding:0 16px; gap:12px;
+  background:rgba(0,0,0,0.72); border-bottom:1px solid rgba(230,57,70,0.22);
+  backdrop-filter:blur(14px); flex-shrink:0;
+}
+.dot { width:10px; height:10px; border-radius:50%; }
+.wordmark { font-size:11px; font-weight:800; letter-spacing:.18em; color:#fff; }
+.wordmark span { color:#E63946; text-shadow:0 0 16px rgba(230,57,70,1); }
+
+.body { flex:1; display:flex; overflow:hidden; }
+
+.sidebar {
+  width:172px; flex-shrink:0; border-right:1px solid rgba(230,57,70,0.14);
+  display:flex; flex-direction:column; padding:12px 0;
+  background:rgba(0,0,0,0.62); backdrop-filter:blur(16px);
+}
+.s-sec { padding:0 11px; margin-bottom:14px; }
+.s-lbl { font-size:7.5px; font-weight:700; letter-spacing:.13em; color:rgba(230,57,70,0.5); margin-bottom:5px; }
+.s-item { padding:5px 8px; font-size:10px; color:rgba(255,255,255,0.3); border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:7px; margin-bottom:1px; }
+.s-item.on { background:rgba(230,57,70,0.15); border:1px solid rgba(230,57,70,0.32); color:#fff; }
+.pip { width:5px; height:5px; border-radius:50%; background:rgba(255,255,255,0.1); flex-shrink:0; }
+.s-item.on .pip { background:#E63946; box-shadow:0 0 8px #E63946; }
+.pl-badge { font-size:7.5px; margin-left:auto; background:rgba(230,57,70,0.14); border:1px solid rgba(230,57,70,0.28); color:rgba(230,57,70,0.8); padding:1px 5px; border-radius:8px; }
+
+.main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.tabs {
+  height:38px; border-bottom:1px solid rgba(230,57,70,0.14);
+  display:flex; align-items:flex-end; padding:0 16px; gap:2px;
+  background:rgba(0,0,0,0.5); backdrop-filter:blur(10px); flex-shrink:0;
+}
+.tab { padding:6px 14px; font-size:9px; font-weight:700; letter-spacing:.08em; color:rgba(255,255,255,0.2); border-radius:6px 6px 0 0; cursor:pointer; border:1px solid transparent; border-bottom:none; }
+.tab.on { background:rgba(230,57,70,0.12); border-color:rgba(230,57,70,0.3); color:#ff7a84; }
+.tdot { display:inline-block; width:4px; height:4px; border-radius:50%; background:#E63946; box-shadow:0 0 6px #E63946; margin-right:5px; vertical-align:middle; }
+
+.content { flex:1; padding:14px; overflow-y:auto; display:flex; flex-direction:column; gap:9px; }
+
+.track { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px; cursor:pointer; }
+.track.on { background:rgba(230,57,70,0.10); border:1px solid rgba(230,57,70,0.32); }
+.track:not(.on) { background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.05); }
+.t-art { width:32px; height:32px; border-radius:6px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:13px; }
+.t-name { font-size:10px; font-weight:600; color:#fff; }
+.t-meta { font-size:8px; color:rgba(255,255,255,0.27); margin-top:1px; }
+.wv { display:flex; align-items:center; gap:1.5px; height:18px; }
+.b { width:2px; border-radius:1px; background:rgba(230,57,70,0.22); }
+.b.l { background:#E63946; box-shadow:0 0 4px rgba(230,57,70,0.7); }
+.badge { font-size:7px; padding:2px 6px; border-radius:8px; font-weight:700; }
+.bm { background:rgba(74,222,128,0.12); border:1px solid rgba(74,222,128,0.28); color:#4ade80; }
+.bb { background:rgba(255,184,0,0.12); border:1px solid rgba(255,184,0,0.28); color:#FFB800; }
+.br { background:rgba(230,57,70,0.12); border:1px solid rgba(230,57,70,0.28); color:rgba(230,57,70,0.9); }
+
+.btn-p { display:inline-flex; align-items:center; gap:5px; padding:7px 14px; background:linear-gradient(135deg,#E63946,#a01828); border-radius:8px; font-size:9px; font-weight:800; letter-spacing:.07em; color:#fff; border:none; cursor:pointer; box-shadow:0 4px 20px rgba(230,57,70,0.5), 0 0 0 1px rgba(230,57,70,0.45); }
+.btn-g { display:inline-flex; align-items:center; gap:5px; padding:6px 11px; background:rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.09); border-radius:8px; font-size:9px; color:rgba(255,255,255,0.4); cursor:pointer; }
+
+.rpanel { width:160px; flex-shrink:0; border-left:1px solid rgba(230,57,70,0.14); display:flex; flex-direction:column; padding:12px; gap:10px; background:rgba(0,0,0,0.6); backdrop-filter:blur(16px); }
+.p-lbl { font-size:7.5px; font-weight:700; letter-spacing:.1em; color:rgba(230,57,70,0.45); margin-bottom:6px; }
+.art-box { width:100%; aspect-ratio:1; border-radius:10px; background:linear-gradient(135deg,rgba(230,57,70,0.32),rgba(60,4,10,0.8)); border:1px solid rgba(230,57,70,0.35); display:flex; align-items:center; justify-content:center; font-size:28px; position:relative; cursor:pointer; box-shadow:0 0 24px rgba(230,57,70,0.18); }
+.art-edit { position:absolute; bottom:5px; right:5px; background:rgba(0,0,0,0.75); border:1px solid rgba(255,255,255,0.14); border-radius:4px; font-size:7px; color:rgba(255,255,255,0.65); padding:2px 5px; }
+.qa { padding:6px 8px; border-radius:7px; font-size:8px; cursor:pointer; display:flex; align-items:center; gap:5px; margin-bottom:3px; }
+.qa-r { background:rgba(230,57,70,0.16); border:1px solid rgba(230,57,70,0.38); color:#ff7a84; font-weight:700; }
+.qa-g { background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.07); color:rgba(255,255,255,0.36); }
+
+.player { height:52px; border-top:1px solid rgba(230,57,70,0.18); background:rgba(0,0,0,0.8); backdrop-filter:blur(14px); display:flex; align-items:center; padding:0 16px; gap:11px; flex-shrink:0; }
+.play-btn { width:28px; height:28px; border-radius:50%; background:linear-gradient(135deg,#E63946,#a01828); display:flex; align-items:center; justify-content:center; font-size:10px; box-shadow:0 0 20px rgba(230,57,70,0.7), 0 0 50px rgba(230,57,70,0.2); cursor:pointer; flex-shrink:0; }
+.skip { font-size:12px; color:rgba(255,255,255,0.22); cursor:pointer; }
+.prog-wrap { flex:1; height:3px; background:rgba(255,255,255,0.07); border-radius:3px; cursor:pointer; }
+.prog-fill { height:100%; width:35%; background:linear-gradient(90deg,#E63946,#FFB800); border-radius:3px; position:relative; }
+.prog-fill::after { content:''; position:absolute; right:-4px; top:-4px; width:11px; height:11px; background:#fff; border-radius:50%; box-shadow:0 0 10px rgba(230,57,70,0.9), 0 0 0 2px rgba(230,57,70,0.4); }
+</style>
+</head>
+<body>
+<h1>Black Hexagon Grid + Red Glowing Edges</h1>
+<p class="sub">Black hexagons · red illuminated borders · tech glow effect · glass panels float on top</p>
+
+<div class="app">
+  <canvas id="hc"></canvas>
+
+  <div class="ui">
+    <div class="titlebar">
+      <div class="dot" style="background:#ff5f56"></div>
+      <div class="dot" style="background:#ffbd2e;margin-left:4px"></div>
+      <div class="dot" style="background:#27c93f;margin-left:4px"></div>
+      <span class="wordmark"><span>RED</span>INSIDE STUDIO</span>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+        <span style="font-size:8px;color:rgba(230,57,70,0.55);padding:3px 8px;background:rgba(230,57,70,0.08);border:1px solid rgba(230,57,70,0.2);border-radius:5px;">⬥ MOCK MODE</span>
+        <div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#E63946,#6e1018);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;box-shadow:0 0 12px rgba(230,57,70,0.5);">A</div>
+      </div>
+    </div>
+
+    <div class="body">
+      <div class="sidebar">
+        <div class="s-sec">
+          <div class="s-lbl">PROJECTS</div>
+          <div class="s-item on"><div class="pip"></div>Desi Trap Vol.1</div>
+          <div class="s-item"><div class="pip"></div>Punjabi Anthem</div>
+          <div class="s-item"><div class="pip"></div>Mumbai Nights</div>
+          <div style="padding:5px 8px;font-size:9px;color:rgba(230,57,70,0.5);cursor:pointer;margin-top:3px;">＋ New Project</div>
+        </div>
+        <div class="s-sec">
+          <div class="s-lbl">PLAYLISTS</div>
+          <div class="s-item"><span style="color:rgba(230,57,70,0.65);">♫</span> My Best Tracks<span class="pl-badge">8</span></div>
+          <div class="s-item"><span style="color:rgba(230,57,70,0.4);">♫</span> Punjabi Vibes<span class="pl-badge">3</span></div>
+          <div style="padding:5px 8px;font-size:9px;color:rgba(230,57,70,0.42);cursor:pointer;">＋ New Playlist</div>
+        </div>
+        <div class="s-sec" style="margin-top:auto;">
+          <div class="s-lbl">MORE</div>
+          <div class="s-item">📊 History</div>
+          <div class="s-item">🔥 Viral Toolkit</div>
+          <div class="s-item">⚙ Settings</div>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="tabs">
+          <div class="tab on"><span class="tdot"></span>SOUNDS</div>
+          <div class="tab">WRITE</div>
+          <div class="tab">CREATE</div>
+          <div class="tab">CRAFT</div>
+          <div class="tab">RELEASE</div>
+        </div>
+        <div class="content">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-size:11px;font-weight:700;">Desi Trap Vol.1 <span style="color:rgba(255,255,255,0.2);font-weight:400;">· 4 tracks</span></div>
+              <div style="font-size:8px;color:rgba(255,255,255,0.22);margin-top:1px;">Generate · YouTube Import · Vocal Removal</div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <div class="btn-g">▼ YouTube</div>
+              <div class="btn-p">⚡ Generate New</div>
+            </div>
+          </div>
+
+          <div class="track on">
+            <div class="t-art" style="background:linear-gradient(135deg,#E63946,#6e1018);box-shadow:0 0 12px rgba(230,57,70,0.4);">♫</div>
+            <div style="flex:1;min-width:0;">
+              <div class="t-name">Desi Trap v3 <span style="color:rgba(230,57,70,0.5);font-size:8px;font-weight:400;">▶ playing</span></div>
+              <div class="t-meta">3:44 · 320kbps · music-2.6</div>
+            </div>
+            <div class="wv">
+              <div class="b" style="height:4px"></div><div class="b l" style="height:12px"></div>
+              <div class="b l" style="height:16px"></div><div class="b" style="height:7px"></div>
+              <div class="b l" style="height:18px"></div><div class="b" style="height:9px"></div>
+              <div class="b l" style="height:13px"></div><div class="b" style="height:5px"></div>
+              <div class="b l" style="height:11px"></div><div class="b l" style="height:15px"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-end;">
+              <span class="badge bm">✓ MASTERED</span>
+              <span class="badge bb">128 BPM</span>
+            </div>
+          </div>
+
+          <div class="track">
+            <div class="t-art" style="background:linear-gradient(135deg,#FFB800,#6a4a00);">♫</div>
+            <div style="flex:1;min-width:0;">
+              <div class="t-name">Punjabi Anthem v2</div>
+              <div class="t-meta">3:12 · 320kbps · instrumental</div>
+            </div>
+            <div class="wv">
+              <div class="b" style="height:8px"></div><div class="b" style="height:5px"></div>
+              <div class="b" style="height:13px"></div><div class="b" style="height:10px"></div>
+              <div class="b" style="height:7px"></div><div class="b" style="height:15px"></div>
+              <div class="b" style="height:6px"></div><div class="b" style="height:11px"></div>
+              <div class="b" style="height:9px"></div><div class="b" style="height:4px"></div>
+            </div>
+            <span class="badge bb">INSTRUMENTAL</span>
+          </div>
+
+          <div class="track">
+            <div class="t-art" style="background:linear-gradient(135deg,#c0392b,#3a0508);">♫</div>
+            <div style="flex:1;min-width:0;">
+              <div class="t-name">Mumbai Nights v1</div>
+              <div class="t-meta">4:01 · 320kbps · stems</div>
+            </div>
+            <div class="wv">
+              <div class="b" style="height:6px"></div><div class="b" style="height:14px"></div>
+              <div class="b" style="height:9px"></div><div class="b" style="height:4px"></div>
+              <div class="b" style="height:12px"></div><div class="b" style="height:8px"></div>
+              <div class="b" style="height:17px"></div><div class="b" style="height:5px"></div>
+              <div class="b" style="height:10px"></div><div class="b" style="height:7px"></div>
+            </div>
+            <span class="badge br">STEMS</span>
+          </div>
+
+          <div class="glass" style="padding:9px 12px;border-radius:10px;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:8px;color:rgba(230,57,70,0.55);font-weight:700;letter-spacing:.08em;">A/B COMPARE</span>
+            <div style="flex:1;height:1px;background:rgba(230,57,70,0.12);"></div>
+            <div style="padding:3px 10px;background:rgba(230,57,70,0.18);border:1px solid rgba(230,57,70,0.4);border-radius:5px;font-size:8px;color:#ff7a84;font-weight:700;">A: v3</div>
+            <div style="padding:3px 10px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.07);border-radius:5px;font-size:8px;color:rgba(255,255,255,0.3);">B: v2</div>
+            <div style="padding:3px 10px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.07);border-radius:5px;font-size:8px;color:rgba(255,255,255,0.3);">⇄ SWAP</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rpanel">
+        <div>
+          <div class="p-lbl">SELECTED TRACK</div>
+          <div class="art-box">🎨<div class="art-edit">✎ Edit</div></div>
+          <div style="margin-top:8px;">
+            <div style="font-size:10px;font-weight:700;">Desi Trap v3</div>
+            <div style="font-size:8px;color:rgba(255,255,255,0.28);margin-top:1px;">128 BPM · D min · 3:44</div>
+            <div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap;">
+              <span class="badge bm">✓ MASTERED</span>
+              <span class="badge br">TRAP</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="p-lbl">QUICK ACTIONS</div>
+          <div class="qa qa-r">▶ Play</div>
+          <div class="qa qa-g">✎ Edit Audio</div>
+          <div class="qa qa-g">⬆ Master</div>
+          <div class="qa qa-g">📤 Social Export</div>
+          <div class="qa qa-g" style="color:rgba(230,57,70,0.5);border-color:rgba(230,57,70,0.18);">＋ Add to Playlist</div>
+        </div>
+        <div style="margin-top:auto;">
+          <div class="p-lbl">IN PLAYLISTS</div>
+          <div style="font-size:8px;color:rgba(230,57,70,0.6);margin-bottom:2px;">♫ My Best Tracks</div>
+          <div style="font-size:8px;color:rgba(255,255,255,0.2);">♫ Punjabi Vibes</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="player">
+      <div class="skip">⏮</div>
+      <div class="play-btn">▶</div>
+      <div class="skip">⏭</div>
+      <div style="font-size:9px;color:rgba(255,255,255,0.5);white-space:nowrap;">Desi Trap v3</div>
+      <div style="font-size:8px;color:rgba(255,255,255,0.2);">1:18</div>
+      <div class="prog-wrap"><div class="prog-fill"></div></div>
+      <div style="font-size:8px;color:rgba(255,255,255,0.2);">3:44</div>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <span style="font-size:10px;color:rgba(255,255,255,0.2);">🔊</span>
+        <div style="width:46px;height:2px;background:rgba(255,255,255,0.07);border-radius:2px;"><div style="width:70%;height:100%;background:rgba(230,57,70,0.5);border-radius:2px;"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('hc');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+  draw();
+}
+
+function hexPath(cx, cy, r) {
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI / 180 * (60 * i - 30);
+    const x = cx + r * Math.cos(a);
+    const y = cy + r * Math.sin(a);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
+
+function draw() {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Pure black base
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  const R = 28;          // hex outer radius
+  const gap = 2;         // gap between hexes
+  const r = R - gap;
+  const colW = R * Math.sqrt(3);
+  const rowH = R * 1.5;
+
+  const cols = Math.ceil(W / colW) + 2;
+  const rows = Math.ceil(H / rowH) + 2;
+
+  // Lit hexes — scattered red ones
+  const litSet = new Set();
+  const litCount = Math.floor(cols * rows * 0.08);
+  for (let i = 0; i < litCount; i++) {
+    const col = Math.floor(Math.random() * cols);
+    const row = Math.floor(Math.random() * rows);
+    litSet.add(`${col},${row}`);
+  }
+
+  for (let row = -1; row < rows; row++) {
+    for (let col = -1; col < cols; col++) {
+      const offset = (col % 2) * R * 0.5;
+      const cx = col * colW * 0.866 + R;
+      const cy = row * R * 1.5 + offset + R;
+
+      // Distance from center for vignette
+      const dx = cx / W - 0.5;
+      const dy = cy / H - 0.5;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      const fade = Math.max(0, 1 - dist * 1.4);
+
+      const isLit = litSet.has(`${col},${row}`);
+
+      // ── Dark hex fill ──
+      hexPath(cx, cy, r - 1);
+      if (isLit) {
+        // Lit hex: red gradient fill
+        const grd = ctx.createRadialGradient(cx - r*0.2, cy - r*0.2, 0, cx, cy, r);
+        grd.addColorStop(0, `rgba(200,40,50,${0.55 * fade})`);
+        grd.addColorStop(0.5, `rgba(120,15,25,${0.4 * fade})`);
+        grd.addColorStop(1, `rgba(40,4,8,${0.8 * fade})`);
+        ctx.fillStyle = grd;
+      } else {
+        // Normal hex: very dark, slight red tint on top-left edge (3D illusion)
+        const grd = ctx.createLinearGradient(cx - r, cy - r, cx + r*0.3, cy + r*0.3);
+        grd.addColorStop(0, `rgba(35,4,8,${0.9 * fade})`);
+        grd.addColorStop(0.4, `rgba(18,2,4,${0.95 * fade})`);
+        grd.addColorStop(1, `rgba(6,0,1,${0.98 * fade})`);
+        ctx.fillStyle = grd;
+      }
+      ctx.fill();
+
+      // ── Top-left highlight (3D raised edge) ──
+      hexPath(cx, cy, r - 1);
+      ctx.strokeStyle = isLit
+        ? `rgba(255,130,140,${0.55 * fade})`
+        : `rgba(180,30,45,${0.28 * fade})`;
+      ctx.lineWidth = isLit ? 1.2 : 0.6;
+      ctx.stroke();
+
+      // ── Outer glow on lit hexes ──
+      if (isLit && fade > 0.3) {
+        ctx.save();
+        ctx.shadowColor = '#E63946';
+        ctx.shadowBlur = 14;
+        hexPath(cx, cy, r);
+        ctx.strokeStyle = `rgba(230,57,70,${0.7 * fade})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+  }
+
+  // ── Radial vignette — deep red from edges ──
+  const vign = ctx.createRadialGradient(W*0.5, H*0.5, H*0.1, W*0.5, H*0.5, H*0.85);
+  vign.addColorStop(0, 'rgba(0,0,0,0)');
+  vign.addColorStop(0.6, 'rgba(0,0,0,0.35)');
+  vign.addColorStop(1, 'rgba(0,0,0,0.82)');
+  ctx.fillStyle = vign;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Red glow hotspot top-left ──
+  const spot = ctx.createRadialGradient(W*0.08, H*0.08, 0, W*0.08, H*0.08, W*0.45);
+  spot.addColorStop(0, 'rgba(200,30,40,0.22)');
+  spot.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = spot;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Subtle red glow bottom-right ──
+  const spot2 = ctx.createRadialGradient(W*0.9, H*0.9, 0, W*0.9, H*0.9, W*0.35);
+  spot2.addColorStop(0, 'rgba(160,20,30,0.18)');
+  spot2.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = spot2;
+  ctx.fillRect(0, 0, W, H);
+}
+
+window.addEventListener('resize', resize);
+// Wait for layout
+setTimeout(resize, 50);
+</script>
+</body>
+</html>

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phase 4 — Honeycomb Glass</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, 'SF Pro Display', 'Inter', sans-serif; background:#000; color:#fff; padding:24px; }
+h1 { font-size:18px; font-weight:700; margin-bottom:4px; }
+.sub { color:#555; font-size:12px; margin-bottom:24px; }
+
+/* ── App shell ── */
+.app {
+  width:100%; max-width:960px; height:590px;
+  border-radius:20px; overflow:hidden;
+  display:flex; flex-direction:column; position:relative;
+  border:1px solid rgba(230,57,70,0.3);
+  box-shadow: 0 0 0 1px rgba(230,57,70,0.12), 0 40px 100px rgba(0,0,0,0.9), 0 0 80px rgba(180,20,30,0.15);
+}
+
+/* ── 3D Honeycomb background ── */
+.hc-bg {
+  position:absolute; inset:0; z-index:0;
+  background-color: #050002;
+  overflow:hidden;
+}
+.hc-bg::before {
+  content:'';
+  position:absolute; inset:-20px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='112' height='130'%3E%3Cdefs%3E%3ClinearGradient id='top' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23300008' stop-opacity='1'/%3E%3Cstop offset='100%25' stop-color='%23080002' stop-opacity='1'/%3E%3C/linearGradient%3E%3ClinearGradient id='lit' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23520010' stop-opacity='1'/%3E%3Cstop offset='50%25' stop-color='%23200006' stop-opacity='1'/%3E%3Cstop offset='100%25' stop-color='%230a0002' stop-opacity='1'/%3E%3C/linearGradient%3E%3ClinearGradient id='glow' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23E63946' stop-opacity='0.9'/%3E%3Cstop offset='100%25' stop-color='%23700015' stop-opacity='1'/%3E%3C/linearGradient%3E%3Cfilter id='s'%3E%3CfeDropShadow dx='1' dy='2' stdDeviation='1.5' flood-color='%23000' flood-opacity='0.8'/%3E%3C/filter%3E%3Cfilter id='gs'%3E%3CfeDropShadow dx='0' dy='0' stdDeviation='3' flood-color='%23E63946' flood-opacity='0.7'/%3E%3C/filter%3E%3C/defs%3E%3C!-- row 1 --%3E%3Cpolygon points='28,2 54,17 54,47 28,62 2,47 2,17' fill='url(%23top)' filter='url(%23s)'/%3E%3Cpolygon points='28,4 52,18 52,46 28,60 4,46 4,18' fill='none' stroke='%23E63946' stroke-width='0.5' stroke-opacity='0.25'/%3E%3Cpolygon points='28,8 48,21 48,43 28,56 8,43 8,21' fill='%23180004' opacity='0.5'/%3E%3Cpolygon points='84,2 110,17 110,47 84,62 58,47 58,17' fill='url(%23lit)' filter='url(%23s)'/%3E%3Cpolygon points='84,4 108,18 108,46 84,60 60,46 60,18' fill='none' stroke='%23E63946' stroke-width='0.5' stroke-opacity='0.4'/%3E%3C!-- row 2 --%3E%3Cpolygon points='56,67 82,82 82,112 56,127 30,112 30,82' fill='url(%23glow)' filter='url(%23gs)'/%3E%3Cpolygon points='56,69 80,83 80,111 56,125 32,111 32,83' fill='none' stroke='%23ff6b76' stroke-width='0.8' stroke-opacity='0.6'/%3E%3Cpolygon points='56,74 76,86 76,108 56,120 36,108 36,86' fill='rgba(230,57,70,0.15)' opacity='0.8'/%3E%3Cpolygon points='0,67 26,82 26,112 0,127 -26,112 -26,82' fill='url(%23top)' filter='url(%23s)'/%3E%3Cpolygon points='112,67 138,82 138,112 112,127 86,112 86,82' fill='url(%23top)' filter='url(%23s)'/%3E%3Cpolygon points='112,69 136,83 136,111 112,125 88,111 88,83' fill='none' stroke='%23E63946' stroke-width='0.5' stroke-opacity='0.3'/%3E%3C/svg%3E");
+  background-size: 112px 130px;
+  opacity: 0.85;
+}
+/* Red fog overlay */
+.hc-bg::after {
+  content:'';
+  position:absolute; inset:0;
+  background:
+    radial-gradient(ellipse at 15% 10%, rgba(200,30,40,0.45) 0%, transparent 40%),
+    radial-gradient(ellipse at 80% 80%, rgba(150,15,25,0.35) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 50%, rgba(5,0,2,0.55) 0%, transparent 75%);
+}
+
+/* glass panels */
+.glass {
+  background: rgba(8,0,2,0.55);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(230,57,70,0.18);
+}
+.glass-active {
+  background: rgba(230,57,70,0.10);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(230,57,70,0.38);
+}
+
+/* ── All UI sits on z-index:1 ── */
+.ui { position:relative; z-index:1; display:flex; flex-direction:column; height:100%; }
+
+/* titlebar */
+.titlebar {
+  height:40px; display:flex; align-items:center; padding:0 16px; gap:12px;
+  background: rgba(4,0,1,0.7);
+  border-bottom: 1px solid rgba(230,57,70,0.2);
+  backdrop-filter: blur(12px);
+}
+.dot { width:10px; height:10px; border-radius:50%; }
+.wordmark { font-size:11px; font-weight:800; letter-spacing:.18em; color:#fff; }
+.wordmark span { color:#E63946; text-shadow:0 0 14px rgba(230,57,70,0.9); }
+
+.body { flex:1; display:flex; overflow:hidden; }
+
+/* sidebar */
+.sidebar {
+  width:172px; flex-shrink:0;
+  border-right:1px solid rgba(230,57,70,0.15);
+  display:flex; flex-direction:column; padding:12px 0;
+  background:rgba(3,0,1,0.6);
+  backdrop-filter:blur(16px);
+}
+.s-sec { padding:0 11px; margin-bottom:14px; }
+.s-lbl { font-size:7.5px; font-weight:700; letter-spacing:.13em; color:rgba(230,57,70,0.5); margin-bottom:5px; text-transform:uppercase; }
+.s-item { padding:5px 8px; font-size:10px; color:rgba(255,255,255,0.35); border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:7px; margin-bottom:1px; }
+.s-item.on { background:rgba(230,57,70,0.16); border:1px solid rgba(230,57,70,0.32); color:#fff; }
+.pip { width:5px; height:5px; border-radius:50%; background:rgba(255,255,255,0.1); flex-shrink:0; }
+.s-item.on .pip { background:#E63946; box-shadow:0 0 8px #E63946; }
+.pl-badge { font-size:7.5px; margin-left:auto; background:rgba(230,57,70,0.14); border:1px solid rgba(230,57,70,0.28); color:rgba(230,57,70,0.8); padding:1px 5px; border-radius:8px; }
+
+/* main */
+.main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.tabs {
+  height:38px; border-bottom:1px solid rgba(230,57,70,0.14);
+  display:flex; align-items:flex-end; padding:0 16px; gap:2px;
+  background:rgba(2,0,1,0.5); backdrop-filter:blur(10px); flex-shrink:0;
+}
+.tab { padding:6px 14px; font-size:9px; font-weight:700; letter-spacing:.08em; color:rgba(255,255,255,0.2); border-radius:6px 6px 0 0; cursor:pointer; border:1px solid transparent; border-bottom:none; }
+.tab.on { background:rgba(230,57,70,0.13); border-color:rgba(230,57,70,0.3); color:#ff7a84; }
+.tdot { display:inline-block; width:4px; height:4px; border-radius:50%; background:#E63946; box-shadow:0 0 5px #E63946; margin-right:5px; vertical-align:middle; }
+
+.content { flex:1; padding:14px; overflow-y:auto; display:flex; flex-direction:column; gap:9px; }
+
+/* tracks */
+.track {
+  display:flex; align-items:center; gap:10px;
+  padding:8px 10px; border-radius:10px; cursor:pointer;
+}
+.track.on { background:rgba(230,57,70,0.11); border:1px solid rgba(230,57,70,0.32); box-shadow:0 0 20px rgba(230,57,70,0.08) inset; }
+.track:not(.on) { background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.055); }
+.t-art { width:32px; height:32px; border-radius:6px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:13px; }
+.t-info { flex:1; min-width:0; }
+.t-name { font-size:10px; font-weight:600; color:#fff; }
+.t-meta { font-size:8px; color:rgba(255,255,255,0.28); margin-top:1px; }
+.wv-wrap { display:flex; align-items:center; gap:1.5px; height:18px; }
+.b { width:2px; border-radius:1px; background:rgba(230,57,70,0.22); }
+.b.l { background:#E63946; box-shadow:0 0 4px rgba(230,57,70,0.7); }
+.badge { font-size:7px; padding:2px 6px; border-radius:8px; font-weight:700; }
+.m-badge { background:rgba(74,222,128,0.12); border:1px solid rgba(74,222,128,0.28); color:#4ade80; }
+.bpm-b { background:rgba(255,184,0,0.12); border:1px solid rgba(255,184,0,0.28); color:#FFB800; }
+.r-badge { background:rgba(230,57,70,0.12); border:1px solid rgba(230,57,70,0.28); color:rgba(230,57,70,0.9); }
+
+.btn-p {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:7px 14px; background:linear-gradient(135deg,#E63946,#a01828);
+  border-radius:8px; font-size:9px; font-weight:800; letter-spacing:.07em; color:#fff;
+  border:none; cursor:pointer;
+  box-shadow:0 4px 20px rgba(230,57,70,0.5), 0 0 0 1px rgba(230,57,70,0.45);
+}
+.btn-g { display:inline-flex; align-items:center; gap:5px; padding:6px 11px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.09); border-radius:8px; font-size:9px; color:rgba(255,255,255,0.4); cursor:pointer; }
+
+/* right panel */
+.rpanel {
+  width:160px; flex-shrink:0; border-left:1px solid rgba(230,57,70,0.15);
+  display:flex; flex-direction:column; padding:12px; gap:10px;
+  background:rgba(3,0,1,0.55); backdrop-filter:blur(16px);
+}
+.p-lbl { font-size:7.5px; font-weight:700; letter-spacing:.1em; color:rgba(230,57,70,0.45); margin-bottom:6px; text-transform:uppercase; }
+.art-box {
+  width:100%; aspect-ratio:1; border-radius:10px;
+  background: linear-gradient(135deg,rgba(230,57,70,0.35),rgba(80,5,12,0.7));
+  border:1px solid rgba(230,57,70,0.35); display:flex; align-items:center; justify-content:center; font-size:28px;
+  position:relative; cursor:pointer;
+  box-shadow:0 0 24px rgba(230,57,70,0.2), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.art-edit { position:absolute; bottom:5px; right:5px; background:rgba(0,0,0,0.72); border:1px solid rgba(255,255,255,0.15); border-radius:4px; font-size:7px; color:rgba(255,255,255,0.65); padding:2px 5px; }
+.qa { padding:6px 8px; border-radius:7px; font-size:8px; cursor:pointer; display:flex; align-items:center; gap:5px; margin-bottom:3px; }
+.qa-r { background:rgba(230,57,70,0.17); border:1px solid rgba(230,57,70,0.38); color:#ff7a84; font-weight:700; }
+.qa-g { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); color:rgba(255,255,255,0.38); }
+
+/* player */
+.player {
+  height:52px; border-top:1px solid rgba(230,57,70,0.18);
+  background:rgba(2,0,1,0.75); backdrop-filter:blur(14px);
+  display:flex; align-items:center; padding:0 16px; gap:11px; flex-shrink:0;
+}
+.play-btn {
+  width:28px; height:28px; border-radius:50%;
+  background:linear-gradient(135deg,#E63946,#a01828);
+  display:flex; align-items:center; justify-content:center; font-size:10px;
+  box-shadow:0 0 18px rgba(230,57,70,0.65), 0 0 50px rgba(230,57,70,0.2);
+  cursor:pointer; flex-shrink:0;
+}
+.skip { font-size:12px; color:rgba(255,255,255,0.22); cursor:pointer; }
+.prog-wrap { flex:1; height:3px; background:rgba(255,255,255,0.07); border-radius:3px; position:relative; cursor:pointer; }
+.prog-fill { height:100%; width:35%; background:linear-gradient(90deg,#E63946,#FFB800); border-radius:3px; position:relative; }
+.prog-fill::after { content:''; position:absolute; right:-4px; top:-4px; width:11px; height:11px; background:#fff; border-radius:50%; box-shadow:0 0 10px rgba(230,57,70,0.9), 0 0 0 2px rgba(230,57,70,0.4); }
+</style>
+</head>
+<body>
+<h1>Red-Black 3D Honeycomb + Liquid Glass</h1>
+<p class="sub">3D hex grid bg · red fog overlay · glass panels float on top · #E63946 at 40%</p>
+
+<div class="app">
+  <div class="hc-bg"></div>
+
+  <div class="ui">
+    <!-- Titlebar -->
+    <div class="titlebar">
+      <div class="dot" style="background:#ff5f56"></div>
+      <div class="dot" style="background:#ffbd2e;margin-left:4px"></div>
+      <div class="dot" style="background:#27c93f;margin-left:4px"></div>
+      <span class="wordmark"><span>RED</span>INSIDE STUDIO</span>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+        <span style="font-size:8px;color:rgba(230,57,70,0.55);padding:3px 8px;background:rgba(230,57,70,0.08);border:1px solid rgba(230,57,70,0.22);border-radius:5px;">⬥ MOCK MODE</span>
+        <div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#E63946,#6e1018);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;box-shadow:0 0 12px rgba(230,57,70,0.5);">A</div>
+      </div>
+    </div>
+
+    <div class="body">
+      <!-- Sidebar -->
+      <div class="sidebar">
+        <div class="s-sec">
+          <div class="s-lbl">Projects</div>
+          <div class="s-item on"><div class="pip"></div>Desi Trap Vol.1</div>
+          <div class="s-item"><div class="pip"></div>Punjabi Anthem</div>
+          <div class="s-item"><div class="pip"></div>Mumbai Nights</div>
+          <div style="padding:5px 8px;font-size:9px;color:rgba(230,57,70,0.5);cursor:pointer;margin-top:3px;">＋ New Project</div>
+        </div>
+        <div class="s-sec">
+          <div class="s-lbl">Playlists</div>
+          <div class="s-item"><span style="color:rgba(230,57,70,0.65);">♫</span> My Best Tracks<span class="pl-badge">8</span></div>
+          <div class="s-item"><span style="color:rgba(230,57,70,0.4);">♫</span> Punjabi Vibes<span class="pl-badge">3</span></div>
+          <div style="padding:5px 8px;font-size:9px;color:rgba(230,57,70,0.42);cursor:pointer;margin-top:2px;">＋ New Playlist</div>
+        </div>
+        <div class="s-sec" style="margin-top:auto;">
+          <div class="s-lbl">Tools</div>
+          <div class="s-item">📊 History</div>
+          <div class="s-item">🔥 Viral Toolkit</div>
+          <div class="s-item">⚙ Settings</div>
+        </div>
+      </div>
+
+      <!-- Main -->
+      <div class="main">
+        <div class="tabs">
+          <div class="tab on"><span class="tdot"></span>SOUNDS</div>
+          <div class="tab">WRITE</div>
+          <div class="tab">CREATE</div>
+          <div class="tab">CRAFT</div>
+          <div class="tab">RELEASE</div>
+        </div>
+        <div class="content">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-size:11px;font-weight:700;">Desi Trap Vol.1 <span style="color:rgba(255,255,255,0.2);font-weight:400;">· 4 tracks</span></div>
+              <div style="font-size:8px;color:rgba(255,255,255,0.22);margin-top:1px;">Generate · YouTube Import · Vocal Removal</div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <div class="btn-g">▼ YouTube</div>
+              <div class="btn-p">⚡ Generate New</div>
+            </div>
+          </div>
+
+          <div class="track on">
+            <div class="t-art" style="background:linear-gradient(135deg,#E63946,#6e1018);box-shadow:0 0 12px rgba(230,57,70,0.4);">♫</div>
+            <div class="t-info">
+              <div class="t-name">Desi Trap v3 <span style="color:rgba(230,57,70,0.55);font-size:8px;font-weight:400;">▶ playing</span></div>
+              <div class="t-meta">3:44 · 320kbps · music-2.6</div>
+            </div>
+            <div class="wv-wrap">
+              <div class="b" style="height:4px"></div><div class="b l" style="height:12px"></div>
+              <div class="b l" style="height:16px"></div><div class="b" style="height:7px"></div>
+              <div class="b l" style="height:18px"></div><div class="b" style="height:9px"></div>
+              <div class="b l" style="height:13px"></div><div class="b" style="height:5px"></div>
+              <div class="b l" style="height:11px"></div><div class="b l" style="height:15px"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-end;">
+              <span class="badge m-badge">✓ MASTERED</span>
+              <span class="badge bpm-b">128 BPM</span>
+            </div>
+          </div>
+
+          <div class="track">
+            <div class="t-art" style="background:linear-gradient(135deg,#FFB800,#6a4a00);">♫</div>
+            <div class="t-info">
+              <div class="t-name">Punjabi Anthem v2</div>
+              <div class="t-meta">3:12 · 320kbps · instrumental</div>
+            </div>
+            <div class="wv-wrap">
+              <div class="b" style="height:8px"></div><div class="b" style="height:5px"></div>
+              <div class="b" style="height:13px"></div><div class="b" style="height:10px"></div>
+              <div class="b" style="height:7px"></div><div class="b" style="height:15px"></div>
+              <div class="b" style="height:6px"></div><div class="b" style="height:11px"></div>
+              <div class="b" style="height:9px"></div><div class="b" style="height:4px"></div>
+            </div>
+            <span class="badge bpm-b">INSTRUMENTAL</span>
+          </div>
+
+          <div class="track">
+            <div class="t-art" style="background:linear-gradient(135deg,#c0392b,#3a0508);">♫</div>
+            <div class="t-info">
+              <div class="t-name">Mumbai Nights v1</div>
+              <div class="t-meta">4:01 · 320kbps · stems</div>
+            </div>
+            <div class="wv-wrap">
+              <div class="b" style="height:6px"></div><div class="b" style="height:14px"></div>
+              <div class="b" style="height:9px"></div><div class="b" style="height:4px"></div>
+              <div class="b" style="height:12px"></div><div class="b" style="height:8px"></div>
+              <div class="b" style="height:17px"></div><div class="b" style="height:5px"></div>
+              <div class="b" style="height:10px"></div><div class="b" style="height:7px"></div>
+            </div>
+            <span class="badge r-badge">STEMS</span>
+          </div>
+
+          <!-- A/B bar -->
+          <div class="glass" style="padding:9px 12px;border-radius:10px;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:8px;color:rgba(230,57,70,0.55);font-weight:700;letter-spacing:.08em;">A/B COMPARE</span>
+            <div style="flex:1;height:1px;background:rgba(230,57,70,0.12);"></div>
+            <div style="padding:3px 10px;background:rgba(230,57,70,0.18);border:1px solid rgba(230,57,70,0.4);border-radius:5px;font-size:8px;color:#ff7a84;font-weight:700;">A: v3</div>
+            <div style="padding:3px 10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:5px;font-size:8px;color:rgba(255,255,255,0.3);">B: v2</div>
+            <div style="padding:3px 10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:5px;font-size:8px;color:rgba(255,255,255,0.3);">⇄ SWAP</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Panel -->
+      <div class="rpanel">
+        <div>
+          <div class="p-lbl">Selected Track</div>
+          <div class="art-box">🎨<div class="art-edit">✎ Edit</div></div>
+          <div style="margin-top:8px;">
+            <div style="font-size:10px;font-weight:700;">Desi Trap v3</div>
+            <div style="font-size:8px;color:rgba(255,255,255,0.28);margin-top:1px;">128 BPM · D min · 3:44</div>
+            <div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap;">
+              <span class="badge m-badge">✓ MASTERED</span>
+              <span class="badge r-badge">TRAP</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="p-lbl">Quick Actions</div>
+          <div class="qa qa-r">▶ Play</div>
+          <div class="qa qa-g">✎ Edit Audio</div>
+          <div class="qa qa-g">⬆ Master</div>
+          <div class="qa qa-g">📤 Social Export</div>
+          <div class="qa qa-g" style="color:rgba(230,57,70,0.5);border-color:rgba(230,57,70,0.18);">＋ Add to Playlist</div>
+        </div>
+        <div style="margin-top:auto;">
+          <div class="p-lbl">In Playlists</div>
+          <div style="font-size:8px;color:rgba(230,57,70,0.6);margin-bottom:2px;">♫ My Best Tracks</div>
+          <div style="font-size:8px;color:rgba(255,255,255,0.2);">♫ Punjabi Vibes</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Player -->
+    <div class="player">
+      <div class="skip">⏮</div>
+      <div class="play-btn">▶</div>
+      <div class="skip">⏭</div>
+      <div style="font-size:9px;color:rgba(255,255,255,0.5);white-space:nowrap;">Desi Trap v3</div>
+      <div style="font-size:8px;color:rgba(255,255,255,0.2);">1:18</div>
+      <div class="prog-wrap"><div class="prog-fill"></div></div>
+      <div style="font-size:8px;color:rgba(255,255,255,0.2);">3:44</div>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <span style="font-size:10px;color:rgba(255,255,255,0.2);">🔊</span>
+        <div style="width:46px;height:2px;background:rgba(255,255,255,0.07);border-radius:2px;"><div style="width:70%;height:100%;background:rgba(230,57,70,0.55);border-radius:2px;"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:16px;color:#444;font-size:11px;">3D hex honeycomb bg · red fog overlay · glass panels with backdrop-blur · is this the direction?</p>
+</body>
+</html>

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phase 4 — Visual Direction</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'SF Pro Display', 'Inter', sans-serif; background: #000; color: #fff; min-height: 100vh; }
+
+  .page { padding: 32px; }
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .sub { color: #888; font-size: 13px; margin-bottom: 32px; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+
+  .card {
+    border-radius: 20px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 2px solid transparent;
+    position: relative;
+  }
+  .card:hover { transform: translateY(-4px); }
+  .card.selected { border-color: #E63946; box-shadow: 0 0 30px rgba(230,57,70,0.4); }
+  .card.selected::after {
+    content: '✓ SELECTED';
+    position: absolute; top: 12px; right: 12px;
+    background: #E63946; color: #fff;
+    font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px;
+    letter-spacing: 0.05em;
+  }
+
+  .preview { height: 320px; position: relative; overflow: hidden; }
+  .info { padding: 16px; background: #111; }
+  .info h3 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .info p { font-size: 12px; color: #888; line-height: 1.5; }
+
+  /* ── OPTION A: Deep Space Glass ── */
+  .a-bg {
+    background: radial-gradient(ellipse at 30% 40%, #1a0535 0%, #060612 50%, #000 100%);
+  }
+  .a-panel {
+    background: rgba(255,255,255,0.04);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+  }
+  .a-accent { color: #E63946; }
+  .a-glow { box-shadow: 0 0 20px rgba(167,139,250,0.15), inset 0 1px 0 rgba(255,255,255,0.06); }
+
+  /* ── OPTION B: Aurora Glass ── */
+  .b-bg {
+    background: radial-gradient(ellipse at 70% 20%, #003322 0%, #001a2e 40%, #080812 100%);
+  }
+  .b-panel {
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+  }
+  .b-glow { box-shadow: 0 0 24px rgba(0,255,150,0.08), inset 0 1px 0 rgba(255,255,255,0.08); }
+
+  /* ── OPTION C: Obsidian Glass ── */
+  .c-bg {
+    background: linear-gradient(135deg, #0a0a0a 0%, #111018 50%, #0a0a12 100%);
+  }
+  .c-panel {
+    background: rgba(255,255,255,0.03);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+  }
+  .c-glow { box-shadow: 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Phase 4 — Visual Direction</h1>
+  <p class="sub">Pick the liquid glass aesthetic. Click to select.</p>
+
+  <div class="grid">
+
+    <!-- OPTION A: Deep Space -->
+    <div class="card" onclick="select(this,'a')">
+      <div class="preview a-bg" style="padding:16px;display:flex;flex-direction:column;gap:10px;">
+
+        <!-- mini nav -->
+        <div class="a-panel a-glow" style="display:flex;align-items:center;gap:8px;padding:8px 12px;">
+          <div style="width:6px;height:6px;border-radius:50%;background:#E63946;box-shadow:0 0 6px #E63946;"></div>
+          <span style="font-size:10px;font-weight:700;color:#fff;letter-spacing:.1em;">REDINSIDE</span>
+          <div style="margin-left:auto;display:flex;gap:6px;">
+            <div style="width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,0.2);"></div>
+            <div style="width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,0.2);"></div>
+            <div style="width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,0.2);"></div>
+          </div>
+        </div>
+
+        <!-- tabs -->
+        <div class="a-panel a-glow" style="display:flex;gap:2px;padding:4px;">
+          <div style="padding:4px 10px;border-radius:8px;background:rgba(230,57,70,0.2);border:1px solid rgba(230,57,70,0.3);font-size:9px;font-weight:700;color:#E63946;">WRITE</div>
+          <div style="padding:4px 10px;font-size:9px;color:rgba(255,255,255,0.3);">SOUNDS</div>
+          <div style="padding:4px 10px;font-size:9px;color:rgba(255,255,255,0.3);">CREATE</div>
+          <div style="padding:4px 10px;font-size:9px;color:rgba(255,255,255,0.3);">CRAFT</div>
+          <div style="padding:4px 10px;font-size:9px;color:rgba(255,255,255,0.3);">RELEASE</div>
+        </div>
+
+        <!-- track card -->
+        <div class="a-panel a-glow" style="padding:10px;display:flex;gap:8px;align-items:center;">
+          <div style="width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,#E63946,#7c1a28);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;">♫</div>
+          <div style="flex:1;">
+            <div style="font-size:10px;font-weight:700;color:#fff;">Desi Trap v3</div>
+            <div style="margin-top:4px;height:16px;display:flex;align-items:center;gap:1px;">
+              <!-- waveform bars -->
+              <div style="width:2px;height:4px;background:rgba(230,57,70,0.6);border-radius:1px;"></div>
+              <div style="width:2px;height:10px;background:rgba(230,57,70,0.7);border-radius:1px;"></div>
+              <div style="width:2px;height:7px;background:rgba(230,57,70,0.6);border-radius:1px;"></div>
+              <div style="width:2px;height:14px;background:#E63946;border-radius:1px;"></div>
+              <div style="width:2px;height:8px;background:rgba(230,57,70,0.7);border-radius:1px;"></div>
+              <div style="width:2px;height:12px;background:rgba(230,57,70,0.8);border-radius:1px;"></div>
+              <div style="width:2px;height:5px;background:rgba(230,57,70,0.5);border-radius:1px;"></div>
+              <div style="width:2px;height:9px;background:rgba(230,57,70,0.7);border-radius:1px;"></div>
+              <div style="width:2px;height:16px;background:#E63946;border-radius:1px;"></div>
+              <div style="width:2px;height:6px;background:rgba(230,57,70,0.6);border-radius:1px;"></div>
+              <div style="width:2px;height:11px;background:rgba(230,57,70,0.7);border-radius:1px;"></div>
+              <div style="width:2px;height:8px;background:rgba(230,57,70,0.6);border-radius:1px;"></div>
+            </div>
+          </div>
+          <div style="background:rgba(230,57,70,0.15);border:1px solid rgba(230,57,70,0.3);border-radius:6px;padding:3px 8px;font-size:8px;color:#E63946;font-weight:700;">▶</div>
+        </div>
+
+        <!-- lyrics area -->
+        <div class="a-panel a-glow" style="padding:10px;flex:1;">
+          <div style="font-size:8px;color:rgba(255,255,255,0.3);letter-spacing:.1em;margin-bottom:6px;">LYRICS — v3</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.5);line-height:1.6;">Dilli ki raat, neon glow hai<br/>Apna swag, apni flow hai...</div>
+          <div style="margin-top:8px;display:inline-block;padding:4px 10px;border-radius:6px;background:rgba(230,57,70,0.2);border:1px solid rgba(230,57,70,0.4);font-size:8px;color:#E63946;font-weight:700;">⚡ GENERATE</div>
+        </div>
+
+        <!-- purple nebula glow -->
+        <div style="position:absolute;bottom:-40px;right:-40px;width:120px;height:120px;background:radial-gradient(circle,rgba(167,139,250,0.15),transparent 70%);pointer-events:none;"></div>
+      </div>
+      <div class="info">
+        <h3>A — Deep Space Glass</h3>
+        <p>Deep purple nebula background. Red + violet accents. Panels float like holographic glass. Feels like a pro tool from 2030.</p>
+      </div>
+    </div>
+
+    <!-- OPTION B: Aurora -->
+    <div class="card" onclick="select(this,'b')">
+      <div class="preview b-bg" style="padding:16px;display:flex;flex-direction:column;gap:10px;position:relative;">
+
+        <div class="b-panel b-glow" style="display:flex;align-items:center;gap:8px;padding:8px 12px;">
+          <div style="width:6px;height:6px;border-radius:50%;background:#00ff96;box-shadow:0 0 8px #00ff96;"></div>
+          <span style="font-size:10px;font-weight:700;color:#fff;letter-spacing:.1em;">REDINSIDE</span>
+          <div style="margin-left:auto;font-size:9px;color:rgba(255,255,255,0.3);">Desi Trap Vol.1</div>
+        </div>
+
+        <div class="b-panel b-glow" style="display:flex;gap:2px;padding:4px;">
+          <div style="padding:4px 10px;border-radius:8px;background:rgba(0,255,150,0.1);border:1px solid rgba(0,255,150,0.2);font-size:9px;font-weight:700;color:#00ff96;">WRITE</div>
+          <div style="padding:4px 10px;font-size:9px;color:rgba(255,255,255,0.3);">SOUNDS</div>
+          <div style="padding:4px 10px;font-size:9px;color:rgba(255,255,255,0.3);">CREATE</div>
+          <div style="padding:4px 10px;font-size:9px;color:rgba(255,255,255,0.3);">CRAFT</div>
+          <div style="padding:4px 10px;font-size:9px;color:rgba(255,255,255,0.3);">RELEASE</div>
+        </div>
+
+        <div class="b-panel b-glow" style="padding:10px;display:flex;gap:8px;align-items:center;">
+          <div style="width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,#00c46a,#005a30);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;">♫</div>
+          <div style="flex:1;">
+            <div style="font-size:10px;font-weight:700;color:#fff;">Desi Trap v3</div>
+            <div style="margin-top:4px;height:16px;display:flex;align-items:center;gap:1px;">
+              <div style="width:2px;height:4px;background:rgba(0,255,150,0.5);border-radius:1px;"></div>
+              <div style="width:2px;height:10px;background:rgba(0,255,150,0.6);border-radius:1px;"></div>
+              <div style="width:2px;height:7px;background:rgba(0,255,150,0.5);border-radius:1px;"></div>
+              <div style="width:2px;height:14px;background:#00ff96;border-radius:1px;"></div>
+              <div style="width:2px;height:8px;background:rgba(0,255,150,0.6);border-radius:1px;"></div>
+              <div style="width:2px;height:12px;background:rgba(0,255,150,0.7);border-radius:1px;"></div>
+              <div style="width:2px;height:5px;background:rgba(0,255,150,0.4);border-radius:1px;"></div>
+              <div style="width:2px;height:16px;background:#00ff96;border-radius:1px;"></div>
+              <div style="width:2px;height:9px;background:rgba(0,255,150,0.6);border-radius:1px;"></div>
+            </div>
+          </div>
+          <div style="background:rgba(0,255,150,0.1);border:1px solid rgba(0,255,150,0.25);border-radius:6px;padding:3px 8px;font-size:8px;color:#00ff96;font-weight:700;">▶</div>
+        </div>
+
+        <div class="b-panel b-glow" style="padding:10px;flex:1;">
+          <div style="font-size:8px;color:rgba(255,255,255,0.3);letter-spacing:.1em;margin-bottom:6px;">LYRICS — v3</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.5);line-height:1.6;">Dilli ki raat, neon glow hai<br/>Apna swag, apni flow hai...</div>
+          <div style="margin-top:8px;display:inline-block;padding:4px 10px;border-radius:6px;background:rgba(0,255,150,0.1);border:1px solid rgba(0,255,150,0.3);font-size:8px;color:#00ff96;font-weight:700;">⚡ GENERATE</div>
+        </div>
+
+        <div style="position:absolute;top:-30px;left:-30px;width:140px;height:140px;background:radial-gradient(circle,rgba(0,180,100,0.12),transparent 70%);pointer-events:none;"></div>
+      </div>
+      <div class="info">
+        <h3>B — Aurora Glass</h3>
+        <p>Deep teal-green background. Neon green + white glass. Feels like a premium music production suite — Splice meets Logic Pro.</p>
+      </div>
+    </div>
+
+    <!-- OPTION C: Obsidian -->
+    <div class="card" onclick="select(this,'c')">
+      <div class="preview c-bg" style="padding:16px;display:flex;flex-direction:column;gap:10px;position:relative;">
+
+        <div class="c-panel c-glow" style="display:flex;align-items:center;gap:8px;padding:8px 12px;">
+          <div style="width:6px;height:6px;border-radius:50%;background:#fff;box-shadow:0 0 6px rgba(255,255,255,0.5);"></div>
+          <span style="font-size:10px;font-weight:700;color:#fff;letter-spacing:.1em;">REDINSIDE</span>
+          <div style="margin-left:auto;display:flex;gap:4px;">
+            <div style="height:14px;width:1px;background:rgba(255,255,255,0.1);"></div>
+            <span style="font-size:9px;color:rgba(255,255,255,0.3);">Desi Trap Vol.1</span>
+          </div>
+        </div>
+
+        <div class="c-panel c-glow" style="display:flex;gap:2px;padding:4px;">
+          <div style="padding:4px 10px;border-radius:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);font-size:9px;font-weight:700;color:#fff;">WRITE</div>
+          <div style="padding:4px 10px;font-size:9px;color:rgba(255,255,255,0.25);">SOUNDS</div>
+          <div style="padding:4px 10px;font-size:9px;color:rgba(255,255,255,0.25);">CREATE</div>
+          <div style="padding:4px 10px;font-size:9px;color:rgba(255,255,255,0.25);">CRAFT</div>
+          <div style="padding:4px 10px;font-size:9px;color:rgba(255,255,255,0.25);">RELEASE</div>
+        </div>
+
+        <div class="c-panel c-glow" style="padding:10px;display:flex;gap:8px;align-items:center;">
+          <div style="width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,rgba(255,255,255,0.15),rgba(255,255,255,0.05));flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;border:1px solid rgba(255,255,255,0.1);">♫</div>
+          <div style="flex:1;">
+            <div style="font-size:10px;font-weight:700;color:#fff;">Desi Trap v3</div>
+            <div style="margin-top:4px;height:16px;display:flex;align-items:center;gap:1px;">
+              <div style="width:2px;height:4px;background:rgba(255,255,255,0.3);border-radius:1px;"></div>
+              <div style="width:2px;height:10px;background:rgba(255,255,255,0.4);border-radius:1px;"></div>
+              <div style="width:2px;height:7px;background:rgba(255,255,255,0.35);border-radius:1px;"></div>
+              <div style="width:2px;height:14px;background:rgba(255,255,255,0.6);border-radius:1px;"></div>
+              <div style="width:2px;height:8px;background:rgba(255,255,255,0.4);border-radius:1px;"></div>
+              <div style="width:2px;height:12px;background:rgba(255,255,255,0.5);border-radius:1px;"></div>
+              <div style="width:2px;height:5px;background:rgba(255,255,255,0.3);border-radius:1px;"></div>
+              <div style="width:2px;height:16px;background:rgba(255,255,255,0.7);border-radius:1px;"></div>
+              <div style="width:2px;height:9px;background:rgba(255,255,255,0.4);border-radius:1px;"></div>
+            </div>
+          </div>
+          <div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:3px 8px;font-size:8px;color:rgba(255,255,255,0.7);font-weight:700;">▶</div>
+        </div>
+
+        <div class="c-panel c-glow" style="padding:10px;flex:1;">
+          <div style="font-size:8px;color:rgba(255,255,255,0.25);letter-spacing:.1em;margin-bottom:6px;">LYRICS — v3</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.45);line-height:1.6;">Dilli ki raat, neon glow hai<br/>Apna swag, apni flow hai...</div>
+          <div style="margin-top:8px;display:inline-block;padding:4px 10px;border-radius:6px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);font-size:8px;color:rgba(255,255,255,0.8);font-weight:700;">⚡ GENERATE</div>
+        </div>
+
+      </div>
+      <div class="info">
+        <h3>C — Obsidian Glass</h3>
+        <p>Near-black with pure white glass layers. Ultra-minimal, zero colour distraction. Like Apple visionOS or Nothing Phone UI. The content IS the colour.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <p style="margin-top:20px;color:#555;font-size:12px;">Note: all three keep the Red (#E63946) + Gold (#FFB800) brand accent colours from the current design. Only the background atmosphere changes.</p>
+</div>
+
+<script>
+  let selected = null;
+  function select(el, choice) {
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    selected = choice;
+    if (window.parent && window.parent.__recordChoice) window.parent.__recordChoice(choice, el.querySelector('h3').textContent);
+    // try the helper
+    if (typeof toggleSelect !== 'undefined') toggleSelect(el);
+  }
+</script>
+</body>
+</html>

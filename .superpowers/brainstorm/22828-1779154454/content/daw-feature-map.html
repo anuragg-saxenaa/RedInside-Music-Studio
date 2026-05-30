@@ -1,0 +1,139 @@
+<h2>How World-Class Tools Handle This — And Where Every Feature Lives</h2>
+<p class="subtitle">Suno, BandLab, Splice all use the same pattern: track-centric, not step-centric</p>
+
+<div class="section">
+<h3 style="color:#FFB800;">The Key Insight: Everything Belongs to a Track</h3>
+<p style="color:#ccc;max-width:700px;line-height:1.6;">
+  In the current design, you pick a step (Artwork, Mastering, etc.) and then wonder "which song am I doing this for?"
+  In world-class tools, you pick a <strong style="color:#fff;">track first</strong>, then all tools for that track appear together.
+  Artwork, edit, mastering — all live as actions on the track, not as separate menu items.
+</p>
+</div>
+
+<!-- Full workspace mockup -->
+<div class="mockup" style="font-family:monospace;font-size:10px;max-width:900px;">
+  <div class="mockup-header">Phase 4 — DAW Workspace (full feature map)</div>
+  <div class="mockup-body" style="padding:0;display:flex;height:480px;gap:0;">
+
+    <!-- Left Sidebar -->
+    <div style="width:160px;background:#0a0a0f;border-right:1px solid #1e1e2e;display:flex;flex-direction:column;padding:10px 0;flex-shrink:0;">
+      <div style="padding:0 10px 8px;color:#E63946;font-size:9px;font-weight:700;letter-spacing:.1em;border-bottom:1px solid #1a1a2a;margin-bottom:8px;">REDINSIDE</div>
+
+      <div style="padding:0 10px;color:#666;font-size:8px;font-weight:700;letter-spacing:.1em;margin-bottom:4px;">PROJECTS</div>
+      <div style="padding:4px 10px;background:#1a0a12;border-left:2px solid #E63946;color:#fff;font-size:9px;cursor:pointer;">▸ Desi Trap Vol.1</div>
+      <div style="padding:4px 10px;color:#555;font-size:9px;cursor:pointer;">· Punjabi Anthem</div>
+      <div style="padding:4px 10px;color:#555;font-size:9px;cursor:pointer;">· Mumbai Nights</div>
+      <div style="padding:4px 10px;color:#E63946;font-size:9px;margin-top:2px;">＋ New Project</div>
+
+      <div style="border-top:1px solid #1a1a2a;margin:10px 0 8px;padding:0 10px;padding-top:8px;color:#666;font-size:8px;font-weight:700;letter-spacing:.1em;">PLAYLISTS</div>
+      <div style="padding:3px 10px;color:#a78bfa;font-size:9px;">♫ My Best Tracks</div>
+      <div style="padding:3px 10px;color:#555;font-size:9px;">♫ Punjabi Vibes</div>
+      <div style="padding:3px 10px;color:#555;font-size:9px;">♫ Collabs</div>
+      <div style="padding:3px 10px;color:#a78bfa;font-size:9px;margin-top:2px;">＋ New Playlist</div>
+
+      <div style="border-top:1px solid #1a1a2a;margin:10px 0 8px;padding:0 10px;padding-top:8px;color:#666;font-size:8px;font-weight:700;letter-spacing:.1em;">TOOLS</div>
+      <div style="padding:3px 10px;color:#555;font-size:9px;">📊 History</div>
+      <div style="padding:3px 10px;color:#555;font-size:9px;">🔥 Viral Toolkit</div>
+      <div style="padding:3px 10px;color:#555;font-size:9px;">⚙ Settings</div>
+    </div>
+
+    <!-- Center: Main workspace -->
+    <div style="flex:1;display:flex;flex-direction:column;background:#0d0d18;overflow:hidden;">
+
+      <!-- Tab bar -->
+      <div style="display:flex;border-bottom:1px solid #1e1e2e;background:#090912;flex-shrink:0;">
+        <div style="padding:8px 14px;color:#fff;font-size:9px;font-weight:700;border-bottom:2px solid #E63946;background:#0d0d18;">WRITE</div>
+        <div style="padding:8px 14px;color:#555;font-size:9px;">SOUNDS</div>
+        <div style="padding:8px 14px;color:#555;font-size:9px;">CREATE</div>
+        <div style="padding:8px 14px;color:#555;font-size:9px;">CRAFT</div>
+        <div style="padding:8px 14px;color:#555;font-size:9px;">RELEASE</div>
+      </div>
+
+      <!-- Current tab: WRITE (lyrics) -->
+      <div style="padding:12px;flex:1;overflow:auto;">
+        <div style="color:#888;font-size:8px;margin-bottom:8px;letter-spacing:.1em;">WRITE — Lyrics for: <span style="color:#E63946;">Desi Trap Vol.1</span></div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <div style="background:#1a0a12;border:1px solid #E63946;border-radius:4px;padding:5px 10px;color:#E63946;font-size:8px;cursor:pointer;">Hinglish Urban</div>
+          <div style="background:#111;border:1px solid #2a2a2a;border-radius:4px;padding:5px 10px;color:#555;font-size:8px;">Punjabi Swagger</div>
+          <div style="background:#111;border:1px solid #2a2a2a;border-radius:4px;padding:5px 10px;color:#555;font-size:8px;">Classical</div>
+          <div style="background:#111;border:1px solid #2a2a2a;border-radius:4px;padding:5px 10px;color:#555;font-size:8px;">Custom</div>
+        </div>
+        <div style="background:#111;border:1px solid #1e1e2e;border-radius:6px;padding:10px;color:#666;font-size:8px;height:60px;">[ Generated lyrics appear here — editable inline ]</div>
+        <div style="margin-top:8px;display:flex;gap:6px;">
+          <div style="background:#E63946;color:#fff;border-radius:4px;padding:5px 12px;font-size:8px;font-weight:700;">⚡ GENERATE</div>
+          <div style="background:#1a1a2a;color:#888;border-radius:4px;padding:5px 12px;font-size:8px;">Edit</div>
+          <div style="background:#1a1a2a;color:#888;border-radius:4px;padding:5px 12px;font-size:8px;">History ▸</div>
+        </div>
+      </div>
+
+      <!-- Tab descriptions below the fold -->
+      <div style="background:#080810;border-top:1px solid #1a1a2a;padding:8px 12px;display:flex;gap:12px;flex-shrink:0;">
+        <span style="color:#E63946;font-size:8px;font-weight:700;">WRITE</span><span style="color:#444;font-size:8px;">Lyrics · Presets · Edit</span>
+        <span style="color:#FFB800;font-size:8px;font-weight:700;">SOUNDS</span><span style="color:#444;font-size:8px;">Generate music · YouTube import · Vocal removal</span>
+        <span style="color:#a78bfa;font-size:8px;font-weight:700;">CREATE</span><span style="color:#444;font-size:8px;">Artwork · Video · Voice</span>
+        <span style="color:#38bdf8;font-size:8px;font-weight:700;">CRAFT</span><span style="color:#444;font-size:8px;">Audio editor · Medley · Mix</span>
+        <span style="color:#4ade80;font-size:8px;font-weight:700;">RELEASE</span><span style="color:#444;font-size:8px;">Mastering · Export · ZIP</span>
+      </div>
+    </div>
+
+    <!-- Right panel: Track info + artwork -->
+    <div style="width:160px;background:#0a0a0f;border-left:1px solid #1e1e2e;display:flex;flex-direction:column;padding:10px;flex-shrink:0;">
+      <div style="color:#666;font-size:8px;font-weight:700;letter-spacing:.1em;margin-bottom:8px;">CURRENT TRACK</div>
+
+      <!-- Artwork thumbnail -->
+      <div style="width:100%;aspect-ratio:1;background:#1a1a2a;border-radius:6px;border:1px solid #2a2a2a;display:flex;align-items:center;justify-content:center;margin-bottom:8px;position:relative;">
+        <span style="color:#333;font-size:20px;">🎨</span>
+        <div style="position:absolute;bottom:4px;right:4px;background:#E63946;color:#fff;font-size:7px;padding:2px 5px;border-radius:3px;cursor:pointer;">EDIT</div>
+      </div>
+
+      <div style="color:#ccc;font-size:9px;font-weight:700;margin-bottom:2px;">Desi Trap v3</div>
+      <div style="color:#555;font-size:8px;margin-bottom:8px;">3:44 · 320kbps</div>
+
+      <div style="color:#666;font-size:8px;font-weight:700;letter-spacing:.1em;margin-bottom:6px;">QUICK ACTIONS</div>
+      <div style="background:#1a0a12;border:1px solid #E63946;border-radius:4px;padding:5px 8px;color:#E63946;font-size:8px;text-align:center;margin-bottom:4px;cursor:pointer;">▶ PLAY</div>
+      <div style="background:#111;border:1px solid #2a2a2a;border-radius:4px;padding:5px 8px;color:#555;font-size:8px;text-align:center;margin-bottom:4px;cursor:pointer;">✎ EDIT AUDIO</div>
+      <div style="background:#111;border:1px solid #2a2a2a;border-radius:4px;padding:5px 8px;color:#555;font-size:8px;text-align:center;margin-bottom:4px;cursor:pointer;">⬆ MASTER</div>
+      <div style="background:#111;border:1px solid #2a2a2a;border-radius:4px;padding:5px 8px;color:#555;font-size:8px;text-align:center;cursor:pointer;">＋ ADD TO PLAYLIST</div>
+
+      <div style="margin-top:auto;border-top:1px solid #1a1a2a;padding-top:8px;">
+        <div style="color:#666;font-size:8px;font-weight:700;letter-spacing:.1em;margin-bottom:4px;">IN PLAYLISTS</div>
+        <div style="color:#a78bfa;font-size:8px;">♫ My Best Tracks</div>
+        <div style="color:#555;font-size:8px;margin-top:2px;">♫ Punjabi Vibes</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom player bar -->
+  <div style="border-top:1px solid #1e1e2e;background:#07070f;padding:8px 14px;display:flex;align-items:center;gap:12px;font-family:monospace;font-size:9px;">
+    <div style="color:#E63946;font-size:14px;">⏮</div>
+    <div style="background:#E63946;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;">▶</div>
+    <div style="color:#E63946;font-size:14px;">⏭</div>
+    <div style="color:#888;margin-left:6px;">Desi Trap v3 · 1:12 / 3:44</div>
+    <div style="flex:1;height:2px;background:#1e1e2e;border-radius:2px;position:relative;"><div style="width:32%;height:100%;background:#E63946;border-radius:2px;"></div></div>
+    <div style="color:#666;font-size:8px;">VOL ████░</div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px;">
+<h3>Where Does Artwork Live? (The Answer)</h3>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:700px;">
+  <div style="background:#0d0d18;border:1px solid #2a2a2a;border-radius:6px;padding:12px;">
+    <div style="color:#E63946;font-size:11px;font-weight:700;margin-bottom:6px;">NOW (confusing)</div>
+    <p style="color:#888;font-size:11px;line-height:1.5;">Artwork is Step 3. User generates music, then has to manually go to a separate "Artwork" step. No visual connection between the song and its cover.</p>
+  </div>
+  <div style="background:#0d0d18;border:1px solid #4ade80;border-radius:6px;padding:12px;">
+    <div style="color:#4ade80;font-size:11px;font-weight:700;margin-bottom:6px;">PHASE 4 (clear)</div>
+    <p style="color:#888;font-size:11px;line-height:1.5;">Artwork thumbnail lives in the right panel, always visible for the selected track. One click → opens the CREATE tab. Feels like album art belongs to the track, not a separate feature.</p>
+  </div>
+</div>
+</div>
+
+<div class="section" style="margin-top:16px;">
+<h3>Suno / BandLab / Splice — What They All Share</h3>
+<p style="color:#ccc;max-width:700px;line-height:1.6;font-size:12px;">
+  Every top tool is <strong style="color:#FFB800;">track-first, not feature-first</strong>. You see your track library on the left. You select a track. The right side shows everything about that track: waveform, artwork, metadata, actions. The studio tools (edit, master, export) are verbs applied to the selected track — not separate destinations you navigate to.
+  <br><br>
+  <strong style="color:#fff;">That's what Phase 4 does.</strong> The 5 tabs (WRITE / SOUNDS / CREATE / CRAFT / RELEASE) stay in context of the selected project. The right panel keeps the selected track + its artwork always visible. Playlist in the left sidebar organises your library.
+</p>
+</div>
