@@ -2,7 +2,7 @@
 nixpkgs = ['nodejs_20']
 
 [phases.install]
-cmds = ['npm ci --omit=dev']
+cmds = ['npm ci --omit=dev --ignore-scripts --no-audit --no-fund']
 phaseType = 'start'
 
 [start]
