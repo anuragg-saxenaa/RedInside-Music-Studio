@@ -72,16 +72,11 @@ app.use((req, res, next) => {
 
 // Health check
 app.get('/health', async (req, res) => {
-  const minimaxBase = process.env.MINIMAX_BASE_URL || 'https://api.minimax.io';
-  const { VocalRemovalService } = await import('./modules/audio/vocal-removal.service.js');
-  const demucsEngine = await VocalRemovalService.detectEngine();
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    minimax: minimaxBase.includes('localhost') ? 'mock' : 'real',
-    minimaxHost: new URL(minimaxBase).host,
-    demucs: demucsEngine === 'demucs' ? 'available' : 'fallback',
-  });
+  try {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
 });
 
 // Project routes
