@@ -6,114 +6,91 @@ import { HistoryService } from '../../modules/history/history.service.js';
 import logger from '../../utils/logger.js';
 import { broadcast } from '../../utils/ws.server.js';
 
-const historyService = new HistoryService();
-
 const videoService = new VideoService();
-const connection = getRedisConnection();
 
-export const videoWorker = new Worker(
-  'video-generation',
-  async (job) => {
-    const { projectId, musicId, prompt, model, duration, resolution, jobId } = job.data;
+function startWorker() {
+  const connection = getRedisConnection();
+  if (!connection) {
+    logger.warn('Redis not available — video worker not started');
+    return null;
+  }
 
-    logger.info('Processing video job', { jobId: job.id, projectId });
+  const worker = new Worker(
+    'video-generation',
+    async (job) => {
+      const { projectId, musicId, prompt, model, duration, resolution, jobId } = job.data;
 
-    try {
-      // Update job status to active
-      await JobModel.updateStatus(jobId, 'active');
-      broadcast({ type: 'job.started', jobId, jobType: 'generate-video', projectId });
+      logger.info('Processing video job', { jobId: job.id, projectId });
 
-      // Start video generation (initiates async task on MiniMax)
-      const result = await videoService.generateVideo({
-        projectId,
-        musicId,
-        prompt,
-        model,
-        duration,
-        resolution,
-      });
+      try {
+        await JobModel.updateStatus(jobId, 'active');
+        broadcast({ type: 'job.started', jobId, jobType: 'generate-video', projectId });
 
-      logger.info('Video generation started, polling for completion', { jobId: job.id, taskId: result.taskId });
+        const result = await videoService.generateVideo({ projectId, musicId, prompt, model, duration, resolution });
 
-      // Poll for completion with retry logic
-      const maxPollAttempts = 60; // ~5 minutes max (5s interval)
-      let pollCount = 0;
+        logger.info('Video generation started, polling for completion', { jobId: job.id, taskId: result.taskId });
 
-      while (pollCount < maxPollAttempts) {
-        // Wait 5 seconds between polls
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        const maxPollAttempts = 60;
+        let pollCount = 0;
 
-        const statusResult = await videoService.pollStatus(result.taskId);
+        while (pollCount < maxPollAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          const statusResult = await videoService.pollStatus(result.taskId);
 
-        if (statusResult.status === 'completed') {
-          // Link into generation chain (music → video)
-          try {
-            await historyService.linkGeneration(projectId, { type: 'video', id: result.videoId });
-          } catch (linkErr) {
-            logger.warn('Failed to link video into generation chain', { error: linkErr.message });
+          if (statusResult.status === 'completed') {
+            try {
+              await (new HistoryService()).linkGeneration(projectId, { type: 'video', id: result.videoId });
+            } catch (linkErr) {
+              logger.warn('Failed to link video into generation chain', { error: linkErr.message });
+            }
+
+            await JobModel.update(jobId, {
+              status: 'completed', progress: 100,
+              result: { videoId: result.videoId, taskId: result.taskId, fileId: statusResult.fileId },
+            });
+            broadcast({ type: 'job.completed', jobId, jobType: 'generate-video', projectId, result: { videoId: result.videoId } });
+            logger.info('Video job completed', { jobId: job.id, videoId: result.videoId });
+            return { videoId: result.videoId, taskId: result.taskId, status: 'completed' };
+          } else if (statusResult.status === 'failed') {
+            throw new Error(statusResult.errorMessage || 'Video generation failed');
           }
 
-          // Update job as completed
-          await JobModel.update(jobId, {
-            status: 'completed',
-            progress: 100,
-            result: { videoId: result.videoId, taskId: result.taskId, fileId: statusResult.fileId },
-          });
-          broadcast({ type: 'job.completed', jobId, jobType: 'generate-video', projectId, result: { videoId: result.videoId } });
-          logger.info('Video job completed', { jobId: job.id, videoId: result.videoId });
-          return { videoId: result.videoId, taskId: result.taskId, status: 'completed' };
-        } else if (statusResult.status === 'failed') {
-          throw new Error(statusResult.errorMessage || 'Video generation failed');
+          const progress = Math.min(95, Math.floor((pollCount / maxPollAttempts) * 100));
+          await JobModel.update(jobId, { progress });
+          broadcast({ type: 'job.progress', jobId, jobType: 'generate-video', projectId, progress });
+          pollCount++;
         }
 
-        // Update progress
-        const progress = Math.min(95, Math.floor((pollCount / maxPollAttempts) * 100));
-        await JobModel.update(jobId, { progress });
-        broadcast({ type: 'job.progress', jobId, jobType: 'generate-video', projectId, progress });
-
-        pollCount++;
-        logger.info('Video still processing', { jobId: job.id, pollCount, progress });
+        throw new Error('Video generation timed out after maximum polling attempts');
+      } catch (error) {
+        logger.error('Video job failed', { jobId: job.id, error: error.message });
+        await JobModel.updateStatus(jobId, 'failed', error.message);
+        broadcast({ type: 'job.failed', jobId, jobType: 'generate-video', projectId, error: error.message });
+        throw error;
       }
+    },
+    { connection, concurrency: 1 }
+  );
 
-      // Timeout - still processing after max attempts
-      throw new Error('Video generation timed out after maximum polling attempts');
-    } catch (error) {
-      logger.error('Video job failed', { jobId: job.id, error: error.message });
-      await JobModel.updateStatus(jobId, 'failed', error.message);
-      broadcast({ type: 'job.failed', jobId, jobType: 'generate-video', projectId, error: error.message });
-      throw error;
-    }
-  },
-  {
-    connection,
-    concurrency: 1, // Video generation is resource-intensive
-  }
-);
-
-videoWorker.on('completed', (job, result) => {
-  logger.info('Video job completed', { jobId: job.id, videoId: result?.videoId });
-});
-
-videoWorker.on('failed', (job, err) => {
-  logger.error('Video job failed', { jobId: job?.id, error: err.message });
-});
-
-// Helper function to add video job
-export async function addVideoJob(data) {
-  const { projectId, musicId, prompt, model, duration, resolution, jobId } = data;
-
-  const job = await queues.video.add('generate-video', {
-    projectId,
-    musicId,
-    prompt,
-    model,
-    duration,
-    resolution,
-    jobId,
+  worker.on('completed', (job, result) => {
+    logger.info('Video job completed', { jobId: job.id, videoId: result?.videoId });
   });
 
-  logger.info('Video job added', { jobId: job.id, projectId });
+  worker.on('failed', (job, err) => {
+    logger.error('Video job failed', { jobId: job?.id, error: err.message });
+  });
 
+  return worker;
+}
+
+export const videoWorker = startWorker();
+
+export async function addVideoJob(data) {
+  const q = queues.video;
+  if (!q || !q.add) { logger.warn('Queue not available, job not added'); return null; }
+  const { projectId, musicId, prompt, model, duration, resolution, jobId } = data;
+  const job = await q.add('generate-video', { projectId, musicId, prompt, model, duration, resolution, jobId });
+  logger.info('Video job added', { jobId: job?.id, projectId });
   return job;
 }
 
