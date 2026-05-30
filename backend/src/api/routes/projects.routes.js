@@ -8,7 +8,7 @@ import db from '../../database/connection.js';
 export const ProjectsController = {
   async create(req, res, next) {
     try {
-      const userId = req.auth.userId;
+      const userId = req.auth?.userId || 'dev-user';
       const { name, description, workflowMode } = req.body;
 
       if (!name || typeof name !== 'string') {
@@ -32,7 +32,7 @@ export const ProjectsController = {
 
   async getById(req, res, next) {
     try {
-      const userId = req.auth.userId;
+      const userId = req.auth?.userId || 'dev-user';
       const { id } = req.params;
       const result = await db.execute({ sql: 'SELECT * FROM projects WHERE id = ? AND user_id = ?', args: [id, userId] });
       const project = result.rows[0];
@@ -49,9 +49,9 @@ export const ProjectsController = {
 
   async getAll(req, res, next) {
     try {
-      const userId = req.auth.userId;
-      // dev-user = no real auth configured; return all projects (single-user studio)
-      const result = userId === 'dev-user'
+      const userId = req.auth?.userId || 'dev-user';
+      // dev-user or missing userId = no real auth; return all projects (single-user studio)
+      const result = (!userId || userId === 'dev-user')
         ? await db.execute('SELECT * FROM projects ORDER BY updated_at DESC')
         : await db.execute({ sql: 'SELECT * FROM projects WHERE user_id = ? ORDER BY updated_at DESC', args: [userId] });
       res.json(result.rows);
@@ -62,7 +62,7 @@ export const ProjectsController = {
 
   async update(req, res, next) {
     try {
-      const userId = req.auth.userId;
+      const userId = req.auth?.userId || 'dev-user';
       const { id } = req.params;
       const { name, description, workflowMode } = req.body;
 
@@ -85,7 +85,7 @@ export const ProjectsController = {
 
   async delete(req, res, next) {
     try {
-      const userId = req.auth.userId;
+      const userId = req.auth?.userId || 'dev-user';
       const { id } = req.params;
 
       const existingResult = await db.execute({ sql: 'SELECT * FROM projects WHERE id = ? AND user_id = ?', args: [id, userId] });
