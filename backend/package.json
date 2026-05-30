@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@clerk/express": "^2.1.22",
+    "@libsql/client": "^0.17.3",
     "archiver": "^8.0.0",
     "axios": "^1.6.0",
     "better-sqlite3": "^11.10.0",
