@@ -58,9 +58,11 @@ let persistentTrack: MusicGeneration | null = null;
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { getToken } = useAuth();
 
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
   const authFetch = useCallback(async (url: string, options: RequestInit = {}) => {
     const token = await getToken();
-    return fetch(url, {
+    const fullUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
+    return fetch(fullUrl, {
       ...options,
       headers: {
         ...(options.headers || {}),
