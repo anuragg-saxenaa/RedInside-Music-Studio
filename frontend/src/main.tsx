@@ -22,6 +22,29 @@ if (import.meta.env.VITE_API_BASE_URL) {
   };
 }
 
+// Patch <img src="/api/..."> and CSS background-image to point to Railway
+if (import.meta.env.VITE_API_BASE_URL) {
+  const BASE = import.meta.env.VITE_API_BASE_URL;
+  const patchEl = (el: Element) => {
+    if (el.tagName === 'IMG') {
+      const img = el as HTMLImageElement;
+      const attr = img.getAttribute('src') || '';
+      if (attr.startsWith('/api')) img.setAttribute('src', BASE + attr);
+    }
+  };
+  const obs = new MutationObserver(muts => {
+    for (const m of muts) {
+      m.addedNodes.forEach(n => {
+        if (n.nodeType === 1) { patchEl(n as Element); (n as Element).querySelectorAll?.('img[src^="/api"]').forEach(patchEl); }
+      });
+      if (m.type === 'attributes' && m.target.nodeType === 1) patchEl(m.target as Element);
+    }
+  });
+  // Start observing once DOM is ready
+  const startObs = () => obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
+  if (document.body) startObs(); else document.addEventListener('DOMContentLoaded', startObs);
+}
+
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ?? '';
 // In dev without Clerk configured, app still renders (backend falls back to 'admin')
 if (!PUBLISHABLE_KEY && import.meta.env.DEV) {

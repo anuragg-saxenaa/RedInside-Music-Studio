@@ -2,6 +2,14 @@ import { createContext, useContext, useState, useRef, useCallback, useEffect, ty
 import { useAuth } from '@clerk/clerk-react';
 import type { Project, MusicGeneration, LyricsGeneration, Playlist, V4Tab } from '../types';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+// Prefix relative /api/ URLs so <img src> works on cloud (not just fetch calls)
+function prefixApiUrls(track: MusicGeneration): MusicGeneration {
+  if (!API_BASE) return track;
+  const fix = (u?: string) => (u && u.startsWith('/api') ? API_BASE + u : u);
+  return { ...track, artwork_url: fix(track.artwork_url) };
+}
+
 interface WorkspaceContextType {
   projects: Project[];
   activeProjectId: string | null;
@@ -198,7 +206,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     authFetch(`/api/projects/${activeProjectId}/music`)
       .then(r => r.json())
       .then((list: MusicGeneration[]) => {
-        setTracks(list);
+        setTracks(list.map(prefixApiUrls));
         // Sync stale selected/player tracks
         if (selectedTrack) {
           const u = list.find(t => t.id === selectedTrack.id);
@@ -231,7 +239,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     authFetch(`/api/projects/${activeProjectId}/music`)
       .then(r => r.json())
       .then((list: MusicGeneration[]) => {
-        setTracks(list);
+        setTracks(list.map(prefixApiUrls));
         if (selectedTrack) { const u = list.find(t => t.id === selectedTrack.id); if (u) setSelectedTrack(u); }
         if (playerTrack) { const u = list.find(t => t.id === playerTrack.id); if (u) setPlayerTrack(u); }
         if (list.length > 0 && !selectedTrack) setSelectedTrack(list[0]);
