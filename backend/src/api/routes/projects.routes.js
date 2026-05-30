@@ -246,12 +246,28 @@ export const ProjectsController = {
         return res.status(400).json({ error: 'Music does not belong to this project' });
       }
 
-      // Try music-specific artwork first
       const artworkDir = storage.getArtworkDir(id);
-      const musicArtworkPath = path.join(artworkDir, `music-${musicId}.png`);
+      const musicArtworkKey = path.join(artworkDir, `music-${musicId}.png`);
 
-      if (fs.existsSync(musicArtworkPath)) {
-        return res.sendFile(musicArtworkPath);
+      // R2 driver: redirect to presigned URL
+      if (storage.driver === 'r2') {
+        try {
+          const url = await storage.getPresignedUrl(musicArtworkKey);
+          return res.redirect(302, url);
+        } catch {
+          // Try project-level artwork
+          try {
+            const url = await storage.getPresignedUrl(path.join(artworkDir, 'artwork.png'));
+            return res.redirect(302, url);
+          } catch {
+            return res.status(204).send();
+          }
+        }
+      }
+
+      // Local driver
+      if (fs.existsSync(musicArtworkKey)) {
+        return res.sendFile(musicArtworkKey);
       }
 
       // Fall back to project artwork
