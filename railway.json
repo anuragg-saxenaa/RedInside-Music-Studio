@@ -2,8 +2,11 @@
   "$schema": "https://railway.app/schema.json",
   "production": {
     "builder": "DOCKERFILE",
-    "dockerfilePath": "Dockerfile",
+    "dockerfilePath": "backend/Dockerfile",
     "rootDirectory": "/",
+    "build": {
+      "noCache": true
+    },
     "environment": {
       "NODE_ENV": "production",
       "PORT": "3000",

@@ -5,12 +5,10 @@ RUN corepack enable && corepack prepare pnpm@latest --activate && \
 
 WORKDIR /app
 
-COPY backend/package*.json ./backend/
-WORKDIR /app/backend
+COPY package*.json ./
 RUN pnpm install --prod --ignore-scripts
 
-WORKDIR /app
-COPY backend/ ./
+COPY . .
 
 EXPOSE 3000
 
