@@ -20,7 +20,7 @@ new Worker('vocal-removal', async (job) => {
     const result = await VocalRemovalService.removeVocals(inputPath, outputDir, {
       onProgress: (progress, message) => {
         job.updateProgress(progress);
-        if (jobId) await JobModel.update(jobId, { progress });
+        if (jobId) { JobModel.update(jobId, { progress }).catch(() => {}); }
         broadcast({ event: 'job.progress', jobId: jobId || job.id, progress, message });
       },
     });
