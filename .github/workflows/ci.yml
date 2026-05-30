@@ -20,13 +20,12 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: cd frontend && npm ci
       - run: cd frontend && npx tsc --noEmit
-      - run: cd frontend && npm run lint || true  # lint not configured yet
+      - run: cd frontend && npm run lint || true
 
   backend-tests:
     name: Backend Tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Only run on develop, release/*, main — not feature/*
     if: |
       github.ref == 'refs/heads/develop' ||
       github.ref == 'refs/heads/main' ||
@@ -49,17 +48,28 @@ jobs:
       - run: cd backend && npm ci
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg redis-server
       - run: redis-server --daemonize yes && redis-cli ping
-      - run: node backend/tests/minimax-mock-server.js &
-      - run: npx wait-on http://localhost:8999/health --timeout 10000 || true
-      - run: cd backend && node src/server.js &
-      - run: npx wait-on http://localhost:3000/health --timeout 30000
+      - name: Start mock server
+        run: |
+          cd backend
+          node tests/minimax-mock-server.js > /tmp/mock-server.log 2>&1 &
+          echo "Mock PID: $!"
+          sleep 2
+          cat /tmp/mock-server.log
+      - run: npx wait-on http://localhost:8999/health --timeout 15000 || { cat /tmp/mock-server.log; exit 1; }
+      - name: Start backend
+        run: |
+          cd backend
+          node src/server.js > /tmp/backend.log 2>&1 &
+          echo "Backend PID: $!"
+          sleep 5
+          cat /tmp/backend.log
+      - run: npx wait-on http://localhost:3000/health --timeout 30000 || { cat /tmp/backend.log; exit 1; }
       - run: cd backend && npm test
 
   frontend-tests:
     name: Frontend E2E Tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Only on develop/main/release branches
     if: |
       github.ref == 'refs/heads/develop' ||
       github.ref == 'refs/heads/main' ||
@@ -84,10 +94,15 @@ jobs:
       - run: cd frontend && npm ci
       - run: cd frontend && npx playwright install --with-deps chromium
       - run: cd frontend && npm run build
-      - run: |
-          node backend/tests/minimax-mock-server.js &
-          cd backend && node src/server.js &
-          npx wait-on http://localhost:3000/health --timeout 15000
+      - name: Start mock and backend
+        run: |
+          node backend/tests/minimax-mock-server.js > /tmp/mock-server.log 2>&1 &
+          sleep 2
+          cd backend && node src/server.js > /tmp/backend.log 2>&1 &
+          sleep 5
+          echo "=== MOCK LOG ===" && cat /tmp/mock-server.log
+          echo "=== BACKEND LOG ===" && cat /tmp/backend.log
+          npx wait-on http://localhost:3000/health --timeout 30000 || { cat /tmp/backend.log; exit 1; }
       - run: cd frontend && npx playwright test
       - uses: actions/upload-artifact@v4
         if: failure()
