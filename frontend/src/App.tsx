@@ -29,6 +29,13 @@ function App() {
     return match ? match[1] : '';
   });
 
+  // Force studio view when signed in — handles post-sign-in redirect where hash doesn't change
+  useEffect(() => {
+    if (isSignedIn && currentView === 'login') {
+      setCurrentView('studio');
+    }
+  }, [isSignedIn, currentView]);
+
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash;
