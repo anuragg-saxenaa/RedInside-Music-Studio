@@ -38,6 +38,7 @@ const config = {
     env: process.env.NODE_ENV || 'development',
   },
   redis: {
+    url: process.env.UPSTASH_REDIS_URL || null,
     host: process.env.REDIS_HOST || 'localhost',
     port: parsePort(process.env.REDIS_PORT, '6379'),
   },

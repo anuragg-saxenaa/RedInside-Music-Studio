@@ -3,12 +3,19 @@ import Redis from 'ioredis';
 import config from '../config/env.config.js';
 import logger from '../utils/logger.js';
 
-// Redis connection config
-const redisConfig = {
-  host: config.redis.host,
-  port: config.redis.port,
-  maxRetriesPerRequest: null, // Required for BullMQ
-};
+// Redis connection config — Upstash TLS URL when set, else local host/port
+const redisConfig = config.redis.url
+  ? {
+      // Upstash: ioredis accepts the full URL directly (includes TLS credentials)
+      url: config.redis.url,
+      tls: {},
+      maxRetriesPerRequest: null,
+    }
+  : {
+      host: config.redis.host,
+      port: config.redis.port,
+      maxRetriesPerRequest: null,
+    };
 
 // Connection singleton for reuse
 let connection = null;
