@@ -35,7 +35,7 @@ for (const file of files) {
 
   const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
   // Split on ; to run each statement (libsql doesn't support multiple statements in one execute)
-  const statements = sql.split(';').map(s => s.trim()).filter(s => s.length > 0);
+  const statements = sql.split(';').map(s => s.trim()).filter(s => s.length > 0 && !/^(BEGIN|COMMIT|ROLLBACK)$/i.test(s));
   for (const stmt of statements) {
     try {
       await db.execute(stmt);
