@@ -56,6 +56,8 @@ jobs:
           sleep 2
           cat /tmp/mock-server.log
       - run: npx wait-on http://localhost:8999/health --timeout 15000 || { cat /tmp/mock-server.log; exit 1; }
+      - name: Run DB migrations
+        run: cd backend && node src/database/migrate.js
       - name: Start backend
         run: |
           cd backend
@@ -94,6 +96,8 @@ jobs:
       - run: cd frontend && npm ci
       - run: cd frontend && npx playwright install --with-deps chromium
       - run: cd frontend && npm run build
+      - name: Run DB migrations
+        run: cd backend && node src/database/migrate.js
       - name: Start mock and backend
         run: |
           node backend/tests/minimax-mock-server.js > /tmp/mock-server.log 2>&1 &
