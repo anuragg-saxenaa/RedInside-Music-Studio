@@ -140,9 +140,20 @@ export class MusicService {
       // Create project directories if they don't exist
       storage.createProjectDirs(projectId);
 
-      // Save original file
-      const originalFilePath = storage.getMusicFilePath(projectId, version, 'original');
-      storage.saveAudioFile(audioBuffer, originalFilePath);
+      // Always use R2-key format so both local and cloud can serve the file
+      const r2Key = `projects/${projectId}/generations/music/v${version}-original.mp3`;
+
+      // Upload to R2 (always — so cloud can play locally-generated tracks)
+      try { await storage.saveAudioFile(audioBuffer, r2Key); } catch (e) { logger.warn('R2 upload failed', { error: e.message }); }
+
+      // Also save to local disk at matching path for local playback
+      const { default: path } = await import('path');
+      const localPath = path.join(storage.basePath, r2Key);
+      fs.mkdirSync(path.dirname(localPath), { recursive: true });
+      fs.writeFileSync(localPath, audioBuffer);
+
+      // Store R2 key in DB (works for both local and cloud serving)
+      const originalFilePath = r2Key;
 
       // Resolve duration
       const extraInfo = response.extra_info;
@@ -152,7 +163,7 @@ export class MusicService {
       if (!durationSeconds) {
         try {
           const out = execSync(
-            `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${originalFilePath}"`,
+            `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${localPath}"`,
             { encoding: 'utf8' }
           ).trim();
           const parsed = parseFloat(out);
@@ -179,13 +190,18 @@ export class MusicService {
       // Auto-master to Spotify quality if setting enabled (default: true)
       const settingRow = await SettingsModel.get('auto_ffmpeg_320kbps');
       const autoMaster = settingRow?.value !== 'false';
-      if (autoMaster && musicRecord.original_file_path) {
+      if (autoMaster) {
+        const masterR2Key = `projects/${projectId}/masters/v${version}_spotify_master.wav`;
+        const masterLocalPath = path.join(storage.basePath, masterR2Key);
+        fs.mkdirSync(path.dirname(masterLocalPath), { recursive: true });
         const masteringService = new AudioMasteringService(storage.getMastersDir(projectId));
-        const masteredPath = musicRecord.original_file_path.replace(/\.[^.]+$/, '_spotify_master.wav');
 
         try {
-          await masteringService.masterToSpotify(musicRecord.original_file_path, masteredPath);
-          await MusicModel.update(musicRecord.id, { processedFilePath: masteredPath });
+          await masteringService.masterToSpotify(localPath, masterLocalPath);
+          // Upload mastered file to R2
+          const masterBuf = fs.readFileSync(masterLocalPath);
+          try { await storage.saveAudioFile(masterBuf, masterR2Key); } catch (e) { logger.warn('R2 master upload failed', { error: e.message }); }
+          await MusicModel.update(musicRecord.id, { processedFilePath: masterR2Key });
         } catch (err) {
           console.error('Auto-mastering failed:', err);
         }

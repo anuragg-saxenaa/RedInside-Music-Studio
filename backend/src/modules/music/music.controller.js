@@ -128,12 +128,14 @@ export const MusicController = {
       const resolvedPath = path.isAbsolute(filePath) ? filePath : path.join(storage.basePath, filePath);
 
       if (!fs.existsSync(resolvedPath)) {
-        logger.error('Audio file not found on disk', { filePath, musicId: id });
-        return res.status(404).json({
-          error: 'Audio file not found on disk',
-          filePath,
-          version: music.version
-        });
+        // Local file missing — fall back to R2 (cloud-generated track)
+        try {
+          const url = await storage.getPresignedUrl(filePath);
+          return res.redirect(302, url);
+        } catch {
+          logger.error('Audio file not found on disk or R2', { filePath, musicId: id });
+          return res.status(404).json({ error: 'Audio file not found', filePath });
+        }
       }
 
       const ext = path.extname(resolvedPath).toLowerCase();
