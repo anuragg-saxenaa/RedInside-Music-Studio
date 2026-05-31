@@ -230,6 +230,7 @@ export default function WriteStudio() {
             const multi = g.items.length > 1;
             return (
               <div key={g.key} style={{
+                flexShrink: 0,
                 borderRadius: '12px', overflow: 'hidden',
                 border: `1px solid ${isSelGroup ? C.borderActive : 'transparent'}`,
                 background: isSelGroup ? `linear-gradient(135deg, ${C.red}14, rgba(255,255,255,0.02))` : 'rgba(255,255,255,0.025)',
