@@ -118,32 +118,18 @@ export const MusicController = {
         return res.status(404).json({ error: 'File not available yet' });
       }
 
-      // R2 driver: redirect to presigned URL (browser streams direct from R2)
-      if (storage.driver === 'r2') {
-        const url = await storage.getPresignedUrl(filePath);
-        return res.redirect(302, url);
+      // Bulletproof: read bytes from wherever they exist (local disk → R2). Same-origin,
+      // no presigned redirect (which expires/caches). Works for files made on either side.
+      const buf = await storage.readBufferAnywhere(filePath);
+      if (!buf) {
+        logger.error('Audio file not found on disk or R2', { filePath, musicId: id });
+        return res.status(404).json({ error: 'Audio file not found', filePath });
       }
 
-      // Local driver: resolve relative R2-style keys to absolute path via storage basePath
-      const resolvedPath = path.isAbsolute(filePath) ? filePath : path.join(storage.basePath, filePath);
-
-      if (!fs.existsSync(resolvedPath)) {
-        // Local file missing — fall back to R2 (cloud-generated track)
-        try {
-          const url = await storage.getPresignedUrl(filePath);
-          return res.redirect(302, url);
-        } catch {
-          logger.error('Audio file not found on disk or R2', { filePath, musicId: id });
-          return res.status(404).json({ error: 'Audio file not found', filePath });
-        }
-      }
-
-      const ext = path.extname(resolvedPath).toLowerCase();
+      const ext = path.extname(filePath).toLowerCase();
       const contentType = ext === '.wav' ? 'audio/wav' : 'audio/mpeg';
       const downloadExt = ext === '.wav' ? 'wav' : 'mp3';
-
-      const stat = fs.statSync(resolvedPath);
-      const fileSize = stat.size;
+      const fileSize = buf.length;
       const rangeHeader = req.headers.range;
 
       if (rangeHeader) {
@@ -159,17 +145,16 @@ export const MusicController = {
           'Content-Type': contentType,
         });
         res.status(206);
-
-        const fileStream = fs.createReadStream(resolvedPath, { start, end });
-        fileStream.pipe(res);
+        res.end(buf.subarray(start, end + 1));
       } else {
         res.set({
           'Content-Type': contentType,
           'Accept-Ranges': 'bytes',
           'Content-Disposition': `inline; filename="music-v${music.version}.${downloadExt}"`,
           'Content-Length': fileSize,
+          'Cache-Control': 'public, max-age=300',
         });
-        fs.createReadStream(resolvedPath).pipe(res);
+        res.end(buf);
       }
     } catch (error) {
       logger.error('Error serving audio file:', error);
