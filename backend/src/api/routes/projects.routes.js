@@ -249,48 +249,17 @@ export const ProjectsController = {
         return res.status(400).json({ error: 'Music does not belong to this project' });
       }
 
-      const artworkDir = storage.getArtworkDir(id);
-      const musicArtworkKey = path.join(artworkDir, `music-${musicId}.png`);
+      // Stream bytes directly (same-origin, no redirect) — checks local disk then R2.
+      // Try per-song artwork first, then project-level artwork as fallback.
+      const buf =
+        await storage.readBufferAnywhere(`projects/${id}/artwork/music-${musicId}.png`) ||
+        await storage.readBufferAnywhere(`projects/${id}/artwork/artwork.png`);
 
-      // R2 driver: redirect to presigned URL
-      if (storage.driver === 'r2') {
-        try {
-          const url = await storage.getPresignedUrl(musicArtworkKey);
-          return res.redirect(302, url);
-        } catch {
-          // Try project-level artwork
-          try {
-            const url = await storage.getPresignedUrl(path.join(artworkDir, 'artwork.png'));
-            return res.redirect(302, url);
-          } catch {
-            return res.status(204).send();
-          }
-        }
-      }
+      if (!buf) return res.status(204).send();
 
-      // Local driver — resolve to absolute path
-      const localArtwork = path.isAbsolute(musicArtworkKey) ? musicArtworkKey : path.join(storage.basePath, musicArtworkKey);
-      if (fs.existsSync(localArtwork)) {
-        return res.sendFile(localArtwork);
-      }
-
-      // Fall back to project artwork on disk
-      const extensions = ['.png', '.jpg', '.jpeg', '.webp'];
-      for (const ext of extensions) {
-        const base = path.join(artworkDir, 'artwork' + ext);
-        const testPath = path.isAbsolute(base) ? base : path.join(storage.basePath, base);
-        if (fs.existsSync(testPath)) {
-          return res.sendFile(testPath);
-        }
-      }
-
-      // Cloud-created artwork viewed locally — fall back to R2 (canonical key)
-      try {
-        const url = await storage.getPresignedUrl(`projects/${id}/artwork/music-${musicId}.png`);
-        return res.redirect(302, url);
-      } catch { /* not in R2 either */ }
-
-      return res.status(204).send();
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Cache-Control', 'public, max-age=60');
+      return res.send(buf);
     } catch (error) {
       next(error);
     }
@@ -327,24 +296,11 @@ export const ProjectsController = {
       const album = await AlbumModel.findById(albumId);
       if (!album || !album.artwork_path) return res.status(404).json({ error: 'No artwork' });
 
-      // R2 driver: redirect to presigned URL
-      if (storage.driver === 'r2') {
-        try {
-          const url = await storage.getPresignedUrl(album.artwork_path);
-          return res.redirect(302, url);
-        } catch { return res.status(404).json({ error: 'File not found' }); }
-      }
-      // Local
-      const localPath = path.isAbsolute(album.artwork_path) ? album.artwork_path : path.join(storage.basePath, album.artwork_path);
-      if (!fs.existsSync(localPath)) {
-        // Fallback to R2 if creds present (cloud-created album viewed locally)
-        try {
-          const url = await storage.getPresignedUrl(album.artwork_path);
-          return res.redirect(302, url);
-        } catch { return res.status(404).json({ error: 'File not found' }); }
-      }
+      const buf = await storage.readBufferAnywhere(album.artwork_path);
+      if (!buf) return res.status(404).json({ error: 'File not found' });
       res.setHeader('Content-Type', 'image/png');
-      res.sendFile(localPath);
+      res.setHeader('Cache-Control', 'public, max-age=60');
+      res.send(buf);
     } catch (err) { next(err); }
   },
 };

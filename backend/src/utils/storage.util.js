@@ -220,6 +220,25 @@ class StorageUtil {
     return fullPath;
   }
 
+  // Read an artwork/file as a Buffer — tries local disk first, then R2. Returns null if not found anywhere.
+  async readBufferAnywhere(keyOrPath) {
+    // Local disk
+    try {
+      const fullPath = path.isAbsolute(keyOrPath) ? keyOrPath : this._localPath(keyOrPath);
+      if (fs.existsSync(fullPath)) return fs.readFileSync(fullPath);
+    } catch { /* ignore */ }
+    // R2
+    if (this.hasR2()) {
+      try {
+        const res = await getS3().send(new GetObjectCommand({ Bucket: this.bucket, Key: this.toR2Key(keyOrPath) }));
+        const chunks = [];
+        for await (const chunk of res.Body) chunks.push(chunk);
+        return Buffer.concat(chunks);
+      } catch { /* ignore */ }
+    }
+    return null;
+  }
+
   // Normalize any path (absolute local path OR relative) to a relative R2 key
   toR2Key(keyOrPath) {
     if (!keyOrPath) return keyOrPath;
