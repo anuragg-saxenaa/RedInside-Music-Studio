@@ -1,6 +1,7 @@
 import { MusicService } from './music.service.js';
 import { JobModel } from '../../queue/jobs.service.js';
-import { addMusicJob } from '../../queue/workers/music.worker.js';
+import { addMusicJob, processMusicJobInline } from '../../queue/workers/music.worker.js';
+import { getRedisConnection } from '../../queue/queue.config.js';
 import { ProjectModel } from '../../database/models/project.model.js';
 import { SettingsModel } from '../../database/models/settings.model.js';
 import logger from '../../utils/logger.js';
@@ -50,21 +51,20 @@ export const MusicController = {
         inputParams: { lyricsId, audioUrl, prompt, model, isInstrumental, audioSettings },
       });
 
-      // Add to BullMQ queue (async processing)
-      addMusicJob({
-        projectId,
-        lyricsId,
-        audioUrl,
-        prompt,
-        model,
-        isInstrumental,
-        audioSettings,
-        voice,
-        language,
-        jobId: job.id,
-      });
+      const jobData = {
+        projectId, lyricsId, audioUrl, prompt, model,
+        isInstrumental, audioSettings, voice, language, jobId: job.id,
+      };
 
-      logger.info('Music job queued', { jobId: job.id, projectId });
+      if (getRedisConnection()) {
+        // Redis available — async via BullMQ worker
+        addMusicJob(jobData);
+        logger.info('Music job queued', { jobId: job.id, projectId });
+      } else {
+        // No Redis — process inline (fire-and-forget); job status tracked in DB + WS
+        logger.info('Music job processing inline (no Redis)', { jobId: job.id, projectId });
+        processMusicJobInline(jobData).catch(err => logger.error('Inline music gen failed', { error: err.message }));
+      }
 
       res.status(202).json({
         message: 'Music generation queued',

@@ -5,8 +5,7 @@ import TrackRow from '../tracks/TrackRow';
 import TrackEditPanel from '../tracks/TrackEditPanel';
 import ABComparator from '../tracks/ABComparator';
 import YoutubeDownloader from '../../Downloader/YoutubeDownloader';
-import MusicPlayer from '../../MusicPlayer/MusicPlayer';
-import type { MusicGeneration } from '../../../types';
+import CreateSongPanel from './CreateSongPanel';
 
 function fmtTotalDuration(s: number) {
   const m = Math.floor(s / 60);
@@ -15,7 +14,7 @@ function fmtTotalDuration(s: number) {
 }
 
 export default function SoundsTab() {
-  const { tracks, activeProjectId, selectedLyrics, setSelectedTrack, setActiveTab, refreshTracks } = useWorkspace();
+  const { tracks, activeProjectId, setSelectedTrack, setActiveTab, refreshTracks } = useWorkspace();
   const [showYoutube, setShowYoutube] = useState(false);
   const [showGenerate, setShowGenerate] = useState(false);
   const [expandedTrackId, setExpandedTrackId] = useState<string | null>(null);
@@ -38,11 +37,6 @@ export default function SoundsTab() {
       </div>
     );
   }
-
-  const handleMusicGenerated = (_music: MusicGeneration) => {
-    refreshTracks();
-    setShowGenerate(false);
-  };
 
   return (
     <div data-testid="sounds-tab">
@@ -113,12 +107,7 @@ export default function SoundsTab() {
       {/* Generate panel */}
       {showGenerate && (
         <div style={{ marginBottom: '16px', padding: '16px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, borderRadius: '10px' }}>
-          <MusicPlayer
-            projectId={activeProjectId}
-            selectedLyrics={selectedLyrics}
-            onMusicGenerated={handleMusicGenerated}
-            allMusic={tracks}
-          />
+          <CreateSongPanel onDone={() => setShowGenerate(false)} />
         </div>
       )}
 

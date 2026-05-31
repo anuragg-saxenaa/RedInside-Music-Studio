@@ -76,6 +76,39 @@ function startWorker() {
 
 export const musicWorker = startWorker();
 
+// Process a music job synchronously (used when Redis/queue unavailable).
+// Runs in background — fire and forget; updates JobModel + broadcasts like the worker.
+export async function processMusicJobInline(data) {
+  const { projectId, lyricsId, audioUrl, prompt, model, isInstrumental, audioSettings, voice, language, jobId } = data;
+  try {
+    await JobModel.updateStatus(jobId, 'active');
+    broadcast({ type: 'job.started', jobId, jobType: 'generate-music', projectId });
+
+    let filePath = null;
+    if (audioUrl && model === 'music-cover') {
+      const match = audioUrl.match(/\/api\/upload\/([^/]+)\/file/);
+      if (match) filePath = uploadService.getAudioFilePath(projectId, match[1], 'mp3');
+    }
+
+    const result = await musicService.generateMusic({
+      projectId, lyricsId, audioUrl, filePath, prompt, model, isInstrumental, audioSettings, voice, language,
+    });
+
+    try { await historyService.linkGeneration(projectId, { type: 'music', id: result.id }); }
+    catch (linkErr) { logger.warn('Failed to link music into chain', { error: linkErr.message }); }
+
+    await JobModel.update(jobId, { status: 'completed', progress: 100, result: { musicId: result.id, version: result.version } });
+    broadcast({ type: 'job.completed', jobId, jobType: 'generate-music', projectId, result: { musicId: result.id, version: result.version } });
+    logger.info('Music job completed inline', { jobId, musicId: result.id });
+    return result;
+  } catch (error) {
+    logger.error('Inline music job failed', { jobId, error: error.message });
+    await JobModel.updateStatus(jobId, 'failed', error.message);
+    broadcast({ type: 'job.failed', jobId, jobType: 'generate-music', projectId, error: error.message });
+    throw error;
+  }
+}
+
 export async function addMusicJob(data) {
   const q = queues.music;
   if (!q || !q.add) { logger.warn('Queue not available, job not added'); return null; }
