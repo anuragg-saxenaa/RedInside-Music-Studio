@@ -7,7 +7,10 @@ import type { LyricsGeneration } from '../../../types';
 type LyricsSource = 'instrumental' | 'existing' | 'write';
 
 function groupKey(l: LyricsGeneration) {
-  return (l.title?.trim() || 'Untitled Draft').toLowerCase();
+  return l.song_id || l.id;
+}
+function songVer(l: LyricsGeneration) {
+  return l.song_version ?? 1;
 }
 
 const MUSIC_STYLES = [
@@ -40,6 +43,7 @@ export default function CreateSongPanel({ onDone }: Props) {
   const [existingLyrics, setExistingLyrics] = useState<LyricsGeneration[]>([]);
   const [chosenLyricsId, setChosenLyricsId] = useState<string>('');
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
+  const [viewLyricsId, setViewLyricsId] = useState<string | null>(null);
 
   // Write-new state
   const [lyricPrompt, setLyricPrompt] = useState('');
@@ -79,9 +83,9 @@ export default function CreateSongPanel({ onDone }: Props) {
     return Array.from(map.entries()).map(([key, items]) => ({
       key,
       title: items[0].title?.trim() || 'Untitled Draft',
-      items: items.sort((a, b) => b.version - a.version),
-      latest: items.sort((a, b) => b.version - a.version)[0],
-    })).sort((a, b) => b.latest.version - a.latest.version);
+      items: items.sort((a, b) => songVer(b) - songVer(a)),
+      latest: items.sort((a, b) => songVer(b) - songVer(a))[0],
+    })).sort((a, b) => new Date(b.latest.created_at).getTime() - new Date(a.latest.created_at).getTime());
   }, [existingLyrics]);
 
   // The effective lyricsId to send (null for instrumental)
@@ -291,19 +295,57 @@ export default function CreateSongPanel({ onDone }: Props) {
                     {(g.latest.style_preset || 'custom').replace(/-/g, ' ')}
                   </span>
                   {multi && <span style={{ fontSize: '11px', color: C.textDim, flexShrink: 0 }}>{g.items.length}v</span>}
+                  {/* View full lyrics */}
+                  <button
+                    onClick={e => { e.stopPropagation(); setViewLyricsId(viewLyricsId === g.latest.id ? null : g.latest.id); }}
+                    title="View full lyrics"
+                    style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: viewLyricsId === g.latest.id ? C.red : 'rgba(255,255,255,0.4)', fontSize: '15px', padding: '2px 4px', lineHeight: 1 }}
+                  >👁</button>
                 </div>
+
+                {/* Full lyrics viewer (row-level) */}
+                {viewLyricsId === g.latest.id && (
+                  <div style={{ margin: '0 14px 12px 42px', padding: '12px 14px', background: 'rgba(0,0,0,0.4)', borderRadius: '9px', border: `1px solid ${C.border}`, maxHeight: '220px', overflowY: 'auto' }}>
+                    {(g.latest.content || '').split('\n').map((line, i) => {
+                      const isTag = /^\[.*\]$/.test(line.trim());
+                      return <div key={i} style={isTag
+                        ? { color: C.red, fontWeight: 700, fontSize: '10px', letterSpacing: '0.6px', textTransform: 'uppercase', margin: '10px 0 4px' }
+                        : { fontSize: '13px', lineHeight: 1.7, color: 'rgba(255,255,255,0.8)' }}>{line || ' '}</div>;
+                    })}
+                  </div>
+                )}
 
                 {/* Expanded version pills */}
                 {expanded && multi && (
-                  <div style={{ padding: '0 14px 12px 42px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  <div style={{ padding: '0 14px 12px 42px', display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
                     {g.items.map(v => (
-                      <button key={v.id} onClick={e => { e.stopPropagation(); setChosenLyricsId(v.id); }} style={{
-                        fontSize: '12px', fontWeight: 600, padding: '5px 12px', borderRadius: '7px', cursor: 'pointer',
-                        border: `1px solid ${chosenLyricsId === v.id ? C.borderActive : C.border}`,
-                        background: chosenLyricsId === v.id ? `${C.red}22` : 'rgba(255,255,255,0.04)',
-                        color: chosenLyricsId === v.id ? C.red : 'rgba(255,255,255,0.6)',
-                      }}>v{v.version}</button>
+                      <span key={v.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                        <button onClick={e => { e.stopPropagation(); setChosenLyricsId(v.id); }} style={{
+                          fontSize: '12px', fontWeight: 700, padding: '5px 10px', borderRadius: '7px 0 0 7px', cursor: 'pointer',
+                          border: `1px solid ${chosenLyricsId === v.id ? C.borderActive : C.border}`, borderRight: 'none',
+                          background: chosenLyricsId === v.id ? `${C.red}22` : 'rgba(255,255,255,0.04)',
+                          color: chosenLyricsId === v.id ? C.red : 'rgba(255,255,255,0.6)',
+                        }}>v{songVer(v)}</button>
+                        <button onClick={e => { e.stopPropagation(); setViewLyricsId(viewLyricsId === v.id ? null : v.id); }} title="View" style={{
+                          fontSize: '11px', padding: '5px 8px', borderRadius: '0 7px 7px 0', cursor: 'pointer',
+                          border: `1px solid ${viewLyricsId === v.id ? C.borderActive : C.border}`,
+                          background: viewLyricsId === v.id ? `${C.red}22` : 'rgba(255,255,255,0.04)',
+                          color: viewLyricsId === v.id ? C.red : 'rgba(255,255,255,0.4)',
+                        }}>👁</button>
+                      </span>
                     ))}
+                  </div>
+                )}
+
+                {/* Full lyrics viewer (version-level) */}
+                {expanded && multi && viewLyricsId && g.items.some(v => v.id === viewLyricsId && v.id !== g.latest.id) && (
+                  <div style={{ margin: '0 14px 12px 42px', padding: '12px 14px', background: 'rgba(0,0,0,0.4)', borderRadius: '9px', border: `1px solid ${C.border}`, maxHeight: '220px', overflowY: 'auto' }}>
+                    {(g.items.find(v => v.id === viewLyricsId)?.content || '').split('\n').map((line, i) => {
+                      const isTag = /^\[.*\]$/.test(line.trim());
+                      return <div key={i} style={isTag
+                        ? { color: C.red, fontWeight: 700, fontSize: '10px', letterSpacing: '0.6px', textTransform: 'uppercase', margin: '10px 0 4px' }
+                        : { fontSize: '13px', lineHeight: 1.7, color: 'rgba(255,255,255,0.8)' }}>{line || ' '}</div>;
+                    })}
                   </div>
                 )}
               </div>
