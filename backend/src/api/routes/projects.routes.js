@@ -193,15 +193,16 @@ export const ProjectsController = {
         }
 
         const artworkFilename = `music-${musicId}.png`;
-        const artworkPath = path.join(artworkDir, artworkFilename);
+        const artworkKey = path.join(artworkDir, artworkFilename);
 
-        fs.writeFileSync(artworkPath, buffer);
+        // saveArtwork handles R2 upload (cloud) or local disk write
+        await storage.saveArtwork(artworkKey, buffer, 'image/png');
 
         // Update music record with artwork URL
         const artworkUrl = `/api/projects/${id}/artwork/${musicId}`;
         await MusicModel.update(musicId, { artworkUrl });
 
-        res.json({ success: true, path: artworkPath, artworkUrl });
+        res.json({ success: true, path: artworkKey, artworkUrl });
         return;
       }
 
@@ -223,11 +224,11 @@ export const ProjectsController = {
         buffer = Buffer.from(await response.arrayBuffer());
       }
 
-      const artworkPath = path.join(artworkDir, 'artwork.png');
+      const artworkKey = path.join(artworkDir, 'artwork.png');
 
-      fs.writeFileSync(artworkPath, buffer);
+      await storage.saveArtwork(artworkKey, buffer, 'image/png');
 
-      res.json({ success: true, path: artworkPath });
+      res.json({ success: true, path: artworkKey });
     } catch (error) {
       next(error);
     }
@@ -267,19 +268,27 @@ export const ProjectsController = {
         }
       }
 
-      // Local driver
-      if (fs.existsSync(musicArtworkKey)) {
-        return res.sendFile(musicArtworkKey);
+      // Local driver — resolve to absolute path
+      const localArtwork = path.isAbsolute(musicArtworkKey) ? musicArtworkKey : path.join(storage.basePath, musicArtworkKey);
+      if (fs.existsSync(localArtwork)) {
+        return res.sendFile(localArtwork);
       }
 
-      // Fall back to project artwork
+      // Fall back to project artwork on disk
       const extensions = ['.png', '.jpg', '.jpeg', '.webp'];
       for (const ext of extensions) {
-        const testPath = path.join(artworkDir, 'artwork' + ext);
+        const base = path.join(artworkDir, 'artwork' + ext);
+        const testPath = path.isAbsolute(base) ? base : path.join(storage.basePath, base);
         if (fs.existsSync(testPath)) {
           return res.sendFile(testPath);
         }
       }
+
+      // Cloud-created artwork viewed locally — fall back to R2 (canonical key)
+      try {
+        const url = await storage.getPresignedUrl(`projects/${id}/artwork/music-${musicId}.png`);
+        return res.redirect(302, url);
+      } catch { /* not in R2 either */ }
 
       return res.status(204).send();
     } catch (error) {
@@ -302,9 +311,8 @@ export const ProjectsController = {
       );
 
       const artworkDir = storage.getArtworkDir(projectId);
-      fs.mkdirSync(artworkDir, { recursive: true });
       const artworkPath = path.join(artworkDir, `album-${albumId}.png`);
-      fs.writeFileSync(artworkPath, buffer);
+      await storage.saveArtwork(artworkPath, buffer, 'image/png');
 
       await AlbumModel.update(albumId, { artworkPath });
 
@@ -315,12 +323,28 @@ export const ProjectsController = {
 
   async getAlbumArtwork(req, res, next) {
     try {
-      const { id: projectId, albumId } = req.params;
+      const { albumId } = req.params;
       const album = await AlbumModel.findById(albumId);
       if (!album || !album.artwork_path) return res.status(404).json({ error: 'No artwork' });
-      if (!fs.existsSync(album.artwork_path)) return res.status(404).json({ error: 'File not found' });
+
+      // R2 driver: redirect to presigned URL
+      if (storage.driver === 'r2') {
+        try {
+          const url = await storage.getPresignedUrl(album.artwork_path);
+          return res.redirect(302, url);
+        } catch { return res.status(404).json({ error: 'File not found' }); }
+      }
+      // Local
+      const localPath = path.isAbsolute(album.artwork_path) ? album.artwork_path : path.join(storage.basePath, album.artwork_path);
+      if (!fs.existsSync(localPath)) {
+        // Fallback to R2 if creds present (cloud-created album viewed locally)
+        try {
+          const url = await storage.getPresignedUrl(album.artwork_path);
+          return res.redirect(302, url);
+        } catch { return res.status(404).json({ error: 'File not found' }); }
+      }
       res.setHeader('Content-Type', 'image/png');
-      res.sendFile(album.artwork_path);
+      res.sendFile(localPath);
     } catch (err) { next(err); }
   },
 };
