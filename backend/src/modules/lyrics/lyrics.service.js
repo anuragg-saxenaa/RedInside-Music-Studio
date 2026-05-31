@@ -165,10 +165,12 @@ export class LyricsService {
       // Parse structure tags from lyrics
       const structureTags = this.parseStructureTags(lyrics);
 
-      // Get next version number
+      // Get next version number (project-global, legacy) + per-song version
       const version = await LyricsModel.getNextVersion(existingLyrics.project_id);
+      const songId = existingLyrics.song_id || existingLyrics.id;
+      const songVersion = await LyricsModel.getNextSongVersion(songId);
 
-      // Save to database
+      // Save to database — same song_id, incremented song_version, keep title stable for grouping
       const lyricsRecord = await LyricsModel.create({
         projectId: existingLyrics.project_id,
         version,
@@ -176,9 +178,11 @@ export class LyricsService {
         mode: 'edit',
         stylePreset: stylePresetToUse,
         content: lyrics,
-        title: song_title,
+        title: existingLyrics.title || song_title,
         styleTags: style_tags,
         structureTags,
+        songId,
+        songVersion,
       });
 
       // Save to file

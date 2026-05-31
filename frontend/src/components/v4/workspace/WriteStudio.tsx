@@ -24,8 +24,11 @@ function relTime(d: string) {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function groupKey(l: LyricsGeneration) {
-  return (l.title?.trim() || 'Untitled Draft').toLowerCase();
+function groupKey(l: LyricsGeneration & { song_id?: string }) {
+  return l.song_id || l.id;
+}
+function songVer(l: LyricsGeneration & { song_version?: number }) {
+  return l.song_version ?? 1;
 }
 
 export default function WriteStudio() {
@@ -86,12 +89,15 @@ export default function WriteStudio() {
       if (!map.has(k)) map.set(k, []);
       map.get(k)!.push(l);
     }
-    return Array.from(map.entries()).map(([key, items]) => ({
-      key,
-      title: items[0].title?.trim() || 'Untitled Draft',
-      items: items.sort((a, b) => b.version - a.version),
-      latest: items[0],
-    })).sort((a, b) => b.latest.version - a.latest.version);
+    return Array.from(map.entries()).map(([key, items]) => {
+      const sorted = items.sort((a, b) => songVer(b) - songVer(a));
+      return {
+        key,
+        title: sorted[0].title?.trim() || 'Untitled Draft',
+        items: sorted,
+        latest: sorted[0],
+      };
+    }).sort((a, b) => new Date(b.latest.created_at).getTime() - new Date(a.latest.created_at).getTime());
   }, [lyrics, search]);
 
   const selectVersion = (l: LyricsGeneration) => {
@@ -181,6 +187,9 @@ export default function WriteStudio() {
 
   return (
     <div data-testid="write-tab" style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '16px', height: 'calc(100vh - 200px)', minHeight: '480px' }}>
+      <style>{`
+        @keyframes ws-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+      `}</style>
       {/* ── LEFT RAIL — song library ─────────────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minHeight: 0 }}>
         <button
@@ -215,52 +224,68 @@ export default function WriteStudio() {
               {lyrics.length === 0 ? 'No lyrics yet.\nWrite your first one →' : 'No matches'}
             </div>
           )}
-          {groups.map(g => {
+          {groups.map((g, idx) => {
             const expanded = expandedGroups.has(g.key);
             const isSelGroup = selected && groupKey(selected) === g.key;
+            const multi = g.items.length > 1;
             return (
               <div key={g.key} style={{
-                borderRadius: '10px', overflow: 'hidden',
-                border: `1px solid ${isSelGroup ? C.borderActive : C.border}`,
-                background: isSelGroup ? C.glassActive : 'rgba(255,255,255,0.025)',
+                borderRadius: '12px', overflow: 'hidden',
+                border: `1px solid ${isSelGroup ? C.borderActive : 'transparent'}`,
+                background: isSelGroup ? `linear-gradient(135deg, ${C.red}14, rgba(255,255,255,0.02))` : 'rgba(255,255,255,0.025)',
+                transition: 'all 180ms cubic-bezier(0.4,0,0.2,1)',
+                animation: `ws-rise 320ms ease ${Math.min(idx * 40, 320)}ms both`,
               }}>
                 {/* Group header */}
                 <div
-                  onClick={() => { g.items.length > 1 ? toggleGroup(g.key) : selectVersion(g.latest); }}
-                  style={{ padding: '10px 12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '5px' }}
+                  onClick={() => { multi ? toggleGroup(g.key) : selectVersion(g.latest); }}
+                  style={{ padding: '11px 13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '11px' }}
+                  onMouseOver={e => { if (!isSelGroup) (e.currentTarget.parentElement as HTMLDivElement).style.background = 'rgba(255,255,255,0.05)'; }}
+                  onMouseOut={e => { if (!isSelGroup) (e.currentTarget.parentElement as HTMLDivElement).style.background = 'rgba(255,255,255,0.025)'; }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {g.items.length > 1 && (
-                      <span style={{ color: C.textDim, fontSize: '10px', transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 150ms' }}>▶</span>
-                    )}
-                    <span style={{ flex: 1, color: C.text, fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {g.title}
-                    </span>
-                    <span style={{ color: C.textDim, fontSize: '10px', flexShrink: 0 }}>{relTime(g.latest.created_at)}</span>
+                  {/* Song glyph */}
+                  <div style={{
+                    width: '38px', height: '38px', borderRadius: '9px', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: isSelGroup ? `linear-gradient(135deg, ${C.red}, ${C.redDark})` : 'rgba(255,255,255,0.05)',
+                    border: `1px solid ${isSelGroup ? 'transparent' : C.border}`,
+                    fontSize: '15px', color: isSelGroup ? '#fff' : 'rgba(255,255,255,0.35)',
+                    boxShadow: isSelGroup ? `0 4px 14px ${C.red}44` : 'none',
+                  }}>♪</div>
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ flex: 1, color: C.text, fontSize: '13.5px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.1px' }}>
+                        {g.title}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginTop: '3px' }}>
+                      <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.4px', color: C.red, textTransform: 'uppercase' }}>
+                        {(g.latest.style_preset || 'custom').replace(/-/g, ' ')}
+                      </span>
+                      <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: C.textDim }} />
+                      <span style={{ fontSize: '10px', color: C.textDim }}>
+                        {multi ? `${g.items.length} versions` : relTime(g.latest.created_at)}
+                      </span>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.4px', color: C.red, background: `${C.red}1a`, padding: '2px 7px', borderRadius: '20px', textTransform: 'uppercase' }}>
-                      {(g.latest.style_preset || 'custom').replace(/-/g, ' ')}
-                    </span>
-                    {g.items.length > 1 && (
-                      <span style={{ fontSize: '10px', color: C.textDim }}>{g.items.length} versions</span>
-                    )}
-                  </div>
-                  <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px', lineHeight: 1.4, maxHeight: '30px', overflow: 'hidden' }}>
-                    {(g.latest.content || '').replace(/\[[^\]]*\]/g, '').trim().slice(0, 70)}…
-                  </div>
+
+                  {multi && (
+                    <span style={{ color: C.textDim, fontSize: '9px', flexShrink: 0, transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 180ms' }}>▶</span>
+                  )}
                 </div>
 
                 {/* Version pills */}
-                {expanded && g.items.length > 1 && (
-                  <div style={{ padding: '0 12px 10px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                {expanded && multi && (
+                  <div style={{ padding: '0 13px 11px 62px', display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
                     {g.items.map(v => (
                       <button key={v.id} onClick={() => selectVersion(v)} style={{
-                        fontSize: '10px', fontWeight: 600, padding: '3px 9px', borderRadius: '6px', cursor: 'pointer',
+                        fontSize: '11px', fontWeight: 700, padding: '4px 11px', borderRadius: '7px', cursor: 'pointer',
                         border: `1px solid ${selectedId === v.id ? C.borderActive : C.border}`,
                         background: selectedId === v.id ? `${C.red}22` : 'rgba(255,255,255,0.04)',
                         color: selectedId === v.id ? C.red : 'rgba(255,255,255,0.5)',
-                      }}>v{v.version}</button>
+                        transition: 'all 120ms',
+                      }}>v{songVer(v)}</button>
                     ))}
                   </div>
                 )}
@@ -359,7 +384,7 @@ export default function WriteStudio() {
                     <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.4px', color: C.red, background: `${C.red}1a`, padding: '3px 9px', borderRadius: '20px', textTransform: 'uppercase' }}>
                       {(selected.style_preset || 'custom').replace(/-/g, ' ')}
                     </span>
-                    <span style={{ fontSize: '11px', color: C.textDim }}>v{selected.version} · {relTime(selected.created_at)}</span>
+                    <span style={{ fontSize: '11px', color: C.textDim }}>v{songVer(selected)} · {relTime(selected.created_at)}</span>
                   </div>
                 </div>
               </div>

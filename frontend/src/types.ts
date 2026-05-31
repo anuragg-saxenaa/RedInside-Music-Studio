@@ -20,6 +20,8 @@ export interface LyricsGeneration {
   title?: string;
   style_preset?: string;
   created_at: string;
+  song_id?: string;
+  song_version?: number;
 }
 
 export interface MusicGeneration {
