@@ -28,6 +28,7 @@ export class MusicService {
 
       // Validate lyricsId (optional for instrumental or cover mode)
       let lyricsContent = null;
+      let lyricsTitle = null;
       if (lyricsId) {
         const lyrics = await LyricsModel.findById(lyricsId);
         if (!lyrics) {
@@ -36,6 +37,12 @@ export class MusicService {
           throw err;
         }
         lyricsContent = lyrics.content;
+        // Name the track after the lyric (+ its song version) so origin is obvious
+        if (lyrics.title) {
+          lyricsTitle = (lyrics.song_version && lyrics.song_version > 1)
+            ? `${lyrics.title} (v${lyrics.song_version})`
+            : lyrics.title;
+        }
       } else if (!isInstrumental && !referenceAudioUrl && !filePath) {
         throw new Error('Lyrics ID or audio URL/file is required for non-instrumental music');
       }
@@ -177,6 +184,7 @@ export class MusicService {
         lyricsId: lyricsId || null,
         version,
         model,
+        title: lyricsTitle || (isInstrumental ? `Instrumental v${version}` : null),
         prompt: prompt || null,
         audioSettings,
         isInstrumental,
