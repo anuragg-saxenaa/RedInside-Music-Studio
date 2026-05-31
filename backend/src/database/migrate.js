@@ -40,17 +40,16 @@ for (const file of files) {
   }
 
   const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
-  // Split on ; to run each statement (libsql doesn't support multiple statements in one execute)
-  const statements = sql.split(';').map(s => s.trim()).filter(s => s.length > 0 && !/^(BEGIN|COMMIT|ROLLBACK)$/i.test(s));
-  for (const stmt of statements) {
-    try {
-      await db.execute(stmt);
-    } catch (err) {
-      // Ignore "already exists" / "duplicate column" errors for idempotency
-      if (!err.message.includes('already exists') && !err.message.includes('duplicate column')) {
-        throw err;
-      }
+  // Run the whole migration script via executeMultiple — handles multiple
+  // statements + BEGIN/COMMIT natively and atomically (manual ';' splitting +
+  // stripping transactions corrupted later writes for table-recreate migrations).
+  try {
+    await db.executeMultiple(sql);
+  } catch (err) {
+    if (!err.message.includes('already exists') && !err.message.includes('duplicate column')) {
+      throw err;
     }
+    if (process.env.MIGRATE_DEBUG) console.log(`  [ignored ${file}] ${err.message}`);
   }
 
   await db.execute({ sql: 'INSERT INTO _migrations (filename) VALUES (?)', args: [file] });
@@ -59,4 +58,5 @@ for (const file of files) {
 }
 
 console.log(`Migration complete. ${ran} new, ${applied.size} already applied.`);
-process.exit(0);
+// Do NOT process.exit() here — it races pending libsql writes and can drop the
+// last migrations mid-write (leaving a dangling journal). Let the event loop drain.
