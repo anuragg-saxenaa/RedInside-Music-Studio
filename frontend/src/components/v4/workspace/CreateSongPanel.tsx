@@ -248,51 +248,60 @@ export default function CreateSongPanel({ onDone }: Props) {
 
       {/* Existing lyrics picker — grouped by song, expand to pick version */}
       {source === 'existing' && (
-        <div style={{ padding: '10px', background: 'rgba(0,0,0,0.2)', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '260px', overflowY: 'auto' }}>
+        <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: '12px', border: `1px solid ${C.border}`, maxHeight: '300px', overflowY: 'auto' }}>
           {lyricGroups.length === 0 ? (
-            <div style={{ color: C.textDim, fontSize: '12px', textAlign: 'center', padding: '12px' }}>
+            <div style={{ color: C.textDim, fontSize: '13px', textAlign: 'center', padding: '24px' }}>
               No lyrics in this project yet. Switch to "Write New".
             </div>
-          ) : lyricGroups.map(g => {
+          ) : lyricGroups.map((g, idx) => {
             const expanded = expandedGroup === g.key;
             const groupHasChosen = g.items.some(v => v.id === chosenLyricsId);
+            const multi = g.items.length > 1;
             return (
-              <div key={g.key} style={{
-                borderRadius: '9px', overflow: 'hidden',
-                border: `1px solid ${groupHasChosen ? C.borderActive : C.border}`,
-                background: groupHasChosen ? C.glassActive : 'rgba(255,255,255,0.025)',
-              }}>
+              <div key={g.key} style={{ borderTop: idx === 0 ? 'none' : `1px solid ${C.border}` }}>
+                {/* Row */}
                 <div
-                  onClick={() => {
-                    if (g.items.length > 1) setExpandedGroup(expanded ? null : g.key);
-                    else setChosenLyricsId(g.latest.id);
+                  onClick={() => { multi ? setExpandedGroup(expanded ? null : g.key) : setChosenLyricsId(g.latest.id); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '12px',
+                    padding: '12px 14px', cursor: 'pointer', minHeight: '56px', boxSizing: 'border-box',
+                    background: groupHasChosen ? C.glassActive : 'transparent',
+                    transition: 'background 150ms',
                   }}
-                  style={{ padding: '10px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                  onMouseOver={e => { if (!groupHasChosen) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)'; }}
+                  onMouseOut={e => { if (!groupHasChosen) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
                 >
-                  {g.items.length > 1 && (
-                    <span style={{ color: C.textDim, fontSize: '10px', transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 150ms' }}>▶</span>
+                  {/* Indicator */}
+                  {multi ? (
+                    <span style={{ width: '16px', textAlign: 'center', color: C.textDim, fontSize: '10px', flexShrink: 0, transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 150ms' }}>▶</span>
+                  ) : (
+                    <span style={{ width: '16px', height: '16px', borderRadius: '50%', flexShrink: 0, boxSizing: 'border-box', border: `2px solid ${chosenLyricsId === g.latest.id ? C.red : 'rgba(255,255,255,0.25)'}`, background: chosenLyricsId === g.latest.id ? C.red : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {chosenLyricsId === g.latest.id && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#fff' }} />}
+                    </span>
                   )}
-                  {g.items.length === 1 && (
-                    <span style={{ width: '14px', height: '14px', borderRadius: '50%', flexShrink: 0, border: `2px solid ${chosenLyricsId === g.latest.id ? C.red : C.border}`, background: chosenLyricsId === g.latest.id ? C.red : 'transparent' }} />
-                  )}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ color: C.text, fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.title}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
-                      <span style={{ fontSize: '9px', fontWeight: 700, color: C.red, background: `${C.red}1a`, padding: '1px 6px', borderRadius: '20px', textTransform: 'uppercase' }}>
-                        {(g.latest.style_preset || 'custom').replace(/-/g, ' ')}
-                      </span>
-                      {g.items.length > 1 && <span style={{ fontSize: '10px', color: C.textDim }}>{g.items.length} versions</span>}
-                    </div>
+                  {/* Title + meta */}
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ color: C.text, fontSize: '14px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.title}</span>
+                    <span style={{ fontSize: '11px', color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {(g.latest.content || '').replace(/\[[^\]]*\]/g, '').trim().slice(0, 50) || 'No preview'}
+                    </span>
                   </div>
+                  {/* Badge */}
+                  <span style={{ fontSize: '9px', fontWeight: 700, color: C.red, background: `${C.red}1a`, padding: '3px 9px', borderRadius: '20px', textTransform: 'uppercase', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                    {(g.latest.style_preset || 'custom').replace(/-/g, ' ')}
+                  </span>
+                  {multi && <span style={{ fontSize: '11px', color: C.textDim, flexShrink: 0 }}>{g.items.length}v</span>}
                 </div>
-                {expanded && g.items.length > 1 && (
-                  <div style={{ padding: '0 12px 10px 30px', display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+
+                {/* Expanded version pills */}
+                {expanded && multi && (
+                  <div style={{ padding: '0 14px 12px 42px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                     {g.items.map(v => (
-                      <button key={v.id} onClick={() => setChosenLyricsId(v.id)} style={{
-                        fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', cursor: 'pointer',
+                      <button key={v.id} onClick={e => { e.stopPropagation(); setChosenLyricsId(v.id); }} style={{
+                        fontSize: '12px', fontWeight: 600, padding: '5px 12px', borderRadius: '7px', cursor: 'pointer',
                         border: `1px solid ${chosenLyricsId === v.id ? C.borderActive : C.border}`,
                         background: chosenLyricsId === v.id ? `${C.red}22` : 'rgba(255,255,255,0.04)',
-                        color: chosenLyricsId === v.id ? C.red : 'rgba(255,255,255,0.55)',
+                        color: chosenLyricsId === v.id ? C.red : 'rgba(255,255,255,0.6)',
                       }}>v{v.version}</button>
                     ))}
                   </div>
