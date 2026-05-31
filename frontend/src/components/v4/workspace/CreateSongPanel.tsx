@@ -1,10 +1,14 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { useAuthFetch } from '../../../hooks/useAuthFetch';
 import type { LyricsGeneration } from '../../../types';
 
 type LyricsSource = 'instrumental' | 'existing' | 'write';
+
+function groupKey(l: LyricsGeneration) {
+  return (l.title?.trim() || 'Untitled Draft').toLowerCase();
+}
 
 const MUSIC_STYLES = [
   { label: 'Hip-Hop', value: 'hip-hop' },
@@ -35,6 +39,7 @@ export default function CreateSongPanel({ onDone }: Props) {
   const [source, setSource] = useState<LyricsSource>('write');
   const [existingLyrics, setExistingLyrics] = useState<LyricsGeneration[]>([]);
   const [chosenLyricsId, setChosenLyricsId] = useState<string>('');
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
 
   // Write-new state
   const [lyricPrompt, setLyricPrompt] = useState('');
@@ -62,6 +67,22 @@ export default function CreateSongPanel({ onDone }: Props) {
       })
       .catch(() => setExistingLyrics([]));
   }, [activeProjectId, authFetch]);
+
+  // Group existing lyrics by title (latest version per group as default)
+  const lyricGroups = useMemo(() => {
+    const map = new Map<string, LyricsGeneration[]>();
+    for (const l of existingLyrics) {
+      const k = groupKey(l);
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(l);
+    }
+    return Array.from(map.entries()).map(([key, items]) => ({
+      key,
+      title: items[0].title?.trim() || 'Untitled Draft',
+      items: items.sort((a, b) => b.version - a.version),
+      latest: items.sort((a, b) => b.version - a.version)[0],
+    })).sort((a, b) => b.latest.version - a.latest.version);
+  }, [existingLyrics]);
 
   // The effective lyricsId to send (null for instrumental)
   const effectiveLyricsId = (() => {
@@ -225,20 +246,60 @@ export default function CreateSongPanel({ onDone }: Props) {
         </div>
       )}
 
-      {/* Existing lyrics picker */}
+      {/* Existing lyrics picker — grouped by song, expand to pick version */}
       {source === 'existing' && (
-        <div style={{ padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '10px' }}>
-          {existingLyrics.length === 0 ? (
-            <div style={{ color: C.textDim, fontSize: '12px', textAlign: 'center', padding: '8px' }}>
+        <div style={{ padding: '10px', background: 'rgba(0,0,0,0.2)', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '260px', overflowY: 'auto' }}>
+          {lyricGroups.length === 0 ? (
+            <div style={{ color: C.textDim, fontSize: '12px', textAlign: 'center', padding: '12px' }}>
               No lyrics in this project yet. Switch to "Write New".
             </div>
-          ) : (
-            <select value={chosenLyricsId} onChange={e => setChosenLyricsId(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
-              {existingLyrics.map(l => (
-                <option key={l.id} value={l.id}>{l.title || `Lyrics v${l.version}`}</option>
-              ))}
-            </select>
-          )}
+          ) : lyricGroups.map(g => {
+            const expanded = expandedGroup === g.key;
+            const groupHasChosen = g.items.some(v => v.id === chosenLyricsId);
+            return (
+              <div key={g.key} style={{
+                borderRadius: '9px', overflow: 'hidden',
+                border: `1px solid ${groupHasChosen ? C.borderActive : C.border}`,
+                background: groupHasChosen ? C.glassActive : 'rgba(255,255,255,0.025)',
+              }}>
+                <div
+                  onClick={() => {
+                    if (g.items.length > 1) setExpandedGroup(expanded ? null : g.key);
+                    else setChosenLyricsId(g.latest.id);
+                  }}
+                  style={{ padding: '10px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  {g.items.length > 1 && (
+                    <span style={{ color: C.textDim, fontSize: '10px', transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 150ms' }}>▶</span>
+                  )}
+                  {g.items.length === 1 && (
+                    <span style={{ width: '14px', height: '14px', borderRadius: '50%', flexShrink: 0, border: `2px solid ${chosenLyricsId === g.latest.id ? C.red : C.border}`, background: chosenLyricsId === g.latest.id ? C.red : 'transparent' }} />
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ color: C.text, fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.title}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                      <span style={{ fontSize: '9px', fontWeight: 700, color: C.red, background: `${C.red}1a`, padding: '1px 6px', borderRadius: '20px', textTransform: 'uppercase' }}>
+                        {(g.latest.style_preset || 'custom').replace(/-/g, ' ')}
+                      </span>
+                      {g.items.length > 1 && <span style={{ fontSize: '10px', color: C.textDim }}>{g.items.length} versions</span>}
+                    </div>
+                  </div>
+                </div>
+                {expanded && g.items.length > 1 && (
+                  <div style={{ padding: '0 12px 10px 30px', display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                    {g.items.map(v => (
+                      <button key={v.id} onClick={() => setChosenLyricsId(v.id)} style={{
+                        fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', cursor: 'pointer',
+                        border: `1px solid ${chosenLyricsId === v.id ? C.borderActive : C.border}`,
+                        background: chosenLyricsId === v.id ? `${C.red}22` : 'rgba(255,255,255,0.04)',
+                        color: chosenLyricsId === v.id ? C.red : 'rgba(255,255,255,0.55)',
+                      }}>v{v.version}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
