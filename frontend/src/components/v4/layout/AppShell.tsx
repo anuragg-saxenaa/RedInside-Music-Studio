@@ -4,6 +4,7 @@ import { useMobile } from '../../../hooks/useMobile';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import MobileNav, { type MobileSection } from '../mobile/MobileNav';
 import MobilePlayerFull from '../mobile/MobilePlayerFull';
+import { PlayIcon, PauseIcon } from '../shared/Icons';
 
 interface AppShellProps {
   titlebar: ReactNode;
@@ -77,10 +78,10 @@ function MobileMiniPlayer({ onExpand }: { onExpand: () => void }) {
         style={{
           background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0,
           width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: C.text, fontSize: '22px',
+          color: C.text,
         }}
       >
-        {playerIsPlaying ? '⏸' : '▶'}
+        {playerIsPlaying ? <PauseIcon size={20} /> : <PlayIcon size={20} />}
       </button>
     </div>
   );

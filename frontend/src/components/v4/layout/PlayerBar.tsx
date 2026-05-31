@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { useAuthFetch } from '../../../hooks/useAuthFetch';
+import { PlayIcon, PauseIcon, PrevIcon, NextIcon, ShuffleIcon, LoopIcon, VolumeIcon, MuteIcon, QueueIcon } from '../shared/Icons';
 
 function fmtTime(s: number) {
   if (!s || !isFinite(s)) return '0:00';
@@ -282,62 +283,62 @@ export default function PlayerBar() {
           <button
             onClick={toggleShuffle}
             title="Shuffle"
-            style={{ ...btnBase, fontSize: '12px', color: isShuffled ? C.red : 'rgba(255,255,255,0.35)', background: isShuffled ? `${C.red}18` : 'none' }}
+            style={{ ...btnBase, width: '32px', height: '32px', color: isShuffled ? C.red : 'rgba(255,255,255,0.45)', background: isShuffled ? `${C.red}1a` : 'none' }}
             onMouseOver={e => { (e.currentTarget as HTMLButtonElement).style.color = isShuffled ? C.red : '#fff'; }}
-            onMouseOut={e => { (e.currentTarget as HTMLButtonElement).style.color = isShuffled ? C.red : 'rgba(255,255,255,0.35)'; }}
-          >⇌</button>
+            onMouseOut={e => { (e.currentTarget as HTMLButtonElement).style.color = isShuffled ? C.red : 'rgba(255,255,255,0.45)'; }}
+          ><ShuffleIcon size={16} /></button>
 
           <button
             onClick={playPrev}
             title="Previous"
-            style={{ ...btnBase, fontSize: '13px' }}
+            style={{ ...btnBase, width: '34px', height: '34px', color: 'rgba(255,255,255,0.8)' }}
             onMouseOver={e => { (e.currentTarget as HTMLButtonElement).style.color = '#fff'; }}
-            onMouseOut={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.5)'; }}
-          >⏮</button>
+            onMouseOut={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.8)'; }}
+          ><PrevIcon size={18} /></button>
 
           <button
             onClick={togglePlay}
             data-testid="player-play-pause"
             title={playerIsPlaying ? 'Pause' : 'Play'}
             style={{
-              width: '40px',
-              height: '40px',
+              width: '42px',
+              height: '42px',
               borderRadius: '50%',
-              border: 'none',
+              border: '1px solid rgba(255,255,255,0.18)',
               cursor: 'pointer',
               background: playerIsPlaying
-                ? C.red
-                : 'rgba(255,255,255,0.92)',
-              color: playerIsPlaying ? '#fff' : '#000',
-              fontSize: '13px',
+                ? `linear-gradient(135deg, ${C.red}, ${C.redDark})`
+                : 'linear-gradient(135deg, rgba(255,255,255,0.96), rgba(255,255,255,0.82))',
+              color: playerIsPlaying ? '#fff' : '#0a0a0a',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               boxShadow: playerIsPlaying
-                ? `0 0 20px ${C.red}55, 0 2px 8px rgba(0,0,0,0.5)`
-                : '0 2px 8px rgba(0,0,0,0.4)',
-              transition: 'all 200ms',
-              margin: '0 4px',
+                ? `0 0 24px ${C.red}66, inset 0 1px 1px rgba(255,255,255,0.3), 0 4px 12px rgba(0,0,0,0.4)`
+                : 'inset 0 1px 2px rgba(255,255,255,0.6), 0 4px 12px rgba(0,0,0,0.4)',
+              transition: 'all 200ms cubic-bezier(0.4,0,0.2,1)',
+              margin: '0 6px',
+              backdropFilter: 'blur(8px)',
             }}
           >
-            {playerIsPlaying ? '⏸' : '▶'}
+            {playerIsPlaying ? <PauseIcon size={16} /> : <span style={{ marginLeft: '2px' }}><PlayIcon size={16} /></span>}
           </button>
 
           <button
             onClick={playNext}
             title="Next"
-            style={{ ...btnBase, fontSize: '13px' }}
+            style={{ ...btnBase, width: '34px', height: '34px', color: 'rgba(255,255,255,0.8)' }}
             onMouseOver={e => { (e.currentTarget as HTMLButtonElement).style.color = '#fff'; }}
-            onMouseOut={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.5)'; }}
-          >⏭</button>
+            onMouseOut={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.8)'; }}
+          ><NextIcon size={18} /></button>
 
           <button
             onClick={toggleLoop}
             title="Loop"
-            style={{ ...btnBase, fontSize: '12px', color: isLooping ? C.red : 'rgba(255,255,255,0.35)', background: isLooping ? `${C.red}18` : 'none' }}
+            style={{ ...btnBase, width: '32px', height: '32px', color: isLooping ? C.red : 'rgba(255,255,255,0.45)', background: isLooping ? `${C.red}1a` : 'none' }}
             onMouseOver={e => { (e.currentTarget as HTMLButtonElement).style.color = isLooping ? C.red : '#fff'; }}
-            onMouseOut={e => { (e.currentTarget as HTMLButtonElement).style.color = isLooping ? C.red : 'rgba(255,255,255,0.35)'; }}
-          >↺</button>
+            onMouseOut={e => { (e.currentTarget as HTMLButtonElement).style.color = isLooping ? C.red : 'rgba(255,255,255,0.45)'; }}
+          ><LoopIcon size={16} /></button>
         </div>
 
         {/* Scrubber */}
@@ -382,9 +383,11 @@ export default function PlayerBar() {
         <button
           onClick={handleMuteToggle}
           title={playerVolume === 0 ? 'Unmute' : 'Mute'}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: playerVolume === 0 ? C.red : 'rgba(255,255,255,0.3)', fontSize: '14px', padding: '4px', lineHeight: 1, transition: 'color 150ms', flexShrink: 0 }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: playerVolume === 0 ? C.red : 'rgba(255,255,255,0.45)', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 150ms', flexShrink: 0 }}
+          onMouseOver={e => { if (playerVolume !== 0) (e.currentTarget as HTMLButtonElement).style.color = '#fff'; }}
+          onMouseOut={e => { if (playerVolume !== 0) (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.45)'; }}
         >
-          {playerVolume === 0 ? '🔇' : playerVolume < 0.4 ? '🔈' : playerVolume < 0.8 ? '🔉' : '🔊'}
+          {playerVolume === 0 ? <MuteIcon size={16} /> : <VolumeIcon size={16} />}
         </button>
         <input
           type="range"
@@ -400,9 +403,9 @@ export default function PlayerBar() {
           <button
             onClick={() => setShowQueue(v => !v)}
             title="Up Next"
-            style={{ ...btnBase, fontSize: '11px', fontWeight: 600, letterSpacing: '0.3px', color: showQueue ? C.red : 'rgba(255,255,255,0.35)', background: showQueue ? `${C.red}18` : 'none', borderRadius: '6px', padding: '4px 8px', whiteSpace: 'nowrap' }}
+            style={{ ...btnBase, fontSize: '10px', fontWeight: 600, letterSpacing: '0.4px', color: showQueue ? C.red : 'rgba(255,255,255,0.45)', background: showQueue ? `${C.red}1a` : 'none', borderRadius: '7px', padding: '5px 9px', whiteSpace: 'nowrap', gap: '5px', width: 'auto' }}
           >
-            ≡ UP NEXT
+            <QueueIcon size={14} /> UP NEXT
           </button>
           {showQueue && (
             <div style={{ position: 'absolute', bottom: '52px', right: 0, width: '260px', background: 'rgba(8,2,4,0.97)', backdropFilter: 'blur(28px) saturate(1.6)', border: `1px solid rgba(230,57,70,0.22)`, borderRadius: '10px', padding: '8px 0', boxShadow: '0 -8px 40px rgba(0,0,0,0.7)', zIndex: 200 }}>

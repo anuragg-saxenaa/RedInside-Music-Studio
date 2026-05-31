@@ -238,7 +238,11 @@ class StorageUtil {
 
   // Generate presigned URL for direct R2 streaming (default 15min expiry)
   async getPresignedUrl(key, expiresIn = 900) {
-    if (this.driver !== 'r2') throw new Error('getPresignedUrl only available with R2 driver');
+    // Works whenever R2 creds + bucket are configured, even if driver is 'local'.
+    // This lets local dev play cloud-only files (e.g. songs downloaded on the cloud).
+    if (!this.bucket || !config.r2.accessKeyId) {
+      throw new Error('R2 not configured — cannot presign');
+    }
     return getSignedUrl(getS3(), new GetObjectCommand({ Bucket: this.bucket, Key: key }), { expiresIn });
   }
 }

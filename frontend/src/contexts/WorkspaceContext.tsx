@@ -250,6 +250,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const activeProject = projects.find(p => p.id === activeProjectId) ?? null;
 
   const playTrack = useCallback((track: MusicGeneration) => {
+    // If this exact track is already loaded, toggle play/pause instead of restarting
+    if (persistentAudio && persistentTrack?.id === track.id && persistentAudio.src) {
+      if (persistentAudio.paused) { persistentAudio.play().catch(() => {}); setPlayerIsPlaying(true); }
+      else { persistentAudio.pause(); setPlayerIsPlaying(false); }
+      setSelectedTrack(track);
+      return;
+    }
     if (persistentAudio) { persistentAudio.pause(); persistentAudio.src = ''; }
     const audio = new Audio(`${API_BASE}/api/music/${track.id}/file`);
     audio.volume = playerVolume;

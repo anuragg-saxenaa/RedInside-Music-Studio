@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
+import { PlayIcon, PauseIcon, PrevIcon, NextIcon, ShuffleIcon, LoopIcon } from '../shared/Icons';
 
 function fmtTime(s: number) {
   if (!s || !isFinite(s)) return '0:00';
@@ -134,33 +135,34 @@ export default function MobilePlayerFull({ onClose }: Props) {
       {/* Transport Controls */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 24px 24px' }}>
         {/* Shuffle */}
-        <button onClick={toggleShuffle} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isShuffled ? C.red : 'rgba(255,255,255,0.4)', fontSize: '20px', padding: '8px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          ⇄
+        <button onClick={toggleShuffle} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isShuffled ? C.red : 'rgba(255,255,255,0.5)', padding: '8px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <ShuffleIcon size={22} />
         </button>
         {/* Prev */}
-        <button onClick={playPrev} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.8)', fontSize: '28px', padding: '8px', minWidth: '56px', minHeight: '56px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          ⏮
+        <button onClick={playPrev} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.9)', padding: '8px', minWidth: '56px', minHeight: '56px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <PrevIcon size={30} />
         </button>
         {/* Play/Pause */}
         <button
           onClick={togglePlay}
           style={{
-            background: C.red, border: 'none', cursor: 'pointer',
-            width: '64px', height: '64px', borderRadius: '50%',
+            background: `linear-gradient(135deg, rgba(255,255,255,0.96), rgba(255,255,255,0.84))`,
+            border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer',
+            width: '68px', height: '68px', borderRadius: '50%',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '24px', color: '#fff',
-            boxShadow: `0 4px 24px ${C.red}66`,
+            color: '#0a0a0a',
+            boxShadow: `inset 0 1px 2px rgba(255,255,255,0.6), 0 6px 24px rgba(0,0,0,0.5)`,
           }}
         >
-          {playerIsPlaying ? '⏸' : '▶'}
+          {playerIsPlaying ? <PauseIcon size={26} /> : <span style={{ marginLeft: '3px' }}><PlayIcon size={26} /></span>}
         </button>
         {/* Next */}
-        <button onClick={playNext} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.8)', fontSize: '28px', padding: '8px', minWidth: '56px', minHeight: '56px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          ⏭
+        <button onClick={playNext} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.9)', padding: '8px', minWidth: '56px', minHeight: '56px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <NextIcon size={30} />
         </button>
         {/* Loop */}
-        <button onClick={toggleLoop} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isLooping ? C.red : 'rgba(255,255,255,0.4)', fontSize: '20px', padding: '8px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          ↺
+        <button onClick={toggleLoop} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isLooping ? C.red : 'rgba(255,255,255,0.5)', padding: '8px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <LoopIcon size={22} />
         </button>
       </div>
 
