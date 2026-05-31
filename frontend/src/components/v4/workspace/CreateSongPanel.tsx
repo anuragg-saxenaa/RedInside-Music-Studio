@@ -44,6 +44,7 @@ export default function CreateSongPanel({ onDone }: Props) {
   const [chosenLyricsId, setChosenLyricsId] = useState<string>('');
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
   const [viewLyricsId, setViewLyricsId] = useState<string | null>(null);
+  const [changingLyric, setChangingLyric] = useState(false);
 
   // Write-new state
   const [lyricPrompt, setLyricPrompt] = useState('');
@@ -67,7 +68,6 @@ export default function CreateSongPanel({ onDone }: Props) {
       .then(r => r.json())
       .then((list: LyricsGeneration[]) => {
         setExistingLyrics(Array.isArray(list) ? list : []);
-        if (Array.isArray(list) && list.length > 0) setChosenLyricsId(list[0].id);
       })
       .catch(() => setExistingLyrics([]));
   }, [activeProjectId, authFetch]);
@@ -250,8 +250,39 @@ export default function CreateSongPanel({ onDone }: Props) {
         </div>
       )}
 
+      {/* Existing lyrics — collapsed summary once chosen */}
+      {source === 'existing' && chosenLyricsId && !changingLyric && (() => {
+        const chosen = existingLyrics.find(l => l.id === chosenLyricsId);
+        if (!chosen) return null;
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', background: `linear-gradient(135deg, ${C.red}14, rgba(255,255,255,0.02))`, border: `1px solid ${C.borderActive}`, borderRadius: '12px' }}>
+            <div style={{ width: '40px', height: '40px', borderRadius: '9px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `linear-gradient(135deg, ${C.red}, ${C.redDark})`, fontSize: '16px', color: '#fff', boxShadow: `0 4px 14px ${C.red}44` }}>♪</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ color: C.text, fontSize: '14px', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {chosen.title || 'Untitled Draft'} <span style={{ color: C.red, fontWeight: 600, fontSize: '12px' }}>· v{songVer(chosen)}</span>
+              </div>
+              <div style={{ fontSize: '11px', color: C.textDim, marginTop: '2px' }}>
+                <span style={{ color: C.red, fontWeight: 700, textTransform: 'uppercase' }}>{(chosen.style_preset || 'custom').replace(/-/g, ' ')}</span> · lyrics selected ✓
+              </div>
+            </div>
+            <button onClick={() => setViewLyricsId(viewLyricsId === chosen.id ? null : chosen.id)} title="View lyrics" style={{ background: 'none', border: 'none', cursor: 'pointer', color: viewLyricsId === chosen.id ? C.red : 'rgba(255,255,255,0.45)', fontSize: '16px', padding: '4px' }}>👁</button>
+            <button onClick={() => { setChangingLyric(true); }} style={{ flexShrink: 0, padding: '7px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, border: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.05)', color: C.text }}>Change</button>
+          </div>
+        );
+      })()}
+
+      {/* Selected lyric full view */}
+      {source === 'existing' && chosenLyricsId && !changingLyric && viewLyricsId === chosenLyricsId && (
+        <div style={{ padding: '14px 16px', background: 'rgba(0,0,0,0.4)', borderRadius: '12px', border: `1px solid ${C.border}`, maxHeight: '240px', overflowY: 'auto' }}>
+          {(existingLyrics.find(l => l.id === chosenLyricsId)?.content || '').split('\n').map((line, i) => {
+            const isTag = /^\[.*\]$/.test(line.trim());
+            return <div key={i} style={isTag ? { color: C.red, fontWeight: 700, fontSize: '10px', letterSpacing: '0.6px', textTransform: 'uppercase', margin: '10px 0 4px' } : { fontSize: '13px', lineHeight: 1.7, color: 'rgba(255,255,255,0.8)' }}>{line || ' '}</div>;
+          })}
+        </div>
+      )}
+
       {/* Existing lyrics picker — grouped by song, expand to pick version */}
-      {source === 'existing' && (
+      {source === 'existing' && (!chosenLyricsId || changingLyric) && (
         <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: '12px', border: `1px solid ${C.border}`, maxHeight: '300px', overflowY: 'auto' }}>
           {lyricGroups.length === 0 ? (
             <div style={{ color: C.textDim, fontSize: '13px', textAlign: 'center', padding: '24px' }}>
@@ -265,7 +296,7 @@ export default function CreateSongPanel({ onDone }: Props) {
               <div key={g.key} style={{ borderTop: idx === 0 ? 'none' : `1px solid ${C.border}` }}>
                 {/* Row */}
                 <div
-                  onClick={() => { multi ? setExpandedGroup(expanded ? null : g.key) : setChosenLyricsId(g.latest.id); }}
+                  onClick={() => { multi ? setExpandedGroup(expanded ? null : g.key) : (setChosenLyricsId(g.latest.id), setChangingLyric(false)); }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '12px',
                     padding: '12px 14px', cursor: 'pointer', minHeight: '56px', boxSizing: 'border-box',
@@ -320,7 +351,7 @@ export default function CreateSongPanel({ onDone }: Props) {
                   <div style={{ padding: '0 14px 12px 42px', display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
                     {g.items.map(v => (
                       <span key={v.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-                        <button onClick={e => { e.stopPropagation(); setChosenLyricsId(v.id); }} style={{
+                        <button onClick={e => { e.stopPropagation(); setChosenLyricsId(v.id); setChangingLyric(false); }} style={{
                           fontSize: '12px', fontWeight: 700, padding: '5px 10px', borderRadius: '7px 0 0 7px', cursor: 'pointer',
                           border: `1px solid ${chosenLyricsId === v.id ? C.borderActive : C.border}`, borderRight: 'none',
                           background: chosenLyricsId === v.id ? `${C.red}22` : 'rgba(255,255,255,0.04)',
