@@ -12,16 +12,22 @@ const TABS: { id: V4Tab; label: string; icon: string }[] = [
 
 export default function TabBar() {
   const { activeTab, setActiveTab } = useWorkspace();
+  const isMobile = window.innerWidth <= 768;
+  // On mobile the bottom nav handles Sounds vs Studio — show sub-tabs for Studio only
+  const visibleTabs = isMobile
+    ? TABS.filter(t => t.id !== 'sounds') // sounds handled by bottom nav
+    : TABS;
   return (
     <div style={{
       display: 'flex',
       borderBottom: `1px solid ${C.border}`,
-      padding: '0 24px',
+      padding: isMobile ? '0 12px' : '0 24px',
       gap: '0',
       flexShrink: 0,
       background: 'rgba(0,0,0,0.3)',
+      overflowX: 'auto',
     }} data-testid="tab-bar">
-      {TABS.map(tab => (
+      {visibleTabs.map(tab => (
         <button
           key={tab.id}
           onClick={() => setActiveTab(tab.id)}

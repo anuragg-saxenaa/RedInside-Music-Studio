@@ -30,14 +30,16 @@ export default function Titlebar() {
 
   const displayName = user?.fullName || user?.username || 'User';
 
+  const isMobile = window.innerWidth <= 768;
+
   return (
     <div
       data-testid="titlebar"
       style={{
         display: 'grid',
-        gridTemplateColumns: '232px 1fr 268px',
+        gridTemplateColumns: isMobile ? '40px 1fr 40px' : '232px 1fr 268px',
         alignItems: 'center',
-        height: '48px',
+        height: isMobile ? '44px' : '48px',
         borderBottom: `1px solid ${C.border}`,
         background: 'rgba(0,0,0,0.82)',
         backdropFilter: 'blur(20px)',
@@ -45,25 +47,33 @@ export default function Titlebar() {
         zIndex: 100,
       }}
     >
-      {/* Left — Studio label */}
-      <div style={{ display: 'flex', alignItems: 'center', paddingLeft: '20px' }}>
-        <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '10px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase' }}>
-          Studio
-        </span>
+      {/* Left — Studio label (hidden on mobile) */}
+      <div style={{ display: 'flex', alignItems: 'center', paddingLeft: isMobile ? '12px' : '20px' }}>
+        {!isMobile && (
+          <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '10px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase' }}>
+            Studio
+          </span>
+        )}
+        {isMobile && (
+          <svg width="20" height="20" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="12" stroke="#E63946" strokeWidth="1.5"/>
+            <path d="M10 8L20 14L10 20V8Z" fill="#E63946"/>
+          </svg>
+        )}
       </div>
 
-      {/* Centre — active project breadcrumb */}
+      {/* Centre — active project */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
         {activeProject ? (
           <>
-            <span style={{ color: 'rgba(255,255,255,0.28)', fontSize: '12px' }}>Project</span>
-            <span style={{ color: 'rgba(255,255,255,0.18)', fontSize: '11px' }}>›</span>
+            {!isMobile && <span style={{ color: 'rgba(255,255,255,0.28)', fontSize: '12px' }}>Project</span>}
+            {!isMobile && <span style={{ color: 'rgba(255,255,255,0.18)', fontSize: '11px' }}>›</span>}
             <span style={{
               color: C.text,
-              fontSize: '13px',
+              fontSize: isMobile ? '15px' : '13px',
               fontWeight: 600,
               letterSpacing: '-0.1px',
-              maxWidth: '240px',
+              maxWidth: isMobile ? '180px' : '240px',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
@@ -72,7 +82,7 @@ export default function Titlebar() {
             </span>
           </>
         ) : (
-          <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '12px' }}>Select a project</span>
+          <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '12px' }}>RedInside Studio</span>
         )}
       </div>
 

@@ -1,5 +1,9 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import { C } from '../shared/colors';
+import { useMobile } from '../../../hooks/useMobile';
+import { useWorkspace } from '../../../contexts/WorkspaceContext';
+import MobileNav, { type MobileSection } from '../mobile/MobileNav';
+import MobilePlayerFull from '../mobile/MobilePlayerFull';
 
 interface AppShellProps {
   titlebar: ReactNode;
@@ -10,40 +14,179 @@ interface AppShellProps {
   mockBanner?: ReactNode;
 }
 
+// Mobile mini player bar
+function MobileMiniPlayer({ onExpand }: { onExpand: () => void }) {
+  const { playerTrack, playerIsPlaying, playerProgress, togglePlay } = useWorkspace();
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+  const artworkUrl = playerTrack?.artwork_url
+    ? (playerTrack.artwork_url.startsWith('http') ? playerTrack.artwork_url : `${API_BASE}/api/projects/${playerTrack.project_id}/artwork/${playerTrack.id}`)
+    : null;
+
+  return (
+    <div
+      style={{
+        background: 'rgba(18,4,8,0.97)',
+        backdropFilter: 'blur(20px)',
+        borderTop: `1px solid ${C.borderActive}`,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        padding: '10px 16px',
+        cursor: 'pointer',
+        flexShrink: 0,
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+      onClick={onExpand}
+    >
+      {/* Progress bar at top */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'rgba(255,255,255,0.08)' }}>
+        <div style={{ height: '100%', width: `${playerProgress * 100}%`, background: C.red, transition: 'width 0.1s linear' }} />
+      </div>
+
+      {/* Artwork */}
+      <div style={{
+        width: '42px', height: '42px', borderRadius: '8px', flexShrink: 0, overflow: 'hidden',
+        background: `linear-gradient(135deg, ${C.redDark}, #080108)`,
+        border: `1px solid ${playerTrack ? C.borderActive : C.border}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {artworkUrl ? (
+          <img src={artworkUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="6" stroke={C.red} strokeWidth="1.5" opacity="0.7"/>
+            <circle cx="8" cy="8" r="2" fill={C.red} opacity="0.5"/>
+          </svg>
+        )}
+      </div>
+
+      {/* Title */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: '14px', fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {playerTrack ? (playerTrack.title || `Track v${playerTrack.version}`) : 'Nothing playing'}
+        </div>
+        <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {playerTrack?.artist || (playerTrack ? 'RedInside Studio' : 'Tap to open player')}
+        </div>
+      </div>
+
+      {/* Play/Pause button */}
+      <button
+        onClick={e => { e.stopPropagation(); togglePlay(); }}
+        style={{
+          background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0,
+          width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: C.text, fontSize: '22px',
+        }}
+      >
+        {playerIsPlaying ? '⏸' : '▶'}
+      </button>
+    </div>
+  );
+}
+
 export default function AppShell({ titlebar, sidebar, centre, rightPanel, playerBar, mockBanner }: AppShellProps) {
+  const isMobile = useMobile();
+  const { playerTrack, setActiveTab } = useWorkspace();
+  const [mobileSection, setMobileSection] = useState<MobileSection>('sounds');
+  const [showFullPlayer, setShowFullPlayer] = useState(false);
+
+  const handleMobileNav = (section: MobileSection) => {
+    setMobileSection(section);
+    // Sync activeTab with section
+    if (section === 'sounds') setActiveTab('sounds');
+    if (section === 'studio') setActiveTab('write');
+  };
+
+  /* ── DESKTOP LAYOUT ─────────────────────────────────────────────── */
+  if (!isMobile) {
+    return (
+      <div style={{
+        background: C.bgApp, height: '100vh', overflow: 'hidden',
+        display: 'flex', flexDirection: 'column',
+        fontFamily: "'Outfit', 'DM Sans', -apple-system, sans-serif", color: C.text,
+      }}>
+        {mockBanner}
+        {titlebar}
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '232px 1fr 268px', overflow: 'hidden', gap: '1px', background: C.border }}>
+          <div style={{ overflow: 'hidden', background: 'rgba(0,0,0,0.72)' }} data-testid="left-sidebar">{sidebar}</div>
+          <div style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', minWidth: 0, background: 'rgba(4,1,2,0.92)' }} data-testid="centre-panel">{centre}</div>
+          <div style={{ overflow: 'hidden auto', background: 'rgba(0,0,0,0.72)' }} data-testid="right-panel">{rightPanel}</div>
+        </div>
+        <div style={{ flexShrink: 0, zIndex: 200 }}>{playerBar}</div>
+      </div>
+    );
+  }
+
+  /* ── MOBILE LAYOUT ──────────────────────────────────────────────── */
   return (
     <div style={{
       background: C.bgApp,
-      height: '100vh',
+      height: '100dvh',
       overflow: 'hidden',
       display: 'flex',
       flexDirection: 'column',
       fontFamily: "'Outfit', 'DM Sans', -apple-system, sans-serif",
       color: C.text,
+      touchAction: 'manipulation',
     }}>
       {mockBanner}
-      {titlebar}
-      <div style={{
-        flex: 1,
-        display: 'grid',
-        gridTemplateColumns: '232px 1fr 268px',
-        overflow: 'hidden',
-        gap: '1px',
-        background: C.border,
-      }}>
-        <div style={{ overflow: 'hidden', background: 'rgba(0,0,0,0.72)' }} data-testid="left-sidebar">
+
+      {/* Compact mobile titlebar */}
+      <div style={{ flexShrink: 0 }}>{titlebar}</div>
+
+      {/* Content area — only one panel visible */}
+      <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+        {/* Library panel */}
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden auto', display: mobileSection === 'library' ? 'block' : 'none' }}>
           {sidebar}
         </div>
-        <div style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', minWidth: 0, background: 'rgba(4,1,2,0.92)' }} data-testid="centre-panel">
+
+        {/* Sounds / Studio — centre workspace (tab bar hides on mobile, nav handles tabs) */}
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', display: (mobileSection === 'sounds' || mobileSection === 'studio') ? 'flex' : 'none', flexDirection: 'column' }}>
           {centre}
         </div>
-        <div style={{ overflow: 'hidden auto', background: 'rgba(0,0,0,0.72)' }} data-testid="right-panel">
+
+        {/* Details — right panel */}
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden auto', display: mobileSection === 'details' ? 'block' : 'none' }}>
           {rightPanel}
         </div>
+
+        {/* More panel */}
+        {mobileSection === 'more' && (
+          <div style={{ position: 'absolute', inset: 0, overflow: 'hidden auto', padding: '24px 20px' }}>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: C.text, marginBottom: '24px' }}>More</div>
+            {[
+              { label: '⏱  History', href: '#/history' },
+              { label: '⚡  Viral Toolkit', href: '#/viral' },
+              { label: '⚙  Settings', href: '#/settings' },
+            ].map(item => (
+              <a key={item.href} href={item.href} style={{
+                display: 'block', padding: '16px 0', borderBottom: `1px solid ${C.border}`,
+                color: C.text, textDecoration: 'none', fontSize: '16px',
+              }}>{item.label}</a>
+            ))}
+          </div>
+        )}
       </div>
-      <div style={{ flexShrink: 0, zIndex: 200 }}>
-        {playerBar}
-      </div>
+
+      {/* Mini Player */}
+      {playerTrack && (
+        <MobileMiniPlayer onExpand={() => setShowFullPlayer(true)} />
+      )}
+
+      {/* Bottom Nav */}
+      <MobileNav
+        active={mobileSection}
+        onChange={handleMobileNav}
+        hasTrack={!!playerTrack}
+      />
+
+      {/* Full-screen player overlay */}
+      {showFullPlayer && (
+        <MobilePlayerFull onClose={() => setShowFullPlayer(false)} />
+      )}
     </div>
   );
 }

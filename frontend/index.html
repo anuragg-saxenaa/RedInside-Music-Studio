@@ -2,14 +2,27 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#08020a" />
     <title>RedInside Music Studio</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { background-color: #0A0A0A; }
+      * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+      body { background-color: #08020a; overscroll-behavior: none; }
+      html { height: 100%; }
+      body { height: 100%; }
+      #root { height: 100%; }
+      /* Mobile: hide scrollbars, improve touch scrolling */
+      @media (max-width: 768px) {
+        ::-webkit-scrollbar { display: none; }
+        * { -webkit-overflow-scrolling: touch; }
+        input[type="range"] { -webkit-appearance: none; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.15); }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #fff; cursor: pointer; }
+      }
       ::-webkit-scrollbar { width: 8px; }
       ::-webkit-scrollbar-track { background: #141414; }
       ::-webkit-scrollbar-thumb { background: #2A2A2A; border-radius: 4px; }
