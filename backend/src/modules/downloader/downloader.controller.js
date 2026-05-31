@@ -48,21 +48,20 @@ export const DownloaderController = {
 
           broadcast({ event: 'download.progress', downloadId, progress: 90, message: 'Saving to library...' });
 
-          let savedPath;
-          if (storage.driver === 'r2') {
-            // Upload to R2 bucket
-            const r2Key = `projects/${projectId}/generations/music/${downloadId}.mp3`;
-            const buf = fs.readFileSync(filePath);
-            await storage.saveAudioFile(buf, r2Key);
-            savedPath = r2Key;
-          } else {
-            // Copy to local project music dir
-            const musicDir = path.join(storage.getMusicDir(projectId));
-            fs.mkdirSync(musicDir, { recursive: true });
-            const destFile = path.join(musicDir, `${downloadId}.mp3`);
-            fs.copyFileSync(filePath, destFile);
-            savedPath = destFile;
-          }
+          // Always use R2-style key as canonical path (works on both local and cloud)
+          const r2Key = `projects/${projectId}/generations/music/${downloadId}.mp3`;
+          const buf = fs.readFileSync(filePath);
+
+          // Upload to R2 (always — so cloud can play it)
+          try { await storage.saveAudioFile(buf, r2Key); } catch (e) { logger.warn('R2 upload failed, local-only', { error: e.message }); }
+
+          // Also save to local disk at matching path (so local driver can serve it)
+          const localPath = path.join(storage.basePath, r2Key);
+          fs.mkdirSync(path.dirname(localPath), { recursive: true });
+          fs.writeFileSync(localPath, buf);
+
+          const savedPath = r2Key;
+
           // Clean up temp dir
           fs.rmSync(outputDir, { recursive: true, force: true });
 
