@@ -70,4 +70,14 @@ export const LyricsModel = {
     const result = await db.execute({ sql: 'SELECT MAX(version) as max_version FROM lyrics_generations WHERE project_id = ?', args: [projectId] });
     return ((result.rows[0]?.max_version) || 0) + 1;
   },
+
+  async delete(id) {
+    const result = await db.execute({ sql: 'DELETE FROM lyrics_generations WHERE id = ?', args: [id] });
+    return result.rowsAffected > 0;
+  },
+
+  async updateTitle(id, title) {
+    await db.execute({ sql: 'UPDATE lyrics_generations SET title = ? WHERE id = ?', args: [title, id] });
+    return this.findById(id);
+  },
 };

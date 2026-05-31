@@ -2,6 +2,7 @@ import { LyricsService } from './lyrics.service.js';
 import { HistoryService } from '../history/history.service.js';
 import { STYLE_PRESETS } from './presets.js';
 import { ProjectModel } from '../../database/models/project.model.js';
+import { LyricsModel } from '../../database/models/lyrics.model.js';
 import logger from '../../utils/logger.js';
 
 const lyricsService = new LyricsService();
@@ -119,6 +120,29 @@ export const LyricsController = {
       const { id, version } = req.params;
       const diff = await lyricsService.getLyricsDiff(id, version);
       res.json(diff);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async delete(req, res, next) {
+    try {
+      const { id } = req.params;
+      const ok = await LyricsModel.delete(id);
+      if (!ok) return res.status(404).json({ error: 'Lyrics not found' });
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async updateTitle(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { title } = req.body;
+      if (!title || typeof title !== 'string') return res.status(400).json({ error: 'title is required' });
+      const updated = await LyricsModel.updateTitle(id, title.trim());
+      res.json(updated);
     } catch (error) {
       next(error);
     }

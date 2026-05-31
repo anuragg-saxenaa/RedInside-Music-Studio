@@ -37,4 +37,14 @@ export const LyricsRoutes = [
     path: '/api/lyrics/:id/diff/:version',
     handler: LyricsController.getDiff,
   },
+  {
+    method: 'delete',
+    path: '/api/lyrics/:id',
+    handler: LyricsController.delete,
+  },
+  {
+    method: 'patch',
+    path: '/api/lyrics/:id',
+    handler: LyricsController.updateTitle,
+  },
 ];
