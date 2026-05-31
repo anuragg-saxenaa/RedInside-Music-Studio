@@ -326,6 +326,64 @@ Legacy tests (pre-Phase 4) archived in `frontend/tests/e2e/legacy/` — excluded
 - `storage/` — Git-ignored, generated content
 - `config/.env` — API keys (git-ignored)
 
+## Deployment Architecture (Production)
+
+### URLs
+- **Frontend (Vercel):** `https://frontend-orpin-two-47.vercel.app`
+- **Backend (Railway):** `https://redinside-music-studio-production.up.railway.app`
+- **Database:** Turso cloud — `libsql://redinside-music-studi-redinside.aws-us-east-1.turso.io`
+- **File Storage:** Railway S3 bucket — `redinside-storage-iec2vak` at `https://t3.storageapi.dev`
+
+### Sync Architecture
+Local dev and cloud production share the SAME data:
+- **DB:** Both local and Railway connect to Turso cloud DB
+- **Files:** Both use Railway S3 (R2-compatible) bucket — `STORAGE_DRIVER=r2`
+- **Auth:** Cloud enforces Clerk JWT; local uses `DEV_USER_ID=dev-user` fallback (no login needed)
+- **user_id:** All projects use `dev-user` as owner (single-user studio, no per-user filtering)
+
+### Railway Deployment
+- **Auto-deploy:** Every `git push origin main` triggers Railway rebuild via GitHub webhook
+- **Force deploy (no login needed):** `bash scripts/railway-deploy.sh`
+- **Permanent token:** `ba3a01ed-9279-4925-b3dc-5444c2eaee12` (stored in `config/.env` as `RAILWAY_TOKEN`)
+- **Build time:** ~4 min (includes yt-dlp install via pip)
+- **Service ID:** `ac1d7490-87f1-40ad-b51c-2c38fa0ff608`
+- **Project ID:** `e4ebb35d-aaa2-4449-9090-650e61a3659c`
+
+### Vercel Deployment
+- **Auto-deploy:** NOT connected to GitHub — must run `npx vercel --prod --yes` from `frontend/` directory
+- **Env vars set:** `VITE_API_BASE_URL`, `VITE_CLERK_PUBLISHABLE_KEY`
+- **fetch interceptor** in `frontend/src/main.tsx` rewrites all `/api/` calls to Railway URL + adds Clerk JWT
+
+### Frontend Cloud Routing (Critical)
+`frontend/src/main.tsx` patches `window.fetch` to:
+1. Rewrite `fetch('/api/...')` → `fetch('https://...railway.app/api/...')`
+2. Inject Clerk JWT from `window.Clerk.session.getToken()` into Authorization header
+3. MutationObserver patches `<img src="/api/...">` and `<audio src="/api/...">` elements
+
+`frontend/src/contexts/WorkspaceContext.tsx`:
+- `authFetch` uses `API_BASE` prefix for all relative URLs
+- `prefixApiUrls()` transforms `artwork_url` from Turso to full URLs
+- Audio `new Audio(...)` uses `${API_BASE}/api/music/:id/file`
+
+### Backend Auth (Railway)
+- Clerk auth enforced in production via `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+- **EXEMPT from auth** (used by `<audio>`/`<img>` elements that can't send JWT):
+  - `GET /api/music/:id/file` and `/api/music/:id/download`
+  - `GET /api/projects/:id/artwork/*`
+- All other `/api/` routes require valid Clerk JWT
+
+### Restore Deleted Project
+If a project is accidentally deleted from Turso, restore from local SQLite backup:
+```bash
+cd backend && node migrate-to-turso.mjs   # restores from database/music-studio.sqlite
+```
+Local SQLite at `database/music-studio.sqlite` is the source of truth backup (never deleted).
+
+### Config Files
+- `config/.env` — all secrets (Turso, R2, Clerk, Railway token) — git-ignored
+- `scripts/railway-deploy.sh` — force Railway deploy without login
+- `scripts/setup-cloud-storage.sh` — initial R2 bucket setup (one-time)
+
 ## Known Behaviours / Gotchas
 - **YouTube import progress** requires `useWebSocket` to be mounted (it's in `StudioV4Inner`). `YoutubeDownloader` reads `window.__studioWs` directly via `addEventListener`.
 - **yt-dlp** speed: uses `--concurrent-fragments 4` for parallel chunk download. Long videos (>5 min) can still take 1-3 min. Progress updates arrive via WebSocket.
