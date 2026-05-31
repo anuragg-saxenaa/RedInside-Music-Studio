@@ -220,30 +220,45 @@ class StorageUtil {
     return fullPath;
   }
 
-  async saveArtwork(key, buffer, contentType = 'image/png') {
-    if (this.driver === 'r2') {
-      await getS3().send(new PutObjectCommand({
-        Bucket: this.bucket,
-        Key: key,
-        Body: buffer,
-        ContentType: contentType,
-      }));
-      return key;
+  // Normalize any path (absolute local path OR relative) to a relative R2 key
+  toR2Key(keyOrPath) {
+    if (!keyOrPath) return keyOrPath;
+    if (path.isAbsolute(keyOrPath)) {
+      const rel = path.relative(this.basePath, keyOrPath);
+      return rel.split(path.sep).join('/'); // posix separators for S3
     }
-    const fullPath = this._localPath(key);
-    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-    fs.writeFileSync(fullPath, buffer);
-    return fullPath;
+    return keyOrPath.split(path.sep).join('/');
+  }
+
+  hasR2() {
+    return !!(this.bucket && config.r2.accessKeyId && config.r2.endpoint);
+  }
+
+  // Always dual-write artwork: local disk (for local driver serving) AND R2 (for cloud + cross-device sync)
+  async saveArtwork(key, buffer, contentType = 'image/png') {
+    const r2Key = this.toR2Key(key);
+    // Local disk
+    try {
+      const fullPath = this._localPath(key);
+      fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+      fs.writeFileSync(fullPath, buffer);
+    } catch (e) { /* disk may be read-only on cloud — ignore */ }
+    // R2 (if configured)
+    if (this.hasR2()) {
+      try {
+        await getS3().send(new PutObjectCommand({ Bucket: this.bucket, Key: r2Key, Body: buffer, ContentType: contentType }));
+      } catch (e) { /* ignore R2 failure, local copy still exists */ }
+    }
+    return r2Key;
   }
 
   // Generate presigned URL for direct R2 streaming (default 15min expiry)
   async getPresignedUrl(key, expiresIn = 900) {
     // Works whenever R2 creds + bucket are configured, even if driver is 'local'.
-    // This lets local dev play cloud-only files (e.g. songs downloaded on the cloud).
-    if (!this.bucket || !config.r2.accessKeyId) {
+    if (!this.hasR2()) {
       throw new Error('R2 not configured — cannot presign');
     }
-    return getSignedUrl(getS3(), new GetObjectCommand({ Bucket: this.bucket, Key: key }), { expiresIn });
+    return getSignedUrl(getS3(), new GetObjectCommand({ Bucket: this.bucket, Key: this.toR2Key(key) }), { expiresIn });
   }
 }
 

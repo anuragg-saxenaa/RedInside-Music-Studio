@@ -40,15 +40,14 @@ export class ImageService {
     if (imageUrls.length > 0) {
       try {
         const artworkDir = storage.getArtworkDir(projectId);
-        const ext = '.png'; // Default to png
-        const artworkPath = path.join(artworkDir, 'artwork' + ext);
+        const artworkPath = path.join(artworkDir, 'artwork.png');
 
         // Download the image
         const response = await fetch(imageUrls[0]);
         const buffer = Buffer.from(await response.arrayBuffer());
-        fs.writeFileSync(artworkPath, buffer);
-        savedArtworkPath = artworkPath;
-        console.log('Artwork saved to:', artworkPath);
+        // Dual-write: local disk + R2
+        savedArtworkPath = await storage.saveArtwork(artworkPath, buffer, 'image/png');
+        console.log('Artwork saved:', savedArtworkPath);
       } catch (err) {
         console.error('Failed to save artwork locally:', err);
       }
