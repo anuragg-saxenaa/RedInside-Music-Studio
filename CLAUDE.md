@@ -356,9 +356,35 @@ The DAW is fully responsive — desktop shows the 3-column layout, mobile (≤76
 ### Sync Architecture
 Local dev and cloud production share the SAME data:
 - **DB:** Both local and Railway connect to Turso cloud DB
-- **Files:** Both use Railway S3 (R2-compatible) bucket — `STORAGE_DRIVER=r2`
+- **Files:** shared Railway S3 (R2-compatible) bucket — `redinside-storage-iec2vak`. Local uses `STORAGE_DRIVER=local`; Railway uses `r2`. Both have R2 creds in env.
 - **Auth:** Cloud enforces Clerk JWT; local uses `DEV_USER_ID=dev-user` fallback (no login needed)
 - **user_id:** All projects use `dev-user` as owner (single-user studio, no per-user filtering)
+
+### Storage Sync (BULLETPROOF — audio + artwork)
+The key pattern that makes files play/show on BOTH local and cloud regardless of where created:
+- **Dual-write on save:** `storage.saveArtwork()` and music/youtube generation always write to BOTH local disk AND R2 (`storage.util.js`). `toR2Key()` normalizes absolute/relative paths to S3 keys.
+- **Read-anywhere on serve:** `storage.readBufferAnywhere(key)` reads local disk first, falls back to R2. Used by:
+  - `music.controller.js#getFile` — streams audio bytes (with HTTP range support) — NO presigned redirect
+  - `projects.routes.js#getMusicArtwork` / `getAlbumArtwork` — streams image bytes — NO redirect
+- **Why no presigned redirects:** they expire (15min) and browsers cache the redirect → broken media. Streaming same-origin bytes is reliable.
+- **Re-sync old files:** `node backend/sync-storage.mjs` — uploads any local-only audio/artwork to R2. Idempotent, re-runnable.
+- **Auth-exempt for media:** `server.js` skips Clerk auth for `GET .../music/:id/file` and any `GET .../artwork` path (since `<audio>`/`<img>` can't send JWT).
+- **Frontend img/audio src:** built with `VITE_API_BASE_URL` prefix directly in components (TrackRow, PlayerBar, RightPanel, TrackEditPanel, AlbumTab) — not via MutationObserver (unreliable for React).
+
+### Music Generation Without Redis
+Redis/BullMQ is optional. When no Redis, `music.controller.js` processes generation INLINE via `processMusicJobInline()` (fire-and-forget, tracks status in JobModel + WS). Without this, jobs queue forever (stub queue). Generated music is named after its source lyric's title (+ song version), e.g. "Midnight Drive (v2)", not "Track vN".
+
+### Lyrics Per-Song Versioning
+- `lyrics_generations` has `song_id` (groups versions of one song) + `song_version` (1-based per-song sequence). Migration `022_lyrics_song_grouping.sql`.
+- New lyrics (write_full_song) → new `song_id`, `song_version=1`.
+- Refine (edit) → inherits parent's `song_id`, increments `song_version`, KEEPS parent title stable (so versions group together).
+- `DELETE /api/lyrics/:id` (delete), `PATCH /api/lyrics/:id` (rename title).
+
+### Song / Lyrics UX (Suno/ElevenLabs style)
+- **SONGS tab** `CreateSongPanel.tsx` — unified creation: pick lyrics source (Write New / Use Existing / Instrumental) → music style → Generate. Existing-lyrics picker is grouped by song with expandable version pills + inline 👁 full-lyrics view; collapses to a compact selected card after choosing.
+- **LYRICS tab** `WriteStudio.tsx` — two-pane: left rail = songs grouped (glyph cards, version pills), right = composer (new) or viewer (Use for Music / Refine / Copy / Delete / rename).
+- **Mobile:** responsive layout via `useMobile()` — see Mobile/Responsive section above.
+- **Flex gotcha:** scrollable card lists MUST set `flexShrink: 0` on each card, else many items squish into thin unreadable stripes.
 
 ### Railway Deployment
 - **Auto-deploy:** Every `git push origin main` triggers Railway rebuild via GitHub webhook
