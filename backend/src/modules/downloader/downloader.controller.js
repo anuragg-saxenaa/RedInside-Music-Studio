@@ -9,7 +9,22 @@ import { broadcast } from '../../utils/ws.server.js';
 
 const ALLOWED_HOSTS = ['youtube.com', 'youtu.be', 'www.youtube.com', 'music.youtube.com', 'm.youtube.com'];
 
+// In-memory download status (polling fallback when WebSocket events don't reach client)
+const downloadStatus = new Map();
+function setStatus(id, data) {
+  downloadStatus.set(id, { ...downloadStatus.get(id), ...data, updatedAt: Date.now() });
+  // Auto-cleanup after 10 min
+  setTimeout(() => downloadStatus.delete(id), 600000);
+}
+
 export const DownloaderController = {
+  // GET /api/downloader/status/:downloadId — polling fallback for progress
+  status(req, res) {
+    const s = downloadStatus.get(req.params.downloadId);
+    if (!s) return res.status(404).json({ error: 'Unknown downloadId' });
+    res.json(s);
+  },
+
   async youtube(req, res, next) {
     try {
       const { url, projectId } = req.body;
@@ -32,20 +47,25 @@ export const DownloaderController = {
       const { tmpdir } = await import('os');
       const outputDir = path.join(tmpdir(), `yt-dl-${downloadId}`);
 
+      setStatus(downloadId, { state: 'running', progress: 5, message: 'Queued…' });
       res.status(202).json({ downloadId });
 
       (async () => {
         try {
+          setStatus(downloadId, { state: 'running', progress: 8, message: 'Fetching video info…' });
           broadcast({ event: 'download.progress', downloadId, progress: 8, message: 'Fetching video info…' });
           await new Promise(r => setTimeout(r, 400));
+          setStatus(downloadId, { state: 'running', progress: 12, message: 'Starting download…' });
           broadcast({ event: 'download.progress', downloadId, progress: 12, message: 'Starting download…' });
 
           const { filePath, title, duration } = await DownloaderService.download(url, outputDir, {
             onProgress: (progress, message) => {
+              setStatus(downloadId, { state: 'running', progress, message });
               broadcast({ event: 'download.progress', downloadId, progress, message });
             },
           });
 
+          setStatus(downloadId, { state: 'running', progress: 90, message: 'Saving to library...' });
           broadcast({ event: 'download.progress', downloadId, progress: 90, message: 'Saving to library...' });
 
           // Always use R2-style key as canonical path (works on both local and cloud)
@@ -78,6 +98,7 @@ export const DownloaderController = {
 
           await ProjectModel.incrementVersion(projectId, 'music');
 
+          setStatus(downloadId, { state: 'done', progress: 100, result: { musicId: music.id, title, duration } });
           broadcast({
             event: 'download.completed',
             downloadId,
@@ -86,6 +107,7 @@ export const DownloaderController = {
           logger.info('YouTube download completed', { downloadId, musicId: music.id, title });
         } catch (err) {
           logger.error('YouTube download failed', { downloadId, error: err.message });
+          setStatus(downloadId, { state: 'error', error: err.message });
           broadcast({ event: 'download.failed', downloadId, error: err.message });
         }
       })();

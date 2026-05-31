@@ -82,7 +82,31 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
     };
     const ws = (window as unknown as Record<string, unknown>).__studioWs as WebSocket | undefined;
     ws?.addEventListener('message', handler);
-    return () => ws?.removeEventListener('message', handler);
+
+    // Polling fallback — works even when WebSocket events don't reach the client
+    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+    const poll = setInterval(async () => {
+      try {
+        const r = await fetch(`${API_BASE}/api/downloader/status/${downloadId}`);
+        if (!r.ok) return;
+        const s = await r.json();
+        if (typeof s.progress === 'number') { setProgress(s.progress); if (s.message) setMessage(s.message); }
+        if (s.state === 'done' && s.result) {
+          clearInterval(poll);
+          if (stalledRef.current) { clearInterval(stalledRef.current); stalledRef.current = null; }
+          setDlState('done');
+          setResult({ musicId: s.result.musicId, title: s.result.title, duration: s.result.duration });
+          onDownloaded?.(s.result.musicId, s.result.title);
+        } else if (s.state === 'error') {
+          clearInterval(poll);
+          if (stalledRef.current) { clearInterval(stalledRef.current); stalledRef.current = null; }
+          setDlState('error');
+          setError(s.error || 'Download failed');
+        }
+      } catch { /* ignore poll errors */ }
+    }, 2000);
+
+    return () => { ws?.removeEventListener('message', handler); clearInterval(poll); };
   }, [downloadId, onDownloaded]);
 
   const isValidUrl = url.trim().length > 10 && (url.includes('youtube.com') || url.includes('youtu.be'));
