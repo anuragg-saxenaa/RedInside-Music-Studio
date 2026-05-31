@@ -326,6 +326,25 @@ Legacy tests (pre-Phase 4) archived in `frontend/tests/e2e/legacy/` — excluded
 - `storage/` — Git-ignored, generated content
 - `config/.env` — API keys (git-ignored)
 
+## Mobile / Responsive Layout
+
+The DAW is fully responsive — desktop shows the 3-column layout, mobile (≤768px) shows a Spotify/Apple Music style single-panel app. Same URL, same endpoints; layout switches via `useMobile()` hook.
+
+- `frontend/src/hooks/useMobile.ts` — `useMobile(breakpoint=768)` returns true on small screens (matchMedia)
+- `frontend/src/components/v4/layout/AppShell.tsx` — branches: desktop grid vs mobile single-panel. Contains `MobileMiniPlayer` (always-visible bottom strip with artwork/title/play + progress)
+- `frontend/src/components/v4/mobile/MobileNav.tsx` — bottom tab bar: Library / Sounds / Studio / Details / More
+- `frontend/src/components/v4/mobile/MobilePlayerFull.tsx` — full-screen player overlay (tap mini player to open): big artwork, drag/touch scrubber, transport, shuffle/loop, volume
+- **Mobile sections** map to panels: Library→sidebar, Sounds/Studio→centre workspace, Details→right panel, More→links (History/Viral/Settings)
+- `Titlebar.tsx` and `TabBar.tsx` collapse/adapt at ≤768px (logo + project name only; tab bar scrolls horizontally)
+- `index.html` — viewport `viewport-fit=cover`, `apple-mobile-web-app-capable`, `100dvh` heights, touch-friendly range inputs, safe-area insets
+
+## YouTube Import (yt-dlp)
+
+- `backend/src/modules/downloader/downloader.service.js` — yt-dlp wrapper. Uses `--extractor-args youtube:player-client=tv_embedded,android,ios,mweb,web` to bypass server-IP auth blocks on Railway. Age-restricted/premium videos still need cookies.
+- `backend/Dockerfile` installs `yt-dlp` via `pip3 install --break-system-packages` + `ffmpeg` via apk
+- **Status polling fallback** (`download.controller.js`): in-memory `downloadStatus` Map + `GET /api/downloader/status/:downloadId`. Frontend (`YoutubeDownloader.tsx`) polls every 2s AND listens to WebSocket — polling ensures progress/completion works even when WS events don't reach the browser on cloud.
+- Downloaded MP3 → temp dir → uploaded to R2 + saved to local disk → R2 key stored in DB (plays on both local and cloud)
+
 ## Deployment Architecture (Production)
 
 ### URLs
