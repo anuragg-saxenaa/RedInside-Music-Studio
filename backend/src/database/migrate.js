@@ -9,6 +9,12 @@ const url = process.env.TURSO_DATABASE_URL ||
   `file:${path.join(__dirname, '../../database/music-studio.sqlite')}`;
 const authToken = process.env.TURSO_AUTH_TOKEN;
 
+// For local file: URLs, ensure the parent directory exists (db dir is gitignored)
+if (url.startsWith('file:')) {
+  const filePath = url.slice('file:'.length).replace(/^\/\//, '/');
+  try { fs.mkdirSync(path.dirname(path.resolve(filePath)), { recursive: true }); } catch { /* ignore */ }
+}
+
 const db = createClient({ url, authToken });
 
 // Ensure migrations tracking table exists

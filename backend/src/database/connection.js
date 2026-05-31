@@ -1,6 +1,14 @@
 import { createClient } from '@libsql/client';
+import fs from 'fs';
+import path from 'path';
 import config from '../config/env.config.js';
 import logger from '../utils/logger.js';
+
+// For local file: URLs, ensure the parent dir exists (db dir is gitignored, absent on fresh checkout)
+if (config.database.url.startsWith('file:')) {
+  const filePath = config.database.url.slice('file:'.length).replace(/^\/\//, '/');
+  try { fs.mkdirSync(path.dirname(path.resolve(filePath)), { recursive: true }); } catch { /* ignore */ }
+}
 
 const db = createClient({
   url: config.database.url,
