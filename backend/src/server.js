@@ -59,8 +59,10 @@ if (hasRealClerkKey) {
   app.use('/api', (req, res, next) => {
     if (req.path.startsWith('/share/')) return next();
     if (req.path === '/test/seed-project' || req.path.startsWith('/test/')) return next();
-    // Audio/artwork files are loaded by <audio>/<img> elements which can't send JWT
-    if (req.path.match(/\/music\/[^/]+\/(file|download)$/) || req.path.match(/\/projects\/[^/]+\/artwork/)) return next();
+    // Audio file streaming — loaded by <audio> element which can't send JWT
+    if (req.path.match(/\/music\/[^/]+\/(file|download)$/)) return next();
+    // GET artwork (per-song + album) — loaded by <img> element which can't send JWT
+    if (req.method === 'GET' && req.path.includes('/artwork')) return next();
     return requireAuth()(req, res, next);
   });
 } else {

@@ -34,8 +34,9 @@ export default function TrackEditPanel({ track, onClose, onSaved }: TrackEditPan
   });
   const [bpm, setBpm] = useState<number | null>(null);
   const [keyStr, setKeyStr] = useState<string | null>(null);
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
   const [artworkUrl, setArtworkUrl] = useState<string | null>(
-    track.artwork_url ? `/api/projects/${activeProjectId}/artwork/${track.id}` : null
+    track.artwork_url ? `${API_BASE}/api/projects/${activeProjectId}/artwork/${track.id}?t=${Date.now()}` : null
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -127,7 +128,7 @@ export default function TrackEditPanel({ track, onClose, onSaved }: TrackEditPan
       const saveData = await saveRes.json();
       if (!saveRes.ok) { setGenError('Failed to save artwork'); return; }
 
-      setArtworkUrl(saveData.artworkUrl + '?t=' + Date.now());
+      setArtworkUrl(`${API_BASE}${saveData.artworkUrl}?t=${Date.now()}`);
       setShowGenerate(false);
       setArtPrompt('');
       refreshTracks();

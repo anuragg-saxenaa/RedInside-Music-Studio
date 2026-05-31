@@ -10,18 +10,16 @@ function ArtworkBox({ track, activeProjectId, onUploaded }: {
   onUploaded: () => void;
 }) {
   const authFetch = useAuthFetch();
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+  const artUrl = () => `${API_BASE}/api/projects/${activeProjectId}/artwork/${track.id}?v=${Date.now()}`;
   const [hovered, setHovered] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [localUrl, setLocalUrl] = useState<string | null>(
-    track.artwork_url ? `/api/projects/${activeProjectId}/artwork/${track.id}?v=${Date.now()}` : null
-  );
+  const [localUrl, setLocalUrl] = useState<string | null>(track.artwork_url ? artUrl() : null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setLocalUrl(track.artwork_url
-      ? `/api/projects/${activeProjectId}/artwork/${track.id}?v=${Date.now()}`
-      : null
-    );
+    setLocalUrl(track.artwork_url ? artUrl() : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [track.artwork_url, track.id, activeProjectId]);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -41,7 +39,7 @@ function ArtworkBox({ track, activeProjectId, onUploaded }: {
         body: JSON.stringify({ musicId: track.id, imageUrl }),
       });
       if (res.ok) {
-        setLocalUrl(`/api/projects/${activeProjectId}/artwork/${track.id}?v=${Date.now()}`);
+        setLocalUrl(artUrl());
         onUploaded();
       }
     } catch { /* ignore */ }

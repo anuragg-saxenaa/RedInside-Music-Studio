@@ -204,7 +204,7 @@ export default function PlayerBar() {
         }}>
           {playerTrack?.artwork_url ? (
             <img
-              src={`/api/projects/${playerTrack.project_id}/artwork/${playerTrack.id}`}
+              src={`${import.meta.env.VITE_API_BASE_URL || ''}/api/projects/${playerTrack.project_id}/artwork/${playerTrack.id}`}
               alt=""
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
             />

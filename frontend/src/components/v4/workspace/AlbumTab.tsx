@@ -50,7 +50,7 @@ export default function AlbumTab() {
       genre: album.genre ?? '',
       label: album.label ?? '',
     });
-    setArtworkUrl(album.artwork_path ? `/api/projects/${activeProjectId}/albums/${album.id}/artwork` : null);
+    setArtworkUrl(album.artwork_path ? `${import.meta.env.VITE_API_BASE_URL || ''}/api/projects/${activeProjectId}/albums/${album.id}/artwork?t=${Date.now()}` : null);
     setShowGenerate(false);
     loadAlbumTracks(album.id);
   };
@@ -157,7 +157,7 @@ export default function AlbumTab() {
       const saveData = await saveRes.json();
       if (!saveRes.ok) { setGenError('Failed to save artwork'); return; }
 
-      setArtworkUrl(saveData.artworkUrl + '?t=' + Date.now());
+      setArtworkUrl(`${import.meta.env.VITE_API_BASE_URL || ''}${saveData.artworkUrl}?t=${Date.now()}`);
       setShowGenerate(false);
       setArtPrompt('');
     } catch { setGenError('Network error'); }
@@ -219,7 +219,7 @@ export default function AlbumTab() {
             }}
           >
             {album.artwork_path ? (
-              <img src={`/api/projects/${activeProjectId}/albums/${album.id}/artwork`} alt="" style={{ width: '36px', height: '36px', borderRadius: '4px', objectFit: 'cover', flexShrink: 0 }} />
+              <img src={`${import.meta.env.VITE_API_BASE_URL || ''}/api/projects/${activeProjectId}/albums/${album.id}/artwork`} alt="" style={{ width: '36px', height: '36px', borderRadius: '4px', objectFit: 'cover', flexShrink: 0 }} />
             ) : (
               <div style={{ width: '36px', height: '36px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '14px' }}>◈</div>
             )}

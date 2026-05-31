@@ -99,7 +99,7 @@ export default function TrackRow({ track, onDoubleClick, onEdit, isEditOpen }: T
         }}>
           {track.artwork_url ? (
             <img
-              src={`/api/projects/${track.project_id}/artwork/${track.id}`}
+              src={`${import.meta.env.VITE_API_BASE_URL || ''}/api/projects/${track.project_id}/artwork/${track.id}`}
               alt=""
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
             />
