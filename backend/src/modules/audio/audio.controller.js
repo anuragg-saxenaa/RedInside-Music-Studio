@@ -600,14 +600,21 @@ export const AudioController = {
         inputParams: { musicId, inputPath },
       });
 
-      const { queues } = await import('../../queue/queue.config.js');
-      await queues.vocalRemoval.add('remove-vocals', {
-        musicId,
-        projectId,
-        inputPath,
+      const jobData = {
+        musicId, projectId, inputPath,
         originalTitle: music.title || 'Track',
         jobId: sqliteJob.id,
-      });
+      };
+
+      const { getRedisConnection } = await import('../../queue/queue.config.js');
+      if (getRedisConnection()) {
+        const { queues } = await import('../../queue/queue.config.js');
+        await queues.vocalRemoval.add('remove-vocals', jobData);
+      } else {
+        // No Redis — process inline (fire-and-forget; status tracked in JobModel + WS)
+        const { processVocalRemovalInline } = await import('../../queue/workers/vocal-removal.worker.js');
+        processVocalRemovalInline(jobData).catch(err => logger.error('Inline vocal removal failed', { error: err.message }));
+      }
 
       res.status(202).json({ jobId: sqliteJob.id });
     } catch (err) {

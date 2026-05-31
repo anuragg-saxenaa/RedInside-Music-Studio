@@ -62,3 +62,33 @@ function startWorker() {
 }
 
 export const vocalRemovalWorker = startWorker();
+
+// Process a vocal-removal job synchronously (used when Redis/queue unavailable).
+export async function processVocalRemovalInline({ musicId, projectId, inputPath, originalTitle, jobId }) {
+  if (jobId) await JobModel.updateStatus(jobId, 'active');
+  const outputDir = path.join(os.tmpdir(), `vocal-removal-${jobId || Date.now()}`);
+  try {
+    const result = await VocalRemovalService.removeVocals(inputPath, outputDir, {
+      onProgress: (progress, message) => {
+        if (jobId) JobModel.update(jobId, { progress }).catch(() => {});
+        broadcast({ event: 'job.progress', jobId, progress, message });
+      },
+    });
+    const version = await MusicModel.getNextVersion(projectId);
+    const instrumental = await MusicModel.create({
+      projectId, title: `${originalTitle} (Instrumental)`, model: 'vocal-removal',
+      originalFilePath: result.instrumentalPath, processedFilePath: null,
+      isInstrumental: true, version,
+    });
+    await ProjectModel.incrementVersion(projectId, 'music');
+    const jobResult = { instrumentalMusicId: instrumental.id, engine: result.engine };
+    if (jobId) await JobModel.update(jobId, { status: 'completed', result: jobResult, progress: 100 });
+    broadcast({ event: 'job.completed', jobId, result: { ...jobResult, vocalPath: result.vocalPath } });
+    logger.info('Vocal removal completed inline', { jobId, engine: result.engine });
+    return jobResult;
+  } catch (err) {
+    if (jobId) await JobModel.updateStatus(jobId, 'failed', err.message);
+    broadcast({ event: 'job.failed', jobId, error: err.message });
+    throw err;
+  }
+}

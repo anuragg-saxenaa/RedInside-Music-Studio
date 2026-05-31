@@ -7,7 +7,7 @@
     "dev:mock": "MINIMAX_BASE_URL=http://localhost:8999 node --watch src/server.js",
     "mock:minimax": "node tests/minimax-mock-server.js",
     "start": "node src/server.js",
-    "test": "MINIMAX_BASE_URL=http://localhost:8999 node --test tests/**/*.test.js",
+    "test": "MINIMAX_BASE_URL=http://localhost:8999 node --test --test-concurrency=1 tests/**/*.test.js",
     "db:migrate": "node src/database/migrate.js"
   },
   "dependencies": {

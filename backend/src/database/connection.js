@@ -9,6 +9,13 @@ const db = createClient({
 
 // Enable foreign keys
 await db.execute('PRAGMA foreign_keys = ON');
+// Wait up to 5s on a locked DB instead of throwing SQLITE_BUSY (local file mode)
+if (config.database.url.startsWith('file:')) {
+  try {
+    await db.execute('PRAGMA busy_timeout = 5000');
+    await db.execute('PRAGMA journal_mode = WAL');
+  } catch { /* ignore — WAL/busy_timeout best-effort */ }
+}
 
 logger.info(`Database connected: ${config.database.url}`);
 

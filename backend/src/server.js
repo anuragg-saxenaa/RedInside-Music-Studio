@@ -214,4 +214,12 @@ const httpServer = app.listen(PORT, () => {
   initWebSocketServer(httpServer);
 });
 
+// Safety net — never let a stray rejection/exception take the whole server down
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled promise rejection', { reason: reason?.message || String(reason) });
+});
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught exception', { error: err?.message, stack: err?.stack });
+});
+
 export default app;
