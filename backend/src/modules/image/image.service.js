@@ -58,7 +58,7 @@ export class ImageService {
     await db.execute({
       sql: `INSERT INTO image_generations (id, project_id, model, prompt, aspect_ratio, width, height, image_urls, seed, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [id, projectId, model || 'image-01', prompt, aspectRatio || '1:1', width, height, JSON.stringify(imageUrls), seed, new Date().toISOString()],
+      args: [id, projectId, model || 'image-01', prompt, aspectRatio || '1:1', width ?? null, height ?? null, JSON.stringify(imageUrls), seed ?? null, new Date().toISOString()],
     });
 
     return {
