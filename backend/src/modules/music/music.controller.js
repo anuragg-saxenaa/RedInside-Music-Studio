@@ -124,8 +124,10 @@ export const MusicController = {
         return res.redirect(302, url);
       }
 
-      // Local driver: stream file directly
-      if (!fs.existsSync(filePath)) {
+      // Local driver: resolve relative R2-style keys to absolute path via storage basePath
+      const resolvedPath = path.isAbsolute(filePath) ? filePath : path.join(storage.basePath, filePath);
+
+      if (!fs.existsSync(resolvedPath)) {
         logger.error('Audio file not found on disk', { filePath, musicId: id });
         return res.status(404).json({
           error: 'Audio file not found on disk',
@@ -134,16 +136,15 @@ export const MusicController = {
         });
       }
 
-      const ext = path.extname(filePath).toLowerCase();
+      const ext = path.extname(resolvedPath).toLowerCase();
       const contentType = ext === '.wav' ? 'audio/wav' : 'audio/mpeg';
       const downloadExt = ext === '.wav' ? 'wav' : 'mp3';
 
-      const stat = fs.statSync(filePath);
+      const stat = fs.statSync(resolvedPath);
       const fileSize = stat.size;
       const rangeHeader = req.headers.range;
 
       if (rangeHeader) {
-        // Support HTTP range requests for proper audio seeking
         const parts = rangeHeader.replace(/bytes=/, '').split('-');
         const start = parseInt(parts[0], 10);
         const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
@@ -157,7 +158,7 @@ export const MusicController = {
         });
         res.status(206);
 
-        const fileStream = fs.createReadStream(filePath, { start, end });
+        const fileStream = fs.createReadStream(resolvedPath, { start, end });
         fileStream.pipe(res);
       } else {
         res.set({
@@ -166,7 +167,7 @@ export const MusicController = {
           'Content-Disposition': `inline; filename="music-v${music.version}.${downloadExt}"`,
           'Content-Length': fileSize,
         });
-        fs.createReadStream(filePath).pipe(res);
+        fs.createReadStream(resolvedPath).pipe(res);
       }
     } catch (error) {
       logger.error('Error serving audio file:', error);

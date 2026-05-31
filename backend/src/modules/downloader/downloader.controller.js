@@ -27,7 +27,10 @@ export const DownloaderController = {
       }
 
       const downloadId = `dl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const outputDir = path.join(storage.getProjectDir(projectId), 'downloads', downloadId);
+      // Always download to a real local temp dir (yt-dlp needs filesystem)
+      import('os').then(() => {});
+      const { tmpdir } = await import('os');
+      const outputDir = path.join(tmpdir(), `yt-dl-${downloadId}`);
 
       res.status(202).json({ downloadId });
 
@@ -45,18 +48,30 @@ export const DownloaderController = {
 
           broadcast({ event: 'download.progress', downloadId, progress: 90, message: 'Saving to library...' });
 
-          // Copy to project music storage
-          const musicDir = path.join(storage.getProjectDir(projectId), 'generations', 'music');
-          fs.mkdirSync(musicDir, { recursive: true });
-          const destFile = path.join(musicDir, `${downloadId}.mp3`);
-          fs.copyFileSync(filePath, destFile);
+          let savedPath;
+          if (storage.driver === 'r2') {
+            // Upload to R2 bucket
+            const r2Key = `projects/${projectId}/generations/music/${downloadId}.mp3`;
+            const buf = fs.readFileSync(filePath);
+            await storage.saveAudioFile(buf, r2Key);
+            savedPath = r2Key;
+          } else {
+            // Copy to local project music dir
+            const musicDir = path.join(storage.getMusicDir(projectId));
+            fs.mkdirSync(musicDir, { recursive: true });
+            const destFile = path.join(musicDir, `${downloadId}.mp3`);
+            fs.copyFileSync(filePath, destFile);
+            savedPath = destFile;
+          }
+          // Clean up temp dir
+          fs.rmSync(outputDir, { recursive: true, force: true });
 
           const version = await MusicModel.getNextVersion(projectId);
           const music = await MusicModel.create({
             projectId,
             title,
             model: 'youtube-download',
-            originalFilePath: destFile,
+            originalFilePath: savedPath,
             processedFilePath: null,
             durationSeconds: duration,
             version,
