@@ -33,7 +33,10 @@ export const DownloaderService = {
         '--socket-timeout', '30',
         '--retries', '3',
         '--no-check-certificates',
-        '--extractor-args', 'youtube:player-client=android,ios,web',
+        // tv_embedded bypasses auth on server IPs; fallback through multiple clients
+        '--extractor-args', 'youtube:player-client=tv_embedded,android,ios,mweb,web',
+        '--add-headers', 'User-Agent:Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version',
+        '--age-limit', '99',
         '-o', outputTemplate,
         url,
       ];
