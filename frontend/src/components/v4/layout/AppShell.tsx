@@ -4,6 +4,7 @@ import { useMobile } from '../../../hooks/useMobile';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import MobileNav, { type MobileSection } from '../mobile/MobileNav';
 import MobilePlayerFull from '../mobile/MobilePlayerFull';
+import PullToRefresh from '../mobile/PullToRefresh';
 import { PlayIcon, PauseIcon } from '../shared/Icons';
 import { tapLight, tapMedium } from '../../../lib/haptics';
 
@@ -122,7 +123,7 @@ function MobileMiniPlayer({ onExpand }: { onExpand: () => void }) {
 
 export default function AppShell({ titlebar, sidebar, centre, rightPanel, playerBar, mockBanner }: AppShellProps) {
   const isMobile = useMobile();
-  const { playerTrack, setActiveTab } = useWorkspace();
+  const { playerTrack, setActiveTab, refreshProjects, refreshTracks } = useWorkspace();
   const [mobileSection, setMobileSection] = useState<MobileSection>('sounds');
   const [showFullPlayer, setShowFullPlayer] = useState(false);
 
@@ -174,8 +175,8 @@ export default function AppShell({ titlebar, sidebar, centre, rightPanel, player
       {/* Content area — only one panel visible */}
       <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
         {/* Library panel */}
-        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden auto', display: mobileSection === 'library' ? 'block' : 'none' }}>
-          {sidebar}
+        <div style={{ position: 'absolute', inset: 0, display: mobileSection === 'library' ? 'block' : 'none' }}>
+          <PullToRefresh onRefresh={refreshProjects}>{sidebar}</PullToRefresh>
         </div>
 
         {/* Sounds / Studio — centre workspace (tab bar hides on mobile, nav handles tabs) */}
@@ -184,8 +185,8 @@ export default function AppShell({ titlebar, sidebar, centre, rightPanel, player
         </div>
 
         {/* Details — right panel */}
-        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden auto', display: mobileSection === 'details' ? 'block' : 'none' }}>
-          {rightPanel}
+        <div style={{ position: 'absolute', inset: 0, display: mobileSection === 'details' ? 'block' : 'none' }}>
+          <PullToRefresh onRefresh={refreshTracks}>{rightPanel}</PullToRefresh>
         </div>
 
         {/* More panel */}

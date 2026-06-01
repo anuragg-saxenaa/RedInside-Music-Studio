@@ -109,8 +109,10 @@ export default function MobilePlayerFull({ onClose }: Props) {
         transition: sheetSettling ? 'transform 280ms cubic-bezier(0.22,1,0.36,1)' : 'none',
         borderRadius: sheetY > 0 ? '20px 20px 0 0' : 0,
         opacity: 1 - dismissProgress * 0.25,
+        animation: 'ris-player-up 340ms cubic-bezier(0.22,1,0.36,1)',
       }}
     >
+      <style>{`@keyframes ris-player-up { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
       {/* Grab handle + Header — drag here to dismiss */}
       <div onTouchStart={onSheetTouchStart} onTouchMove={onSheetTouchMove} onTouchEnd={onSheetTouchEnd}>
         <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '8px' }}>
