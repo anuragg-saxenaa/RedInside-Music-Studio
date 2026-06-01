@@ -345,6 +345,20 @@ The DAW is fully responsive — desktop shows the 3-column layout, mobile (≤76
 - **Status polling fallback** (`download.controller.js`): in-memory `downloadStatus` Map + `GET /api/downloader/status/:downloadId`. Frontend (`YoutubeDownloader.tsx`) polls every 2s AND listens to WebSocket — polling ensures progress/completion works even when WS events don't reach the browser on cloud.
 - Downloaded MP3 → temp dir → uploaded to R2 + saved to local disk → R2 key stored in DB (plays on both local and cloud)
 
+## PWA — Installable + Offline Downloads (sub-project A, shipped)
+
+The web app is an installable PWA with Spotify-style offline downloads. Spec: `docs/superpowers/specs/2026-05-31-pwa-foundation-design.md`; plan: `docs/superpowers/plans/2026-05-31-pwa-foundation.md`. Fully **additive** — disable via Settings toggle or `?nopwa`; SW registers in production builds only.
+
+- `vite.config.ts` — `VitePWA` (Workbox): manifest, icons (`public/icons/`), `CacheFirst` runtime cache `ris-audio-v1` for `/api/music/:id/file` (rangeRequests).
+- `src/pwa/registerSW.ts` — prod-only SW registration; `unregisterSW()` self-reloads; `enablePWA()` strips `?nopwa`. `src/pwa/UpdateToast.tsx` — "new version" reload prompt.
+- `src/pwa/db.ts` — IndexedDB `ris-downloads` index (`DownloadRow`). `src/pwa/downloads.ts` — `downloadTrack/downloadMany/removeDownload/isDownloaded/listDownloadedTracks/removeAllDownloads/storageEstimate`; Cache API bytes + index row; quota guard maps `QuotaExceededError`→`QuotaError`; preserves `addedAt`; deletes index row before cache (no orphan rows).
+- `src/contexts/DownloadsContext.tsx` — reactive download status/progress.
+- `src/components/v4/downloads/DownloadButton.tsx` (per-track icon + labeled multi w/ progress) + `DownloadsView.tsx` (offline library, storage bar, delete/delete-all). Wired into TrackRow (per track), SoundsTab header ("Download all" = project). Downloads view = `V4Tab` `'downloads'` via LeftSidebar `nav-downloads` button → CentreWorkspace.
+- `src/pwa/offlineAuth.ts` + `App.tsx` — offline-tolerant gate: when offline (reactive `online`/`offline` listeners) + previously signed in, open straight to the app (downloads playable). Online behavior unchanged.
+- Tests: `tests/unit/downloads.test.ts` (vitest + fake-indexeddb, runs in CI lint job via `npm run test:unit`); `tests/e2e/v4-pwa.spec.ts` (download → Downloads view → remove).
+- **Data safety:** read-only w.r.t. user data — only caches copies of `/api/music/:id/file`; never writes/deletes Turso/R2. "Delete download" removes only the local cached copy.
+- **Not yet wired:** playlist/album-level Download buttons (same `DownloadButton` component, pass the track-id set) — fast follow.
+
 ## CI / Pipeline (`.github/workflows/ci.yml`)
 
 Three jobs, all must stay green: **Lint & Type Check**, **Backend Tests**, **Frontend E2E Tests**. There is NO deploy workflow (Railway auto-deploys via its native GitHub integration; Vercel via CLI). Hard-won gotchas:
