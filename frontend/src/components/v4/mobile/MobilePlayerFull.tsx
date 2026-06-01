@@ -59,7 +59,7 @@ export default function MobilePlayerFull({ onClose }: Props) {
   const onSheetTouchMove = (e: React.TouchEvent) => {
     if (!sheetStart.current.active) return;
     const dy = e.touches[0].clientY - sheetStart.current.y;
-    setSheetY(Math.max(0, dy)); // only downward
+    setSheetY(Math.max(0, dy));
   };
   const onSheetTouchEnd = () => {
     if (!sheetStart.current.active) return;
@@ -77,13 +77,8 @@ export default function MobilePlayerFull({ onClose }: Props) {
   const onArtTouchMove = (e: React.TouchEvent) => {
     const dx = e.touches[0].clientX - artStart.current.x;
     const dy = e.touches[0].clientY - artStart.current.y;
-    if (artStart.current.axis === '') {
-      artStart.current.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
-    }
-    if (artStart.current.axis === 'x') {
-      e.stopPropagation();
-      setArtX(dx);
-    }
+    if (artStart.current.axis === '') artStart.current.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+    if (artStart.current.axis === 'x') { e.stopPropagation(); setArtX(dx); }
   };
   const onArtTouchEnd = () => {
     if (artStart.current.axis === 'x') {
@@ -96,162 +91,196 @@ export default function MobilePlayerFull({ onClose }: Props) {
   };
 
   const dismissProgress = Math.min(1, sheetY / 300);
+  const title = playerTrack ? (playerTrack.title || `Track v${playerTrack.version}`) : 'Nothing playing';
+  const artist = playerTrack ? (playerTrack.artist || 'RedInside Studio') : '';
 
   return (
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 2000,
-        background: 'linear-gradient(180deg, #1a0408 0%, #08020a 60%)',
         display: 'flex', flexDirection: 'column',
-        padding: 'env(safe-area-inset-top, 20px) 0 env(safe-area-inset-bottom, 20px)',
-        overflowY: 'auto',
+        background: '#08020a',
+        paddingBottom: 'env(safe-area-inset-bottom, 16px)',
+        paddingTop: 'env(safe-area-inset-top, 16px)',
         transform: `translateY(${sheetY}px)`,
-        transition: sheetSettling ? 'transform 280ms cubic-bezier(0.22,1,0.36,1)' : 'none',
-        borderRadius: sheetY > 0 ? '20px 20px 0 0' : 0,
-        opacity: 1 - dismissProgress * 0.25,
-        animation: 'ris-player-up 340ms cubic-bezier(0.22,1,0.36,1)',
+        transition: sheetSettling ? 'transform 300ms cubic-bezier(0.22,1,0.36,1)' : 'none',
+        borderRadius: sheetY > 0 ? '24px 24px 0 0' : 0,
+        overflow: 'hidden',
+        opacity: 1 - dismissProgress * 0.2,
+        animation: 'ris-player-up 380ms cubic-bezier(0.22,1,0.36,1)',
       }}
     >
-      <style>{`@keyframes ris-player-up { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
-      {/* Grab handle + Header — drag here to dismiss */}
-      <div onTouchStart={onSheetTouchStart} onTouchMove={onSheetTouchMove} onTouchEnd={onSheetTouchEnd}>
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '8px' }}>
-          <div style={{ width: '40px', height: '5px', borderRadius: '3px', background: 'rgba(255,255,255,0.25)' }} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 24px 0' }}>
-          <button onClick={close} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', padding: '8px', fontSize: '20px' }}>
-            ⌄
-          </button>
-          <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Now Playing</span>
-          <div style={{ width: 36 }} />
-        </div>
+      <style>{`
+        @keyframes ris-player-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes ris-art-in { from { opacity: 0; transform: scale(1.08); } to { opacity: 1; transform: scale(1); } }
+      `}</style>
+
+      {/* ── Ambient backdrop: blurred artwork + scrim ── */}
+      <div style={{ position: 'absolute', inset: 0, zIndex: 0, overflow: 'hidden' }}>
+        {artworkUrl && (
+          <img
+            src={artworkUrl}
+            alt=""
+            style={{
+              position: 'absolute', inset: '-15%', width: '130%', height: '130%',
+              objectFit: 'cover', filter: 'blur(64px) saturate(1.6) brightness(0.55)',
+              transform: 'scale(1.1)', transition: 'opacity 600ms',
+            }}
+          />
+        )}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: artworkUrl
+            ? 'linear-gradient(180deg, rgba(8,2,10,0.35) 0%, rgba(8,2,10,0.55) 45%, rgba(8,2,10,0.92) 100%)'
+            : 'linear-gradient(165deg, #2a0810 0%, #12040a 45%, #08020a 100%)',
+        }} />
       </div>
 
-      {/* Artwork — swipe left/right to skip */}
-      <div style={{ flex: '0 0 auto', padding: '32px 32px 24px', display: 'flex', justifyContent: 'center' }}>
-        <div
-          onTouchStart={onArtTouchStart}
-          onTouchMove={onArtTouchMove}
-          onTouchEnd={onArtTouchEnd}
-          style={{
-            width: 'min(calc(100vw - 64px), 320px)',
-            height: 'min(calc(100vw - 64px), 320px)',
-            borderRadius: '16px',
-            background: `linear-gradient(135deg, ${C.redDark}, #080108)`,
-            border: `1px solid ${C.borderActive}`,
-            overflow: 'hidden',
-            boxShadow: playerIsPlaying ? `0 16px 64px ${C.red}44` : '0 8px 32px rgba(0,0,0,0.6)',
-            transform: `translateX(${artX}px) rotate(${artX * 0.02}deg)`,
-            transition: artSettling ? 'transform 300ms cubic-bezier(0.22,1,0.36,1), box-shadow 400ms' : 'box-shadow 400ms',
-            flexShrink: 0,
-            touchAction: 'pan-y',
-          }}
-        >
-          {artworkUrl ? (
-            <img src={artworkUrl} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
-          ) : (
-            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-                <circle cx="32" cy="32" r="28" stroke={C.red} strokeWidth="2" opacity="0.6"/>
-                <circle cx="32" cy="32" r="10" fill={C.red} opacity="0.4"/>
-              </svg>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Title & Artist */}
-      <div style={{ padding: '0 32px 24px' }}>
-        <div style={{ fontSize: '22px', fontWeight: 700, color: C.text, marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {playerTrack ? (playerTrack.title || `Track v${playerTrack.version}`) : 'Nothing playing'}
-        </div>
-        <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.45)' }}>
-          {playerTrack ? (playerTrack.artist || 'RedInside Studio') : ''}
-        </div>
-      </div>
-
-      {/* Scrubber */}
-      <div style={{ padding: '0 32px 8px' }}>
-        <div
-          ref={barRef}
-          style={{ position: 'relative', height: '36px', display: 'flex', alignItems: 'center', cursor: 'pointer', touchAction: 'none' }}
-          onMouseDown={e => {
-            isDragging.current = true;
-            const f = getFrac(e.clientX);
-            setDragProgress(f);
-          }}
-          onMouseMove={e => { if (isDragging.current) setDragProgress(getFrac(e.clientX)); }}
-          onMouseUp={e => {
-            if (isDragging.current) { seekTo(getFrac(e.clientX)); isDragging.current = false; setDragProgress(null); }
-          }}
-          onTouchStart={e => {
-            isDragging.current = true;
-            setDragProgress(getFrac(e.touches[0].clientX));
-          }}
-          onTouchMove={e => { if (isDragging.current) { e.stopPropagation(); setDragProgress(getFrac(e.touches[0].clientX)); } }}
-          onTouchEnd={e => {
-            if (isDragging.current) {
-              seekTo(getFrac(e.changedTouches[0].clientX));
-              isDragging.current = false; setDragProgress(null);
-              tapLight();
-            }
-          }}
-        >
-          <div style={{ position: 'absolute', left: 0, right: 0, height: '4px', background: 'rgba(255,255,255,0.15)', borderRadius: '2px' }}>
-            <div style={{ height: '100%', width: `${displayFraction * 100}%`, background: C.red, borderRadius: '2px' }} />
+      {/* ── Foreground content ── */}
+      <div style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        {/* Grab handle + header (drag to dismiss) */}
+        <div onTouchStart={onSheetTouchStart} onTouchMove={onSheetTouchMove} onTouchEnd={onSheetTouchEnd} style={{ flexShrink: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '10px' }}>
+            <div style={{ width: '36px', height: '5px', borderRadius: '3px', background: 'rgba(255,255,255,0.3)' }} />
           </div>
-          <div style={{
-            position: 'absolute', top: '50%', transform: `translateX(-50%) translateY(-50%) scale(${dragProgress !== null ? 1.3 : 1})`,
-            left: `${displayFraction * 100}%`, width: '16px', height: '16px',
-            background: '#fff', borderRadius: '50%', boxShadow: `0 0 8px ${C.red}88`,
-            transition: 'transform 120ms',
-          }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px 0' }}>
+            <button onClick={close} style={iconBtn}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2.4" strokeLinecap="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 600 }}>Now Playing</span>
+            <button style={iconBtn}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="rgba(255,255,255,0.7)"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+            </button>
+          </div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>
-          <span>{fmtTime(playerCurrentTime)}</span>
-          <span>{fmtTime(playerDuration)}</span>
+
+        {/* Artwork — fills available space, scales/dims when paused */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 28px', minHeight: 0 }}>
+          <div
+            onTouchStart={onArtTouchStart}
+            onTouchMove={onArtTouchMove}
+            onTouchEnd={onArtTouchEnd}
+            style={{
+              width: 'min(78vw, 360px)', aspectRatio: '1 / 1', maxHeight: '100%',
+              borderRadius: '18px', overflow: 'hidden', flexShrink: 0,
+              background: `linear-gradient(135deg, ${C.redDark}, #080108)`,
+              boxShadow: playerIsPlaying
+                ? `0 24px 80px rgba(0,0,0,0.6), 0 0 60px ${C.red}33`
+                : '0 12px 40px rgba(0,0,0,0.6)',
+              transform: `translateX(${artX}px) rotate(${artX * 0.015}deg) scale(${playerIsPlaying ? 1 : 0.86})`,
+              transition: artSettling
+                ? 'transform 320ms cubic-bezier(0.22,1,0.36,1), box-shadow 500ms'
+                : 'transform 420ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 500ms',
+              touchAction: 'pan-y',
+              filter: playerIsPlaying ? 'none' : 'brightness(0.8)',
+              animation: 'ris-art-in 500ms ease',
+            }}
+          >
+            {artworkUrl ? (
+              <img src={artworkUrl} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
+            ) : (
+              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="72" height="72" viewBox="0 0 64 64" fill="none">
+                  <circle cx="32" cy="32" r="28" stroke={C.red} strokeWidth="2" opacity="0.6"/>
+                  <circle cx="32" cy="32" r="10" fill={C.red} opacity="0.4"/>
+                </svg>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Transport Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 24px 24px' }}>
-        <button onClick={() => { selectionChanged(); toggleShuffle(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isShuffled ? C.red : 'rgba(255,255,255,0.5)', padding: '8px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <ShuffleIcon size={22} />
-        </button>
-        <button onClick={() => { tapLight(); playPrev(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.9)', padding: '8px', minWidth: '56px', minHeight: '56px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <PrevIcon size={30} />
-        </button>
-        <button
-          onClick={() => { tapMedium(); togglePlay(); }}
-          style={{
-            background: `linear-gradient(135deg, rgba(255,255,255,0.96), rgba(255,255,255,0.84))`,
-            border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer',
-            width: '68px', height: '68px', borderRadius: '50%',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#0a0a0a',
-            boxShadow: `inset 0 1px 2px rgba(255,255,255,0.6), 0 6px 24px rgba(0,0,0,0.5)`,
-          }}
-        >
-          {playerIsPlaying ? <PauseIcon size={26} /> : <span style={{ marginLeft: '3px' }}><PlayIcon size={26} /></span>}
-        </button>
-        <button onClick={() => { tapLight(); playNext(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.9)', padding: '8px', minWidth: '56px', minHeight: '56px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <NextIcon size={30} />
-        </button>
-        <button onClick={() => { selectionChanged(); toggleLoop(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isLooping ? C.red : 'rgba(255,255,255,0.5)', padding: '8px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <LoopIcon size={22} />
-        </button>
-      </div>
+        {/* Title + artist + like */}
+        <div style={{ flexShrink: 0, padding: '0 28px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '24px', fontWeight: 700, color: '#fff', letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {title}
+            </div>
+            <div style={{ fontSize: '15px', color: C.red, fontWeight: 500, marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {artist}
+            </div>
+          </div>
+          <button style={{ ...iconBtn, width: 40, height: 40 }} onClick={() => tapLight()}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2"><path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.6l-1-1a5.5 5.5 0 00-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 000-7.8z"/></svg>
+          </button>
+        </div>
 
-      {/* Volume */}
-      <div style={{ padding: '0 32px 32px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.4)' }}>🔈</span>
-        <input
-          type="range" min={0} max={1} step={0.01} value={playerVolume}
-          onChange={e => setPlayerVolume(parseFloat(e.target.value))}
-          style={{ flex: 1, accentColor: C.red, height: '4px' }}
-        />
-        <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.4)' }}>🔊</span>
+        {/* Scrubber */}
+        <div style={{ flexShrink: 0, padding: '20px 28px 4px' }}>
+          <div
+            ref={barRef}
+            style={{ position: 'relative', height: '28px', display: 'flex', alignItems: 'center', cursor: 'pointer', touchAction: 'none' }}
+            onMouseDown={e => { isDragging.current = true; setDragProgress(getFrac(e.clientX)); }}
+            onMouseMove={e => { if (isDragging.current) setDragProgress(getFrac(e.clientX)); }}
+            onMouseUp={e => { if (isDragging.current) { seekTo(getFrac(e.clientX)); isDragging.current = false; setDragProgress(null); } }}
+            onTouchStart={e => { isDragging.current = true; setDragProgress(getFrac(e.touches[0].clientX)); }}
+            onTouchMove={e => { if (isDragging.current) { e.stopPropagation(); setDragProgress(getFrac(e.touches[0].clientX)); } }}
+            onTouchEnd={e => { if (isDragging.current) { seekTo(getFrac(e.changedTouches[0].clientX)); isDragging.current = false; setDragProgress(null); tapLight(); } }}
+          >
+            <div style={{ position: 'absolute', left: 0, right: 0, height: dragProgress !== null ? '7px' : '5px', background: 'rgba(255,255,255,0.18)', borderRadius: '4px', transition: 'height 140ms' }}>
+              <div style={{ height: '100%', width: `${displayFraction * 100}%`, background: `linear-gradient(90deg, ${C.red}, #ff5a6a)`, borderRadius: '4px' }} />
+            </div>
+            <div style={{
+              position: 'absolute', top: '50%', left: `${displayFraction * 100}%`,
+              transform: `translateX(-50%) translateY(-50%) scale(${dragProgress !== null ? 1 : 0})`,
+              width: '15px', height: '15px', background: '#fff', borderRadius: '50%',
+              boxShadow: `0 0 10px ${C.red}aa`, transition: 'transform 140ms',
+            }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'rgba(255,255,255,0.45)', marginTop: '6px', fontVariantNumeric: 'tabular-nums' }}>
+            <span>{fmtTime(playerCurrentTime)}</span>
+            <span>-{fmtTime(Math.max(0, playerDuration - playerCurrentTime))}</span>
+          </div>
+        </div>
+
+        {/* Transport */}
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 28px 16px' }}>
+          <button onClick={() => { selectionChanged(); toggleShuffle(); }} style={{ ...iconBtn, color: isShuffled ? C.red : 'rgba(255,255,255,0.55)' }}>
+            <ShuffleIcon size={22} />
+          </button>
+          <button onClick={() => { tapLight(); playPrev(); }} style={{ ...iconBtn, width: 56, height: 56, color: '#fff' }}>
+            <PrevIcon size={32} />
+          </button>
+          <button
+            onClick={() => { tapMedium(); togglePlay(); }}
+            style={{
+              background: `radial-gradient(circle at 35% 30%, #ff5663, ${C.red} 70%)`,
+              border: 'none', cursor: 'pointer',
+              width: '74px', height: '74px', borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#fff',
+              boxShadow: `0 8px 28px ${C.red}66, inset 0 1px 1px rgba(255,255,255,0.4)`,
+              transition: 'transform 120ms',
+            }}
+            onTouchStart={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.93)'; }}
+            onTouchEnd={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; }}
+          >
+            {playerIsPlaying ? <PauseIcon size={28} /> : <span style={{ marginLeft: '4px' }}><PlayIcon size={28} /></span>}
+          </button>
+          <button onClick={() => { tapLight(); playNext(); }} style={{ ...iconBtn, width: 56, height: 56, color: '#fff' }}>
+            <NextIcon size={32} />
+          </button>
+          <button onClick={() => { selectionChanged(); toggleLoop(); }} style={{ ...iconBtn, color: isLooping ? C.red : 'rgba(255,255,255,0.55)' }}>
+            <LoopIcon size={22} />
+          </button>
+        </div>
+
+        {/* Volume */}
+        <div style={{ flexShrink: 0, padding: '0 28px 8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(255,255,255,0.4)"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg>
+          <input
+            type="range" min={0} max={1} step={0.01} value={playerVolume}
+            onChange={e => setPlayerVolume(parseFloat(e.target.value))}
+            style={{ flex: 1, accentColor: C.red, height: '4px' }}
+          />
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="rgba(255,255,255,0.4)"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 00-2.5-4v8a4.5 4.5 0 002.5-4zM14 3.2v2.1a7 7 0 010 13.4v2.1a9 9 0 000-17.6z"/></svg>
+        </div>
       </div>
     </div>
   );
 }
+
+const iconBtn: React.CSSProperties = {
+  background: 'none', border: 'none', cursor: 'pointer',
+  minWidth: '44px', minHeight: '44px', padding: '8px',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+};
