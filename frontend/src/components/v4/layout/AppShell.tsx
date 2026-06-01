@@ -134,8 +134,9 @@ export default function AppShell({ titlebar, sidebar, centre, rightPanel, player
     }}>
       {mockBanner}
 
-      {/* Compact mobile titlebar */}
-      <div style={{ flexShrink: 0 }}>{titlebar}</div>
+      {/* Compact mobile titlebar — pad the top by the device safe-area inset so
+          the bar clears the status bar / Dynamic Island (native-app feel). */}
+      <div style={{ flexShrink: 0, paddingTop: 'env(safe-area-inset-top, 0px)', background: '#000' }}>{titlebar}</div>
 
       {/* Content area — only one panel visible */}
       <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
