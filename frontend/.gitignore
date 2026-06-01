@@ -1,2 +1,6 @@
 .worktrees
 .vercel
+ios/
+android/
+src-tauri/target/
+src-tauri/gen/
