@@ -4,6 +4,7 @@ import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { useAuthFetch } from '../../../hooks/useAuthFetch';
 import { useMobile } from '../../../hooks/useMobile';
 import SwipeRow from '../mobile/SwipeRow';
+import DownloadButton from '../downloads/DownloadButton';
 import type { Project, MusicGeneration } from '../../../types';
 
 const MAX_PROJECTS_COLLAPSED = 5;
@@ -584,6 +585,14 @@ export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
                       )}
                       {tracks && tracks.length === 0 && (
                         <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px', padding: '4px 0' }}>No tracks yet</div>
+                      )}
+                      {tracks && tracks.length > 0 && (
+                        <div style={{ padding: '4px 0 8px' }}>
+                          <DownloadButton
+                            label="Download"
+                            tracks={tracks.map(t => ({ id: t.id, title: t.title || `Track v${t.version}`, artist: t.artist, projectId: t.project_id }))}
+                          />
+                        </div>
                       )}
                       {tracks && tracks.map(t => {
                         const isTrackPlaying = playerTrack?.id === t.id && playerIsPlaying;
