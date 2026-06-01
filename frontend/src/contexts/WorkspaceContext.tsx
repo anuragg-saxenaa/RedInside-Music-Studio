@@ -4,6 +4,9 @@ import { setNowPlaying, setPlaybackState, clearNowPlaying, bindMediaActions } fr
 import type { Project, MusicGeneration, LyricsGeneration, Playlist, V4Tab } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+// Coerce a fetch result to an array — a cloud error/redirect body ({error:...})
+// must never reach .find/.map and blank the whole app.
+function asArray<T>(v: unknown): T[] { return Array.isArray(v) ? (v as T[]) : []; }
 // Prefix relative /api/ URLs so <img src> works on cloud (not just fetch calls)
 function prefixApiUrls(track: MusicGeneration): MusicGeneration {
   if (!API_BASE) return track;
@@ -71,10 +74,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const authFetch = useCallback(async (url: string, options: RequestInit = {}) => {
     const token = await getToken();
     const fullUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
+    // Desktop (Tauri) standalone build authenticates with a baked shared secret
+    // instead of interactive login (Google OAuth is blocked in embedded webviews).
+    const desktopToken = import.meta.env.VITE_DESKTOP_TOKEN;
     return fetch(fullUrl, {
       ...options,
       headers: {
         ...(options.headers || {}),
+        ...(desktopToken ? { 'X-Desktop-Token': desktopToken } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });
@@ -136,7 +143,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   // Mount: restore all persisted state
   useEffect(() => {
     authFetch('/health').then(r => r.json()).then(d => { if (d.minimax === 'mock') setIsMockMode(true); }).catch(() => {});
-    authFetch('/api/playlists').then(r => r.json()).then(setPlaylists).catch(() => {});
+    authFetch('/api/playlists').then(r => r.json()).then(d => setPlaylists(asArray<Playlist>(d))).catch(() => {});
 
     if (persistentAudio) {
       // In-session navigation: audio already playing
@@ -188,7 +195,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     // Load projects and restore active project/tab from localStorage
     authFetch('/api/projects')
       .then(r => r.json())
-      .then((projs: Project[]) => {
+      .then((data: unknown) => {
+        const projs = asArray<Project>(data);
         setProjects(projs);
         const saved: UiState | null = (() => {
           try { const s = localStorage.getItem(UI_STATE_KEY); return s ? (JSON.parse(s) as UiState) : null; } catch (_) { return null; }
@@ -211,7 +219,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     })();
     authFetch(`/api/projects/${activeProjectId}/music`)
       .then(r => r.json())
-      .then((list: MusicGeneration[]) => {
+      .then((data: unknown) => {
+        const list = asArray<MusicGeneration>(data);
         setTracks(list.map(prefixApiUrls));
         // Sync stale selected/player tracks
         if (selectedTrack) {
@@ -233,18 +242,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [activeProjectId]);
 
   const refreshProjects = useCallback(() => {
-    authFetch('/api/projects').then(r => r.json()).then(setProjects).catch(() => {});
+    authFetch('/api/projects').then(r => r.json()).then(d => setProjects(asArray<Project>(d))).catch(() => {});
   }, [authFetch]);
 
   const refreshPlaylists = useCallback(() => {
-    authFetch('/api/playlists').then(r => r.json()).then(setPlaylists).catch(() => {});
+    authFetch('/api/playlists').then(r => r.json()).then(d => setPlaylists(asArray<Playlist>(d))).catch(() => {});
   }, [authFetch]);
 
   const refreshTracks = useCallback(() => {
     if (!activeProjectId) return;
     authFetch(`/api/projects/${activeProjectId}/music`)
       .then(r => r.json())
-      .then((list: MusicGeneration[]) => {
+      .then((data: unknown) => {
+        const list = asArray<MusicGeneration>(data);
         setTracks(list.map(prefixApiUrls));
         if (selectedTrack) { const u = list.find(t => t.id === selectedTrack.id); if (u) setSelectedTrack(u); }
         if (playerTrack) { const u = list.find(t => t.id === playerTrack.id); if (u) setPlayerTrack(u); }
