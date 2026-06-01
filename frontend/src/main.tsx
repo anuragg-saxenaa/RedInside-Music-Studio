@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { SharedAudioProvider } from './contexts/SharedAudioContext';
+import { DownloadsProvider } from './contexts/DownloadsContext';
 import { ClerkProvider } from '@clerk/clerk-react';
 import { registerSW } from './pwa/registerSW';
 import UpdateToast from './pwa/UpdateToast';
@@ -53,8 +54,10 @@ const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ?? '';
 // render the app directly — useSafeAuth/useSafeUser/useSafeClerk return inert stubs.
 const tree = (
   <SharedAudioProvider>
-    <App />
-    <UpdateToast />
+    <DownloadsProvider>
+      <App />
+      <UpdateToast />
+    </DownloadsProvider>
   </SharedAudioProvider>
 );
 
