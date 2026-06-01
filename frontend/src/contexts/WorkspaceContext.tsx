@@ -303,8 +303,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     } catch { /* keep optimistic state; will reconcile on next load */ }
   }, [authFetch, likedIds, refreshPlaylists]);
 
-  // Load likes once playlists are available / on mount
-  useEffect(() => { loadLikes(); }, [loadLikes]);
+  // Load likes once on mount. Deps intentionally empty — loadLikes closes over a
+  // stable authFetch; keying the effect on it would re-fire every render (the
+  // no-Clerk auth stub returns a fresh getToken each render), causing a fetch loop.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadLikes(); }, []);
 
   const refreshTracks = useCallback(() => {
     if (!activeProjectId) return;
