@@ -57,6 +57,7 @@ const hasRealClerkKey = isProduction && clerkPublishableKey && clerkPublishableK
 if (hasRealClerkKey) {
   app.use(clerkMiddleware());
 
+  const DESKTOP_TOKEN = process.env.DESKTOP_ACCESS_TOKEN || '';
   app.use('/api', (req, res, next) => {
     if (req.path.startsWith('/share/')) return next();
     if (req.path === '/test/seed-project' || req.path.startsWith('/test/')) return next();
@@ -66,6 +67,12 @@ if (hasRealClerkKey) {
     if (req.method === 'GET' && req.path.includes('/artwork')) return next();
     // Google Drive OAuth redirect lands here from Google with no JWT
     if (req.path === '/gdrive/callback') return next();
+    // Desktop app (Tauri) — authenticates with a baked shared secret instead of
+    // interactive login (Google OAuth is blocked in embedded webviews).
+    if (DESKTOP_TOKEN && req.headers['x-desktop-token'] === DESKTOP_TOKEN) {
+      req.auth = { userId: 'dev-user' };
+      return next();
+    }
     return requireAuth()(req, res, next);
   });
 } else {

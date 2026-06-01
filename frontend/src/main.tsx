@@ -13,6 +13,11 @@ if (import.meta.env.VITE_API_BASE_URL) {
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     if (typeof input === 'string' && input.startsWith('/api')) {
       input = import.meta.env.VITE_API_BASE_URL + input;
+      // Desktop (Tauri) standalone auth: send the baked desktop token.
+      const desktopToken = import.meta.env.VITE_DESKTOP_TOKEN;
+      if (desktopToken) {
+        init = { ...(init || {}), headers: { 'X-Desktop-Token': desktopToken, ...(init?.headers || {}) } };
+      }
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const token = await (window as any).Clerk?.session?.getToken?.();
