@@ -26,6 +26,7 @@ import { ProjectsController } from './api/routes/projects.routes.js';
 import { MedleyRoutes } from './api/routes/medley.routes.js';
 import { AudioRoutes } from './api/routes/audio.routes.js';
 import { DownloaderRoutes } from './api/routes/downloader.routes.js';
+import { GDriveRoutes } from './api/routes/gdrive.routes.js';
 import { FfmpegRoutes } from './api/routes/ffmpeg.routes.js';
 import { LyricsController } from './modules/lyrics/lyrics.controller.js';
 
@@ -63,6 +64,8 @@ if (hasRealClerkKey) {
     if (req.path.match(/\/music\/[^/]+\/(file|download)$/)) return next();
     // GET artwork (per-song + album) — loaded by <img> element which can't send JWT
     if (req.method === 'GET' && req.path.includes('/artwork')) return next();
+    // Google Drive OAuth redirect lands here from Google with no JWT
+    if (req.path === '/gdrive/callback') return next();
     return requireAuth()(req, res, next);
   });
 } else {
@@ -182,6 +185,10 @@ ShareRoutes.forEach(route => {
 });
 
 AlbumRoutes.forEach(route => {
+  app[route.method](route.path, route.handler);
+});
+
+GDriveRoutes.forEach(route => {
   app[route.method](route.path, route.handler);
 });
 

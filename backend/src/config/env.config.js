@@ -60,8 +60,14 @@ const config = {
       (process.env.R2_ACCOUNT_ID ? `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : ''),
   },
   storage: {
-    driver: process.env.STORAGE_DRIVER || 'local',  // 'local' or 'r2'
+    driver: process.env.STORAGE_DRIVER || 'local',  // 'local' | 'r2'
     path: process.env.STORAGE_PATH || '/Users/admin/Music/RedInside-Storage',
+  },
+  gdrive: {
+    // Optional Google Drive backend. Disabled (endpoints 503) unless client creds present.
+    clientId: process.env.GOOGLE_CLIENT_ID || '',
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+    redirectUri: process.env.GOOGLE_REDIRECT_URI || '',
   },
   clerk: {
     publishableKey: process.env.CLERK_PUBLISHABLE_KEY || '',

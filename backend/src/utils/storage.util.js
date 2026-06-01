@@ -236,6 +236,14 @@ class StorageUtil {
         return Buffer.concat(chunks);
       } catch { /* ignore */ }
     }
+    // Google Drive (optional backend) — only if configured + connected
+    try {
+      const gdrive = await import('../modules/storage/gdrive.js');
+      if (gdrive.isConfigured() && (await gdrive.isConnected())) {
+        const buf = await gdrive.downloadFile(this.toR2Key(keyOrPath));
+        if (buf) return buf;
+      }
+    } catch { /* gdrive optional */ }
     return null;
   }
 
