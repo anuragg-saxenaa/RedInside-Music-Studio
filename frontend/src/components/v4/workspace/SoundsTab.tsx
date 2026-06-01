@@ -6,6 +6,7 @@ import TrackEditPanel from '../tracks/TrackEditPanel';
 import ABComparator from '../tracks/ABComparator';
 import YoutubeDownloader from '../../Downloader/YoutubeDownloader';
 import CreateSongPanel from './CreateSongPanel';
+import DownloadButton from '../downloads/DownloadButton';
 
 function fmtTotalDuration(s: number) {
   const m = Math.floor(s / 60);
@@ -72,6 +73,12 @@ export default function SoundsTab() {
             fontWeight: 600, cursor: 'pointer',
           }}
         >▼ YouTube Import</button>
+        {tracks.length > 0 && (
+          <DownloadButton
+            label="Download all"
+            tracks={tracks.map(t => ({ id: t.id, title: t.title || `Track v${t.version}`, artist: t.artist, projectId: t.project_id }))}
+          />
+        )}
       </div>
 
       {/* Search + sort bar */}
