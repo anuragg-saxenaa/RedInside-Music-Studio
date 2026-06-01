@@ -16,6 +16,16 @@ export type { Project, LyricsGeneration, MusicGeneration };
 function App() {
   const { isSignedIn, isLoaded } = useSafeAuth();
 
+  // Reactive connectivity so the offline bypass recomputes if the device drops mid-load.
+  const [online, setOnline] = useState(isOnline());
+  useEffect(() => {
+    const up = () => setOnline(true);
+    const down = () => setOnline(false);
+    window.addEventListener('online', up);
+    window.addEventListener('offline', down);
+    return () => { window.removeEventListener('online', up); window.removeEventListener('offline', down); };
+  }, []);
+
   const [currentView, setCurrentView] = useState<'studio' | 'history' | 'viral' | 'settings' | 'share' | 'login'>(() => {
     if (window.location.hash.startsWith('#/share/')) return 'share';
     if (window.location.hash === '#/login') return 'login';
@@ -59,7 +69,7 @@ function App() {
   if (CLERK_ON) {
     // Offline (or auth server unreachable) + previously signed in → open straight
     // to the app so downloaded tracks remain playable without a network round-trip.
-    const offlineBypass = !isOnline() && wasSignedIn();
+    const offlineBypass = !online && wasSignedIn();
 
     if (!isLoaded && !offlineBypass) return null;
 

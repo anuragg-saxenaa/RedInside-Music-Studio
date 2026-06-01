@@ -14,7 +14,7 @@ function fmtBytes(n: number): string {
 }
 
 export default function DownloadsView() {
-  const { ids, remove, playTrackById } = useDownloadsViewDeps();
+  const { ids, remove, ctxRefresh, playTrackById } = useDownloadsViewDeps();
   const [rows, setRows] = useState<DownloadRow[]>([]);
   const [est, setEst] = useState<{ usage: number; quota: number }>({ usage: 0, quota: 0 });
 
@@ -33,7 +33,7 @@ export default function DownloadsView() {
         <div style={{ fontSize: '22px', fontWeight: 700, color: C.text, letterSpacing: '-0.3px' }}>Downloads</div>
         {rows.length > 0 && (
           <button
-            onClick={async () => { await removeAllDownloads(); await refresh(); }}
+            onClick={async () => { await removeAllDownloads(); await ctxRefresh(); await refresh(); }}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: '8px', cursor: 'pointer', border: `1px solid rgba(255,107,107,0.3)`, background: 'rgba(255,107,107,0.06)', color: '#ff6b6b', fontSize: '12px', fontWeight: 600 }}
           >
             <TrashIcon size={14} /> Delete all
@@ -92,11 +92,16 @@ export default function DownloadsView() {
 
 // Bridges WorkspaceContext (player) + DownloadsContext (remove) for this view.
 function useDownloadsViewDeps() {
-  const { ids, remove } = useDownloads();
+  const { ids, remove, refresh: ctxRefresh } = useDownloads();
   const ws = useWorkspace();
   const playTrackById = (id: string) => {
     const t = ws.tracks.find((x) => x.id === id);
-    if (t) ws.playTrack(t);
+    if (t) { ws.playTrack(t); return; }
+    // Track belongs to another project — switch to it so it loads & can play.
+    listDownloadedTracks().then((list) => {
+      const row = list.find((r) => r.musicId === id);
+      if (row) ws.setActiveProjectId(row.projectId);
+    });
   };
-  return { ids, remove, playTrackById };
+  return { ids, remove, ctxRefresh, playTrackById };
 }
