@@ -161,10 +161,10 @@ export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: isMobile ? 'auto' : '100%', minHeight: isMobile ? '100%' : undefined }}>
 
-      {/* Brand — always visible */}
-      <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
+      {/* Brand — hidden on mobile (the app titlebar already shows it) */}
+      <div style={{ display: isMobile ? 'none' : 'block', padding: '20px 20px 16px', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
           <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
             <circle cx="14" cy="14" r="13" stroke={C.red} strokeWidth="2"/>
@@ -203,8 +203,9 @@ export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
         </button>
       </nav>
 
-      {/* Scrollable list area — projects + playlists scroll, brand+nav stay pinned */}
-      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', paddingBottom: '16px' }}>
+      {/* Scrollable list area. On mobile the outer panel scrolls (single scroll,
+          so playlists get full room); on desktop this is the inner scroller. */}
+      <div style={{ flex: isMobile ? 'none' : 1, overflowY: isMobile ? 'visible' : 'auto', overflowX: 'hidden', paddingBottom: isMobile ? '32px' : '16px' }}>
 
         {onOpenSearch && (
           <div style={{ padding: '12px 16px 0' }}>
