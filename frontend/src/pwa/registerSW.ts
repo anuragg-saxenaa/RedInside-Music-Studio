@@ -26,8 +26,16 @@ export async function unregisterSW(): Promise<void> {
     const regs = await navigator.serviceWorker.getRegistrations();
     await Promise.all(regs.map((r) => r.unregister()));
   }
+  // Reload so the now-unregistered SW stops intercepting this session.
+  location.reload();
 }
 
 export function enablePWA(): void {
   localStorage.removeItem('ris_pwa_disabled');
+  // Strip ?nopwa so the reload actually re-enables registration.
+  const url = new URL(location.href);
+  if (url.searchParams.has('nopwa')) {
+    url.searchParams.delete('nopwa');
+    history.replaceState(null, '', url.toString());
+  }
 }
