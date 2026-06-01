@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { useAuthFetch } from '../../../hooks/useAuthFetch';
+import { useMobile } from '../../../hooks/useMobile';
+import SwipeRow from '../mobile/SwipeRow';
 import type { Project, MusicGeneration } from '../../../types';
 
 const MAX_PROJECTS_COLLAPSED = 5;
@@ -38,6 +40,7 @@ interface LeftSidebarProps {
 export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
   const { projects, activeProjectId, setActiveProjectId, refreshProjects, playlists, refreshPlaylists, tracks, playTrack, setSelectedTrack, playerTrack, playerIsPlaying, setActiveTab } = useWorkspace();
   const authFetch = useAuthFetch();
+  const isMobile = useMobile();
   const [newProjectName, setNewProjectName] = useState('');
   const [creatingProject, setCreatingProject] = useState(false);
   const [showNewProjectInput, setShowNewProjectInput] = useState(false);
@@ -352,6 +355,7 @@ export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
                   </div>
                 )}
 
+                <SwipeRow enabled={isMobile && deleteTarget?.id !== p.id} onDelete={() => deleteProject(p.id)}>
                 <div
                   role="button"
                   tabIndex={0}
@@ -420,6 +424,7 @@ export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
                     onMouseOut={e => { if (!menuOpen) e.currentTarget.style.color = 'rgba(255,255,255,0.25)'; }}
                   >⋯</button>
                 </div>
+                </SwipeRow>
 
                 {/* Dropdown menu */}
                 {menuOpen && (

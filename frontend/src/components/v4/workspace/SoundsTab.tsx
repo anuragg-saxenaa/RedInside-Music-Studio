@@ -7,6 +7,7 @@ import ABComparator from '../tracks/ABComparator';
 import YoutubeDownloader from '../../Downloader/YoutubeDownloader';
 import CreateSongPanel from './CreateSongPanel';
 import DownloadButton from '../downloads/DownloadButton';
+import { TrackListSkeleton } from '../shared/Skeleton';
 
 function fmtTotalDuration(s: number) {
   const m = Math.floor(s / 60);
@@ -15,7 +16,7 @@ function fmtTotalDuration(s: number) {
 }
 
 export default function SoundsTab() {
-  const { tracks, activeProjectId, setSelectedTrack, setActiveTab, refreshTracks } = useWorkspace();
+  const { tracks, tracksLoading, activeProjectId, setSelectedTrack, setActiveTab, refreshTracks } = useWorkspace();
   const [showYoutube, setShowYoutube] = useState(false);
   const [showGenerate, setShowGenerate] = useState(false);
   const [expandedTrackId, setExpandedTrackId] = useState<string | null>(null);
@@ -130,7 +131,8 @@ export default function SoundsTab() {
 
       {/* Track list */}
       <div data-testid="track-list" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        {displayTracks.length === 0 && (
+        {tracksLoading && tracks.length === 0 && <TrackListSkeleton rows={7} />}
+        {!tracksLoading && displayTracks.length === 0 && (
           <div style={{ color: C.textDim, textAlign: 'center', padding: '32px 0', fontSize: '13px' }}>
             {tracks.length === 0
               ? 'No tracks yet — generate or import one above'

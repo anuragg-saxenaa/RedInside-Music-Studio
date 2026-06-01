@@ -22,9 +22,14 @@ interface WorkspaceContextType {
   refreshProjects: () => void;
 
   tracks: MusicGeneration[];
+  tracksLoading: boolean;
   selectedTrack: MusicGeneration | null;
   setSelectedTrack: (t: MusicGeneration | null) => void;
   refreshTracks: () => void;
+
+  likedIds: Set<string>;
+  isLiked: (trackId: string) => boolean;
+  toggleLike: (track: MusicGeneration) => void;
 
   selectedLyrics: LyricsGeneration | null;
   setSelectedLyrics: (l: LyricsGeneration | null) => void;
@@ -95,6 +100,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(savedUiState?.activeProjectId ?? null);
   const [tracks, setTracks] = useState<MusicGeneration[]>([]);
+  const [tracksLoading, setTracksLoading] = useState(false);
+  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const likedPlaylistId = useRef<string | null>(null);
   const [selectedTrack, setSelectedTrack] = useState<MusicGeneration | null>(null);
   const [selectedLyrics, setSelectedLyrics] = useState<LyricsGeneration | null>(null);
   const [activeTab, setActiveTab] = useState<V4Tab>((savedUiState?.activeTab as V4Tab) ?? 'sounds');
@@ -220,11 +228,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const saved: UiState | null = (() => {
       try { const s = localStorage.getItem(UI_STATE_KEY); return s ? (JSON.parse(s) as UiState) : null; } catch (_) { return null; }
     })();
+    setTracksLoading(true);
     authFetch(`/api/projects/${activeProjectId}/music`)
       .then(r => r.json())
       .then((data: unknown) => {
         const list = asArray<MusicGeneration>(data);
         setTracks(list.map(prefixApiUrls));
+        setTracksLoading(false);
         // Sync stale selected/player tracks
         if (selectedTrack) {
           const u = list.find(t => t.id === selectedTrack.id);
@@ -241,7 +251,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         }
         if (list.length > 0 && !selectedTrack) setSelectedTrack(list[0]);
       })
-      .catch(() => {});
+      .catch(() => setTracksLoading(false));
   }, [activeProjectId]);
 
   const refreshProjects = useCallback(() => {
@@ -251,6 +261,54 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const refreshPlaylists = useCallback(() => {
     authFetch('/api/playlists').then(r => r.json()).then(d => setPlaylists(asArray<Playlist>(d))).catch(() => {});
   }, [authFetch]);
+
+  // ── Likes (a "Liked Songs" playlist, Spotify-style) ──
+  const LIKED_NAME = 'Liked Songs';
+  const loadLikes = useCallback(async () => {
+    try {
+      const pls = asArray<Playlist>(await (await authFetch('/api/playlists')).json());
+      const liked = pls.find(p => p.name === LIKED_NAME);
+      if (!liked) { likedPlaylistId.current = null; setLikedIds(new Set()); return; }
+      likedPlaylistId.current = liked.id;
+      const ts = asArray<MusicGeneration>(await (await authFetch(`/api/playlists/${liked.id}/tracks`)).json());
+      setLikedIds(new Set(ts.map(t => t.id)));
+    } catch { /* offline / not ready */ }
+  }, [authFetch]);
+
+  const isLiked = useCallback((trackId: string) => likedIds.has(trackId), [likedIds]);
+
+  const toggleLike = useCallback(async (track: MusicGeneration) => {
+    const wasLiked = likedIds.has(track.id);
+    // Optimistic UI
+    setLikedIds(prev => { const n = new Set(prev); if (wasLiked) n.delete(track.id); else n.add(track.id); return n; });
+    try {
+      // Ensure the Liked Songs playlist exists
+      if (!likedPlaylistId.current) {
+        const created = await (await authFetch('/api/playlists', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: LIKED_NAME }),
+        })).json();
+        likedPlaylistId.current = created?.id ?? null;
+      }
+      const pid = likedPlaylistId.current;
+      if (!pid) return;
+      if (wasLiked) {
+        await authFetch(`/api/playlists/${pid}/tracks/${track.id}`, { method: 'DELETE' });
+      } else {
+        await authFetch(`/api/playlists/${pid}/tracks`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ musicId: track.id }),
+        });
+      }
+      refreshPlaylists();
+    } catch {
+      // Revert on failure
+      setLikedIds(prev => { const n = new Set(prev); if (wasLiked) n.add(track.id); else n.delete(track.id); return n; });
+    }
+  }, [authFetch, likedIds, refreshPlaylists]);
+
+  // Load likes once playlists are available / on mount
+  useEffect(() => { loadLikes(); }, [loadLikes]);
 
   const refreshTracks = useCallback(() => {
     if (!activeProjectId) return;
@@ -369,7 +427,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   return (
     <WorkspaceContext.Provider value={{
       projects, activeProjectId, activeProject, setActiveProjectId: setActiveProjectIdWrapped, refreshProjects,
-      tracks, selectedTrack, setSelectedTrack: setSelectedTrackWrapped, refreshTracks,
+      tracks, tracksLoading, selectedTrack, setSelectedTrack: setSelectedTrackWrapped, refreshTracks,
+      likedIds, isLiked, toggleLike,
       selectedLyrics, setSelectedLyrics,
       activeTab: activeTab, setActiveTab: setActiveTabWrapped,
       playlists, refreshPlaylists,

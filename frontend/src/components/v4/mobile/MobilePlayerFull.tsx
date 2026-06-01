@@ -20,7 +20,10 @@ export default function MobilePlayerFull({ onClose }: Props) {
     playerTrack, playerIsPlaying, playerProgress, playerCurrentTime, playerDuration, playerVolume,
     togglePlay, seekTo, setPlayerVolume, playNext, playPrev,
     isLooping, isShuffled, toggleLoop, toggleShuffle,
+    isLiked, toggleLike,
   } = useWorkspace();
+
+  const liked = playerTrack ? isLiked(playerTrack.id) : false;
 
   const rootRef = useRef<HTMLDivElement>(null);
   const artRef = useRef<HTMLDivElement>(null);
@@ -204,8 +207,17 @@ export default function MobilePlayerFull({ onClose }: Props) {
               {artist}
             </div>
           </div>
-          <button style={{ ...iconBtn, width: 40, height: 40 }} onClick={() => tapLight()}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2"><path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.6l-1-1a5.5 5.5 0 00-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 000-7.8z"/></svg>
+          <button
+            style={{ ...iconBtn, width: 40, height: 40 }}
+            onClick={() => { if (playerTrack) { tapMedium(); toggleLike(playerTrack); } }}
+            aria-label={liked ? 'Remove from Liked Songs' : 'Add to Liked Songs'}
+          >
+            <svg width="25" height="25" viewBox="0 0 24 24"
+              fill={liked ? C.red : 'none'}
+              stroke={liked ? C.red : 'rgba(255,255,255,0.6)'} strokeWidth="2"
+              style={{ transition: 'transform 180ms cubic-bezier(0.34,1.56,0.64,1)', transform: liked ? 'scale(1.12)' : 'scale(1)' }}>
+              <path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.6l-1-1a5.5 5.5 0 00-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 000-7.8z"/>
+            </svg>
           </button>
         </div>
 
