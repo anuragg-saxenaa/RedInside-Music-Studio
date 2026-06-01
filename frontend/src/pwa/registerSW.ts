@@ -1,3 +1,13 @@
+// True when running inside the Tauri (macOS/desktop) webview. The native app
+// must NOT use a service worker: the tauri://localhost origin breaks Workbox
+// navigation caching (stale cached index → blank screen).
+export function isTauri(): boolean {
+  if (import.meta.env.VITE_TAURI) return true;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const w = window as any;
+  return !!(w.isTauri || w.__TAURI_INTERNALS__ || w.__TAURI__);
+}
+
 // Registers the service worker in production only. Disabled via ?nopwa or
 // localStorage 'ris_pwa_disabled'. Emits 'ris-sw-update' when a new SW waits.
 export function pwaDisabled(): boolean {
@@ -5,7 +15,29 @@ export function pwaDisabled(): boolean {
   return localStorage.getItem('ris_pwa_disabled') === '1';
 }
 
+// Tear down any SW + Cache API entries left over in this webview. Used by the
+// Tauri build to recover from a stale service worker baked by an older build.
+async function purgeServiceWorker(): Promise<void> {
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+  } catch {
+    /* nothing to purge */
+  }
+}
+
 export async function registerSW(): Promise<void> {
+  // Native desktop app: never register; actively purge any stale SW/caches.
+  if (isTauri()) {
+    await purgeServiceWorker();
+    return;
+  }
   if (!import.meta.env.PROD || pwaDisabled() || !('serviceWorker' in navigator)) return;
   try {
     const mod = await import('virtual:pwa-register');
