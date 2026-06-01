@@ -279,10 +279,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const toggleLike = useCallback(async (track: MusicGeneration) => {
     const wasLiked = likedIds.has(track.id);
-    // Optimistic UI
+    // Optimistic + sticky (never flip back — avoids visual flicker on slow API).
     setLikedIds(prev => { const n = new Set(prev); if (wasLiked) n.delete(track.id); else n.add(track.id); return n; });
     try {
-      // Ensure the Liked Songs playlist exists
       if (!likedPlaylistId.current) {
         const created = await (await authFetch('/api/playlists', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -301,10 +300,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         });
       }
       refreshPlaylists();
-    } catch {
-      // Revert on failure
-      setLikedIds(prev => { const n = new Set(prev); if (wasLiked) n.add(track.id); else n.delete(track.id); return n; });
-    }
+    } catch { /* keep optimistic state; will reconcile on next load */ }
   }, [authFetch, likedIds, refreshPlaylists]);
 
   // Load likes once playlists are available / on mount

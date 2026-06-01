@@ -55,13 +55,17 @@ function MobileMiniPlayer({ onExpand }: { onExpand: () => void }) {
   return (
     <div
       style={{
-        background: 'rgba(18,4,8,0.97)',
-        backdropFilter: 'blur(20px)',
-        borderTop: `1px solid ${C.borderActive}`,
+        background: 'rgba(26,8,14,0.55)',
+        backdropFilter: 'blur(34px) saturate(1.7)',
+        WebkitBackdropFilter: 'blur(34px) saturate(1.7)',
+        borderTop: '1px solid rgba(255,255,255,0.1)',
+        boxShadow: '0 -10px 34px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)',
         display: 'flex',
         alignItems: 'center',
         gap: '12px',
-        padding: '10px 16px',
+        padding: '10px 14px',
+        margin: '0 8px',
+        borderRadius: '16px',
         cursor: 'pointer',
         flexShrink: 0,
         position: 'relative',
