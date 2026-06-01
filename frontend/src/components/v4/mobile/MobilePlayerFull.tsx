@@ -2,6 +2,7 @@ import { useRef, useState, useCallback } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { PlayIcon, PauseIcon, PrevIcon, NextIcon, ShuffleIcon, LoopIcon } from '../shared/Icons';
+import { tapLight, tapMedium, selectionChanged } from '../../../lib/haptics';
 
 function fmtTime(s: number) {
   if (!s || !isFinite(s)) return '0:00';
@@ -25,6 +26,16 @@ export default function MobilePlayerFull({ onClose }: Props) {
   const [dragProgress, setDragProgress] = useState<number | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
 
+  // Sheet drag-down-to-dismiss
+  const [sheetY, setSheetY] = useState(0);
+  const [sheetSettling, setSheetSettling] = useState(false);
+  const sheetStart = useRef<{ y: number; active: boolean }>({ y: 0, active: false });
+
+  // Artwork horizontal swipe-to-skip
+  const [artX, setArtX] = useState(0);
+  const [artSettling, setArtSettling] = useState(false);
+  const artStart = useRef<{ x: number; y: number; axis: '' | 'x' | 'y' }>({ x: 0, y: 0, axis: '' });
+
   const getFrac = useCallback((clientX: number) => {
     const rect = barRef.current?.getBoundingClientRect();
     if (!rect) return 0;
@@ -38,38 +49,104 @@ export default function MobilePlayerFull({ onClose }: Props) {
     ? (playerTrack.artwork_url.startsWith('http') ? playerTrack.artwork_url : `${API_BASE}/api/projects/${playerTrack.project_id}/artwork/${playerTrack.id}`)
     : null;
 
+  const close = () => { tapLight(); onClose(); };
+
+  // ── Sheet vertical dismiss (drag from header / handle) ──
+  const onSheetTouchStart = (e: React.TouchEvent) => {
+    sheetStart.current = { y: e.touches[0].clientY, active: true };
+    setSheetSettling(false);
+  };
+  const onSheetTouchMove = (e: React.TouchEvent) => {
+    if (!sheetStart.current.active) return;
+    const dy = e.touches[0].clientY - sheetStart.current.y;
+    setSheetY(Math.max(0, dy)); // only downward
+  };
+  const onSheetTouchEnd = () => {
+    if (!sheetStart.current.active) return;
+    sheetStart.current.active = false;
+    setSheetSettling(true);
+    if (sheetY > 110) { tapLight(); onClose(); }
+    setSheetY(0);
+  };
+
+  // ── Artwork horizontal skip ──
+  const onArtTouchStart = (e: React.TouchEvent) => {
+    artStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, axis: '' };
+    setArtSettling(false);
+  };
+  const onArtTouchMove = (e: React.TouchEvent) => {
+    const dx = e.touches[0].clientX - artStart.current.x;
+    const dy = e.touches[0].clientY - artStart.current.y;
+    if (artStart.current.axis === '') {
+      artStart.current.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+    }
+    if (artStart.current.axis === 'x') {
+      e.stopPropagation();
+      setArtX(dx);
+    }
+  };
+  const onArtTouchEnd = () => {
+    if (artStart.current.axis === 'x') {
+      setArtSettling(true);
+      if (artX <= -70) { tapMedium(); playNext(); }
+      else if (artX >= 70) { tapMedium(); playPrev(); }
+      setArtX(0);
+    }
+    artStart.current.axis = '';
+  };
+
+  const dismissProgress = Math.min(1, sheetY / 300);
+
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 2000,
-      background: 'linear-gradient(180deg, #1a0408 0%, #08020a 60%)',
-      display: 'flex', flexDirection: 'column',
-      padding: 'env(safe-area-inset-top, 20px) 0 env(safe-area-inset-bottom, 20px)',
-      overflowY: 'auto',
-    }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 24px 0' }}>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', padding: '8px', fontSize: '20px' }}>
-          ⌃
-        </button>
-        <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Now Playing</span>
-        <div style={{ width: 36 }} />
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 2000,
+        background: 'linear-gradient(180deg, #1a0408 0%, #08020a 60%)',
+        display: 'flex', flexDirection: 'column',
+        padding: 'env(safe-area-inset-top, 20px) 0 env(safe-area-inset-bottom, 20px)',
+        overflowY: 'auto',
+        transform: `translateY(${sheetY}px)`,
+        transition: sheetSettling ? 'transform 280ms cubic-bezier(0.22,1,0.36,1)' : 'none',
+        borderRadius: sheetY > 0 ? '20px 20px 0 0' : 0,
+        opacity: 1 - dismissProgress * 0.25,
+      }}
+    >
+      {/* Grab handle + Header — drag here to dismiss */}
+      <div onTouchStart={onSheetTouchStart} onTouchMove={onSheetTouchMove} onTouchEnd={onSheetTouchEnd}>
+        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '8px' }}>
+          <div style={{ width: '40px', height: '5px', borderRadius: '3px', background: 'rgba(255,255,255,0.25)' }} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 24px 0' }}>
+          <button onClick={close} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', padding: '8px', fontSize: '20px' }}>
+            ⌄
+          </button>
+          <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Now Playing</span>
+          <div style={{ width: 36 }} />
+        </div>
       </div>
 
-      {/* Artwork */}
+      {/* Artwork — swipe left/right to skip */}
       <div style={{ flex: '0 0 auto', padding: '32px 32px 24px', display: 'flex', justifyContent: 'center' }}>
-        <div style={{
-          width: 'min(calc(100vw - 64px), 320px)',
-          height: 'min(calc(100vw - 64px), 320px)',
-          borderRadius: '16px',
-          background: `linear-gradient(135deg, ${C.redDark}, #080108)`,
-          border: `1px solid ${C.borderActive}`,
-          overflow: 'hidden',
-          boxShadow: playerIsPlaying ? `0 16px 64px ${C.red}44` : '0 8px 32px rgba(0,0,0,0.6)',
-          transition: 'box-shadow 400ms',
-          flexShrink: 0,
-        }}>
+        <div
+          onTouchStart={onArtTouchStart}
+          onTouchMove={onArtTouchMove}
+          onTouchEnd={onArtTouchEnd}
+          style={{
+            width: 'min(calc(100vw - 64px), 320px)',
+            height: 'min(calc(100vw - 64px), 320px)',
+            borderRadius: '16px',
+            background: `linear-gradient(135deg, ${C.redDark}, #080108)`,
+            border: `1px solid ${C.borderActive}`,
+            overflow: 'hidden',
+            boxShadow: playerIsPlaying ? `0 16px 64px ${C.red}44` : '0 8px 32px rgba(0,0,0,0.6)',
+            transform: `translateX(${artX}px) rotate(${artX * 0.02}deg)`,
+            transition: artSettling ? 'transform 300ms cubic-bezier(0.22,1,0.36,1), box-shadow 400ms' : 'box-shadow 400ms',
+            flexShrink: 0,
+            touchAction: 'pan-y',
+          }}
+        >
           {artworkUrl ? (
-            <img src={artworkUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src={artworkUrl} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
           ) : (
             <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
@@ -95,7 +172,7 @@ export default function MobilePlayerFull({ onClose }: Props) {
       <div style={{ padding: '0 32px 8px' }}>
         <div
           ref={barRef}
-          style={{ position: 'relative', height: '36px', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+          style={{ position: 'relative', height: '36px', display: 'flex', alignItems: 'center', cursor: 'pointer', touchAction: 'none' }}
           onMouseDown={e => {
             isDragging.current = true;
             const f = getFrac(e.clientX);
@@ -109,11 +186,12 @@ export default function MobilePlayerFull({ onClose }: Props) {
             isDragging.current = true;
             setDragProgress(getFrac(e.touches[0].clientX));
           }}
-          onTouchMove={e => { if (isDragging.current) setDragProgress(getFrac(e.touches[0].clientX)); }}
+          onTouchMove={e => { if (isDragging.current) { e.stopPropagation(); setDragProgress(getFrac(e.touches[0].clientX)); } }}
           onTouchEnd={e => {
             if (isDragging.current) {
               seekTo(getFrac(e.changedTouches[0].clientX));
               isDragging.current = false; setDragProgress(null);
+              tapLight();
             }
           }}
         >
@@ -121,9 +199,10 @@ export default function MobilePlayerFull({ onClose }: Props) {
             <div style={{ height: '100%', width: `${displayFraction * 100}%`, background: C.red, borderRadius: '2px' }} />
           </div>
           <div style={{
-            position: 'absolute', top: '50%', transform: `translateX(-50%) translateY(-50%)`,
+            position: 'absolute', top: '50%', transform: `translateX(-50%) translateY(-50%) scale(${dragProgress !== null ? 1.3 : 1})`,
             left: `${displayFraction * 100}%`, width: '16px', height: '16px',
             background: '#fff', borderRadius: '50%', boxShadow: `0 0 8px ${C.red}88`,
+            transition: 'transform 120ms',
           }} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>
@@ -134,17 +213,14 @@ export default function MobilePlayerFull({ onClose }: Props) {
 
       {/* Transport Controls */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 24px 24px' }}>
-        {/* Shuffle */}
-        <button onClick={toggleShuffle} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isShuffled ? C.red : 'rgba(255,255,255,0.5)', padding: '8px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <button onClick={() => { selectionChanged(); toggleShuffle(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isShuffled ? C.red : 'rgba(255,255,255,0.5)', padding: '8px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <ShuffleIcon size={22} />
         </button>
-        {/* Prev */}
-        <button onClick={playPrev} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.9)', padding: '8px', minWidth: '56px', minHeight: '56px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <button onClick={() => { tapLight(); playPrev(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.9)', padding: '8px', minWidth: '56px', minHeight: '56px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <PrevIcon size={30} />
         </button>
-        {/* Play/Pause */}
         <button
-          onClick={togglePlay}
+          onClick={() => { tapMedium(); togglePlay(); }}
           style={{
             background: `linear-gradient(135deg, rgba(255,255,255,0.96), rgba(255,255,255,0.84))`,
             border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer',
@@ -156,12 +232,10 @@ export default function MobilePlayerFull({ onClose }: Props) {
         >
           {playerIsPlaying ? <PauseIcon size={26} /> : <span style={{ marginLeft: '3px' }}><PlayIcon size={26} /></span>}
         </button>
-        {/* Next */}
-        <button onClick={playNext} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.9)', padding: '8px', minWidth: '56px', minHeight: '56px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <button onClick={() => { tapLight(); playNext(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.9)', padding: '8px', minWidth: '56px', minHeight: '56px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <NextIcon size={30} />
         </button>
-        {/* Loop */}
-        <button onClick={toggleLoop} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isLooping ? C.red : 'rgba(255,255,255,0.5)', padding: '8px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <button onClick={() => { selectionChanged(); toggleLoop(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isLooping ? C.red : 'rgba(255,255,255,0.5)', padding: '8px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <LoopIcon size={22} />
         </button>
       </div>

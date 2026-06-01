@@ -3,6 +3,7 @@ import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { useAuthFetch } from '../../../hooks/useAuthFetch';
 import DownloadButton from '../downloads/DownloadButton';
+import { tapLight } from '../../../lib/haptics';
 import type { MusicGeneration } from '../../../types';
 
 interface TrackRowProps {
@@ -77,7 +78,7 @@ export default function TrackRow({ track, onDoubleClick, onEdit, isEditOpen }: T
         role="button"
         tabIndex={0}
         data-testid={`play-btn-${track.id}`}
-        onClick={() => { setSelectedTrack(track); playTrack(track); }}
+        onClick={() => { tapLight(); setSelectedTrack(track); playTrack(track); }}
         onDoubleClick={onDoubleClick}
         onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && (setSelectedTrack(track), playTrack(track))}
         style={{

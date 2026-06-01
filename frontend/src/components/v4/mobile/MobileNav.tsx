@@ -1,4 +1,5 @@
 import { C } from '../shared/colors';
+import { selectionChanged } from '../../../lib/haptics';
 
 export type MobileSection = 'library' | 'sounds' | 'studio' | 'details' | 'more';
 
@@ -32,7 +33,7 @@ export default function MobileNav({ active, onChange, hasTrack }: Props) {
         return (
           <button
             key={tab.id}
-            onClick={() => !dim && onChange(tab.id)}
+            onClick={() => { if (!dim) { selectionChanged(); onChange(tab.id); } }}
             style={{
               flex: 1, background: 'none', border: 'none', cursor: dim ? 'default' : 'pointer',
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',

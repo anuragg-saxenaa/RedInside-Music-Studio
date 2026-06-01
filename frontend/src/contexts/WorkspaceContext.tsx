@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useRef, useCallback, useEffect, type ReactNode } from 'react';
 import { useSafeAuth } from '../lib/clerkSafe';
-import { setNowPlaying, setPlaybackState, clearNowPlaying, bindMediaActions } from '../pwa/mediaSession';
+import { setNowPlaying, setPlaybackState, setPosition, clearNowPlaying, bindMediaActions } from '../pwa/mediaSession';
 import type { Project, MusicGeneration, LyricsGeneration, Playlist, V4Tab } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
@@ -167,11 +167,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           audio.volume = playerVolume;
           setPlayerTrack(track);
           setPlayerIsPlaying(false);
+          setNowPlaying({ title: track.title || `Track v${track.version}`, artist: track.artist || '', artworkUrl: nowPlayingArt(track) });
+          setPlaybackState('paused');
           audio.addEventListener('timeupdate', () => {
             if (audio.duration && isFinite(audio.duration)) {
               setPlayerProgress(audio.currentTime / audio.duration);
               setPlayerCurrentTime(audio.currentTime);
               setPlayerDuration(audio.duration);
+              setPosition(audio.duration, audio.currentTime);
               // Persist currentTime
               try { localStorage.setItem(PERSIST_KEY, JSON.stringify({ track, currentTime: audio.currentTime })); } catch (_) { /* quota */ }
             }
@@ -292,6 +295,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setPlayerProgress(audio.currentTime / audio.duration);
         setPlayerCurrentTime(audio.currentTime);
         setPlayerDuration(audio.duration);
+        setPosition(audio.duration, audio.currentTime); // lock-screen / Bluetooth scrubber
         try { localStorage.setItem(PERSIST_KEY, JSON.stringify({ track, currentTime: audio.currentTime })); } catch (_) { /* quota */ }
       }
     };

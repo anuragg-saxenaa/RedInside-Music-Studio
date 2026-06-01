@@ -1,10 +1,11 @@
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useState, useRef } from 'react';
 import { C } from '../shared/colors';
 import { useMobile } from '../../../hooks/useMobile';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import MobileNav, { type MobileSection } from '../mobile/MobileNav';
 import MobilePlayerFull from '../mobile/MobilePlayerFull';
 import { PlayIcon, PauseIcon } from '../shared/Icons';
+import { tapLight, tapMedium } from '../../../lib/haptics';
 
 interface AppShellProps {
   titlebar: ReactNode;
@@ -17,11 +18,37 @@ interface AppShellProps {
 
 // Mobile mini player bar
 function MobileMiniPlayer({ onExpand }: { onExpand: () => void }) {
-  const { playerTrack, playerIsPlaying, playerProgress, togglePlay } = useWorkspace();
+  const { playerTrack, playerIsPlaying, playerProgress, togglePlay, playNext, playPrev } = useWorkspace();
   const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
   const artworkUrl = playerTrack?.artwork_url
     ? (playerTrack.artwork_url.startsWith('http') ? playerTrack.artwork_url : `${API_BASE}/api/projects/${playerTrack.project_id}/artwork/${playerTrack.id}`)
     : null;
+
+  // Swipe: up → expand, left/right → skip track
+  const start = useRef<{ x: number; y: number; moved: boolean }>({ x: 0, y: 0, moved: false });
+  const [dx, setDx] = useState(0);
+  const [settling, setSettling] = useState(false);
+  const onTouchStart = (e: React.TouchEvent) => { start.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, moved: false }; setSettling(false); };
+  const onTouchMove = (e: React.TouchEvent) => {
+    const mx = e.touches[0].clientX - start.current.x;
+    const my = e.touches[0].clientY - start.current.y;
+    if (Math.abs(mx) > 8 || Math.abs(my) > 8) start.current.moved = true;
+    if (Math.abs(mx) > Math.abs(my)) setDx(mx);
+    else if (my < -40) { /* upward swipe handled on end */ }
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const mx = e.changedTouches[0].clientX - start.current.x;
+    const my = e.changedTouches[0].clientY - start.current.y;
+    setSettling(true); setDx(0);
+    if (Math.abs(mx) > Math.abs(my) && Math.abs(mx) > 60) {
+      tapMedium();
+      if (mx < 0) playNext(); else playPrev();
+    } else if (my < -45) {
+      tapLight(); onExpand();
+    } else if (!start.current.moved) {
+      onExpand();
+    }
+  };
 
   return (
     <div
@@ -37,8 +64,14 @@ function MobileMiniPlayer({ onExpand }: { onExpand: () => void }) {
         flexShrink: 0,
         position: 'relative',
         overflow: 'hidden',
+        transform: `translateX(${dx}px)`,
+        transition: settling ? 'transform 260ms cubic-bezier(0.22,1,0.36,1)' : 'none',
+        touchAction: 'pan-y',
       }}
-      onClick={onExpand}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onClick={() => { if (!start.current.moved) onExpand(); }}
     >
       {/* Progress bar at top */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'rgba(255,255,255,0.08)' }}>
@@ -74,7 +107,7 @@ function MobileMiniPlayer({ onExpand }: { onExpand: () => void }) {
 
       {/* Play/Pause button */}
       <button
-        onClick={e => { e.stopPropagation(); togglePlay(); }}
+        onClick={e => { e.stopPropagation(); tapMedium(); togglePlay(); }}
         style={{
           background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0,
           width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center',
