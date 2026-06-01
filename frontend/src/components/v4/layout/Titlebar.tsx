@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
-import { useSafeClerk as useClerk, useSafeUser as useUser } from '../../../lib/clerkSafe';
+import { useSafeClerk as useClerk, useSafeUser as useUser, CLERK_ON } from '../../../lib/clerkSafe';
 
 export default function Titlebar() {
   const { projects, activeProjectId } = useWorkspace();
@@ -137,19 +137,24 @@ export default function Titlebar() {
               Settings
             </a>
 
-            <div style={dropdownStyles.divider} />
-
-            <button
-              onClick={() => { setMenuOpen(false); signOut(() => { window.location.hash = '#/login'; }); }}
-              style={dropdownStyles.signOut}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E63946" strokeWidth="2">
-                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
-                <polyline points="16 17 21 12 16 7"/>
-                <line x1="21" y1="12" x2="9" y2="12"/>
-              </svg>
-              Sign out
-            </button>
+            {/* Sign out only when Clerk auth is live (cloud/web). Native standalone
+                builds auth silently via the baked token — no session to end. */}
+            {CLERK_ON && (
+              <>
+                <div style={dropdownStyles.divider} />
+                <button
+                  onClick={() => { setMenuOpen(false); signOut(() => { window.location.hash = '#/login'; }); }}
+                  style={dropdownStyles.signOut}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E63946" strokeWidth="2">
+                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+                    <polyline points="16 17 21 12 16 7"/>
+                    <line x1="21" y1="12" x2="9" y2="12"/>
+                  </svg>
+                  Sign out
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
