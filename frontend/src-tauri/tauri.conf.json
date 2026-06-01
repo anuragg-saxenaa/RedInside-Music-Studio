@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "RedInside Studio",
         "width": 1200,
         "height": 800,
@@ -28,6 +29,6 @@
   "bundle": {
     "active": true,
     "targets": ["dmg", "app"],
-    "icon": ["icons/icon-512.png"]
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
   }
 }
