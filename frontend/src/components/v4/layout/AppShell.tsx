@@ -5,6 +5,7 @@ import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import MobileNav, { type MobileSection } from '../mobile/MobileNav';
 import MobilePlayerFull from '../mobile/MobilePlayerFull';
 import PullToRefresh from '../mobile/PullToRefresh';
+import OfflineBanner from '../mobile/OfflineBanner';
 import { PlayIcon, PauseIcon } from '../shared/Icons';
 import { tapLight, tapMedium } from '../../../lib/haptics';
 
@@ -171,6 +172,7 @@ export default function AppShell({ titlebar, sidebar, centre, rightPanel, player
       {/* Compact mobile titlebar — pad the top by the device safe-area inset so
           the bar clears the status bar / Dynamic Island (native-app feel). */}
       <div style={{ flexShrink: 0, paddingTop: 'env(safe-area-inset-top, 0px)', background: '#000' }}>{titlebar}</div>
+      <OfflineBanner />
 
       {/* Content area — only one panel visible */}
       <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
