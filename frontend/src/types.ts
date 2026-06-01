@@ -146,4 +146,4 @@ export interface ShareToken {
   expiresAt: string;
 }
 
-export type V4Tab = 'sounds' | 'write' | 'album' | 'craft' | 'release';
+export type V4Tab = 'sounds' | 'write' | 'album' | 'craft' | 'release' | 'downloads';

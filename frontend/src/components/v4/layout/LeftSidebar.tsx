@@ -36,7 +36,7 @@ interface LeftSidebarProps {
 }
 
 export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
-  const { projects, activeProjectId, setActiveProjectId, refreshProjects, playlists, refreshPlaylists, tracks, playTrack, setSelectedTrack, playerTrack, playerIsPlaying } = useWorkspace();
+  const { projects, activeProjectId, setActiveProjectId, refreshProjects, playlists, refreshPlaylists, tracks, playTrack, setSelectedTrack, playerTrack, playerIsPlaying, setActiveTab } = useWorkspace();
   const authFetch = useAuthFetch();
   const [newProjectName, setNewProjectName] = useState('');
   const [creatingProject, setCreatingProject] = useState(false);
@@ -188,6 +188,16 @@ export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
             {label}
           </a>
         ))}
+        <button
+          onClick={() => setActiveTab('downloads')}
+          data-testid="nav-downloads"
+          style={{ ...navItem(false), background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', font: 'inherit' }}
+          onMouseOver={e => (e.currentTarget.style.color = C.text)}
+          onMouseOut={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.55)')}
+        >
+          <span style={{ fontSize: '13px', width: '16px', textAlign: 'center', flexShrink: 0, opacity: 0.7 }}>⤓</span>
+          Downloads
+        </button>
       </nav>
 
       {/* Scrollable list area — projects + playlists scroll, brand+nav stay pinned */}

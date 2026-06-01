@@ -72,3 +72,26 @@ export const QueueIcon = ({ size = 16, color = 'currentColor' }: IconProps) => (
     <line x1="4" y1="17" x2="14" y2="17" />
   </svg>
 );
+
+export const DownloadIcon = ({ size = 16, color = 'currentColor' }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3v12" />
+    <path d="M7 11l5 5 5-5" />
+    <path d="M5 21h14" />
+  </svg>
+);
+
+export const DownloadedIcon = ({ size = 16, color = 'currentColor' }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M8.5 12.5l2.2 2.2 4.8-4.8" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+export const TrashIcon = ({ size = 16, color = 'currentColor' }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 6h18" />
+    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <path d="M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14" />
+  </svg>
+);

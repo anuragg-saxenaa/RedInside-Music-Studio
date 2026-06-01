@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { useAuthFetch } from '../../../hooks/useAuthFetch';
+import DownloadButton from '../downloads/DownloadButton';
 import type { MusicGeneration } from '../../../types';
 
 interface TrackRowProps {
@@ -142,6 +143,7 @@ export default function TrackRow({ track, onDoubleClick, onEdit, isEditOpen }: T
         </div>
 
 
+        <DownloadButton tracks={[{ id: track.id, title: track.title || `Track v${track.version}`, artist: track.artist, projectId: track.project_id }]} size={16} />
         <button
           onClick={e => { e.stopPropagation(); onEdit?.(); }}
           title="Edit track metadata"
