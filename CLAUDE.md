@@ -345,6 +345,19 @@ The DAW is fully responsive — desktop shows the 3-column layout, mobile (≤76
 - **Status polling fallback** (`download.controller.js`): in-memory `downloadStatus` Map + `GET /api/downloader/status/:downloadId`. Frontend (`YoutubeDownloader.tsx`) polls every 2s AND listens to WebSocket — polling ensures progress/completion works even when WS events don't reach the browser on cloud.
 - Downloaded MP3 → temp dir → uploaded to R2 + saved to local disk → R2 key stored in DB (plays on both local and cloud)
 
+## CI / Pipeline (`.github/workflows/ci.yml`)
+
+Three jobs, all must stay green: **Lint & Type Check**, **Backend Tests**, **Frontend E2E Tests**. There is NO deploy workflow (Railway auto-deploys via its native GitHub integration; Vercel via CLI). Hard-won gotchas:
+
+- **Migrations** (`backend/src/database/migrate.js`): uses `db.executeMultiple(sql)` per file. Do NOT go back to manual `;`-splitting + stripping BEGIN/COMMIT — that silently dropped every migration after the `jobs` table-recreate (012), leaving a fresh DB without `user_id` etc. Migrate auto-creates the `file:` DB dir (the `database/` dir is gitignored and absent on fresh checkout). Never `process.exit()` mid-migration (races libsql writes).
+- **No Redis in CI/local**: music generation and vocal removal process INLINE (`processMusicJobInline`, `processVocalRemovalInline`) — the BullMQ queue is a no-op stub without Redis, so jobs would otherwise hang forever.
+- **Backend tests run serially** (`--test-concurrency=1`) + connection.js sets `busy_timeout`/WAL — avoids SQLITE_BUSY race cascades. A `process.on('unhandledRejection'/'uncaughtException')` safety net keeps one bad op from killing the server mid-suite (a missing `await` that bound a Promise crashed it before).
+- **ffmpeg audio tests** run in CI (ffmpeg + the committed `tests/fixtures/test-audio.mp3` are present). Don't `throw` in a `before` hook to "skip in CI" — that registers as hookFailed (×26).
+- **Env-sensitive unit tests**: `minimax.client` header test must clear `process.env.MINIMAX_API_KEY` (CI sets it; `getEffectiveKey()` prefers env over the constructor key).
+- **Frontend E2E** runs ONLY the `v4-*.spec.ts` suite (`playwright.config.ts` testMatch). Playwright `webServer` starts mock(8999) + backend(3000) + **frontend dev server (5173)**. The E2E job needs `STORAGE_DRIVER=local` + `STORAGE_PATH=/tmp/...` or `seed-project` crashes on the default Mac path.
+- **Clerk in E2E**: no `VITE_CLERK_PUBLISHABLE_KEY` is set, so `frontend/src/lib/clerkSafe.ts` (`CLERK_ON` build-constant) returns inert auth stubs and `main.tsx` skips `ClerkProvider`; `App.tsx` bypasses the sign-in gate. App renders + loads projects via the backend `dev-user` fallback. All auth hook usage goes through `useSafeAuth/useSafeUser/useSafeClerk`.
+- **Scrollable card lists** must set `flexShrink: 0` per card (else they squish into stripes — bit us in WriteStudio + CreateSongPanel).
+
 ## Deployment Architecture (Production)
 
 ### URLs
