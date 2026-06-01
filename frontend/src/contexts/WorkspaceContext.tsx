@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useRef, useCallback, useEffect, type ReactNode } from 'react';
 import { useSafeAuth } from '../lib/clerkSafe';
+import { setNowPlaying, setPlaybackState, clearNowPlaying, bindMediaActions } from '../pwa/mediaSession';
 import type { Project, MusicGeneration, LyricsGeneration, Playlist, V4Tab } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
@@ -105,6 +106,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const isLoopingRef = useRef(false);
   const isShuffledRef = useRef(false);
   const playNextRef = useRef<() => void>(() => {});
+  const playPrevRef = useRef<() => void>(() => {});
+
+  // Build the OS Now-Playing artwork URL for a track.
+  const nowPlayingArt = (t: MusicGeneration) =>
+    t.artwork_url ? `${API_BASE}/api/projects/${t.project_id}/artwork/${t.id}` : null;
 
   // Persist UI state to localStorage
   const persistUi = useCallback((tab: V4Tab, projId: string | null, trackId: string | null) => {
@@ -252,8 +258,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const playTrack = useCallback((track: MusicGeneration) => {
     // If this exact track is already loaded, toggle play/pause instead of restarting
     if (persistentAudio && persistentTrack?.id === track.id && persistentAudio.src) {
-      if (persistentAudio.paused) { persistentAudio.play().catch(() => {}); setPlayerIsPlaying(true); }
-      else { persistentAudio.pause(); setPlayerIsPlaying(false); }
+      if (persistentAudio.paused) { persistentAudio.play().catch(() => {}); setPlayerIsPlaying(true); setPlaybackState('playing'); }
+      else { persistentAudio.pause(); setPlayerIsPlaying(false); setPlaybackState('paused'); }
       setSelectedTrack(track);
       return;
     }
@@ -270,6 +276,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setPlayerIsPlaying(true);
     setPlayerProgress(0);
     setPlayerCurrentTime(0);
+    setNowPlaying({ title: track.title || `Track v${track.version}`, artist: track.artist || '', artworkUrl: nowPlayingArt(track) });
     const updateTime = () => {
       if (audio.duration && isFinite(audio.duration)) {
         setPlayerProgress(audio.currentTime / audio.duration);
@@ -288,8 +295,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const togglePlay = useCallback(() => {
     if (!persistentAudio) return;
-    if (playerIsPlaying) { persistentAudio.pause(); setPlayerIsPlaying(false); }
-    else { persistentAudio.play().catch(() => {}); setPlayerIsPlaying(true); }
+    if (playerIsPlaying) { persistentAudio.pause(); setPlayerIsPlaying(false); setPlaybackState('paused'); }
+    else { persistentAudio.play().catch(() => {}); setPlayerIsPlaying(true); setPlaybackState('playing'); }
   }, [playerIsPlaying]);
 
   const seekTo = useCallback((fraction: number) => {
@@ -323,6 +330,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const idx = tracks.findIndex(t => t.id === playerTrack.id);
     playTrack(tracks[(idx - 1 + tracks.length) % tracks.length]);
   }, [playerTrack, tracks, playTrack]);
+
+  useEffect(() => { playPrevRef.current = playPrev; }, [playPrev]);
+
+  // Bind OS media-key / lock-screen controls once to the live player (via refs).
+  useEffect(() => {
+    bindMediaActions({
+      play: () => { persistentAudio?.play().catch(() => {}); setPlayerIsPlaying(true); setPlaybackState('playing'); },
+      pause: () => { persistentAudio?.pause(); setPlayerIsPlaying(false); setPlaybackState('paused'); },
+      next: () => playNextRef.current(),
+      prev: () => playPrevRef.current(),
+      seekTo: (sec: number) => { if (persistentAudio && isFinite(persistentAudio.duration)) persistentAudio.currentTime = sec; },
+    });
+    return () => clearNowPlaying();
+  }, []);
 
   const toggleLoop = useCallback(() => setIsLooping(v => !v), []);
   const toggleShuffle = useCallback(() => setIsShuffled(v => !v), []);
