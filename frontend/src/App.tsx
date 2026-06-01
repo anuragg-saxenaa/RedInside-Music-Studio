@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSafeAuth, CLERK_ON } from './lib/clerkSafe';
+import { rememberSignedIn, wasSignedIn, isOnline } from './pwa/offlineAuth';
 import History from './pages/History';
 import ViralToolkit from './pages/ViralToolkit';
 import Settings from './pages/Settings';
@@ -34,6 +35,7 @@ function App() {
     if (isSignedIn && currentView === 'login') {
       setCurrentView('studio');
     }
+    if (isSignedIn) rememberSignedIn();
   }, [isSignedIn, currentView]);
 
   useEffect(() => {
@@ -55,13 +57,17 @@ function App() {
 
   // No Clerk configured → skip auth entirely (local dev / E2E)
   if (CLERK_ON) {
-    if (!isLoaded) return null;
+    // Offline (or auth server unreachable) + previously signed in → open straight
+    // to the app so downloaded tracks remain playable without a network round-trip.
+    const offlineBypass = !isOnline() && wasSignedIn();
 
-    if (!isSignedIn && currentView !== 'share' && currentView !== 'login') {
+    if (!isLoaded && !offlineBypass) return null;
+
+    if (!offlineBypass && !isSignedIn && currentView !== 'share' && currentView !== 'login') {
       return <Login />;
     }
 
-    if (currentView === 'login') return <Login />;
+    if (currentView === 'login' && !offlineBypass) return <Login />;
   }
 
   // StudioV4 is a full-viewport DAW — render it directly, no wrapper
