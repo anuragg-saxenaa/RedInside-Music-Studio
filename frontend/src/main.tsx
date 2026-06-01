@@ -4,6 +4,7 @@ import App from './App';
 import { SharedAudioProvider } from './contexts/SharedAudioContext';
 import { ClerkProvider } from '@clerk/clerk-react';
 import { registerSW } from './pwa/registerSW';
+import UpdateToast from './pwa/UpdateToast';
 
 // Intercept all relative /api/ fetch calls: rewrite URL + inject Clerk JWT
 if (import.meta.env.VITE_API_BASE_URL) {
@@ -53,6 +54,7 @@ const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ?? '';
 const tree = (
   <SharedAudioProvider>
     <App />
+    <UpdateToast />
   </SharedAudioProvider>
 );
 

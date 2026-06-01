@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { pwaDisabled, unregisterSW, enablePWA } from '../pwa/registerSW';
 
 interface SettingRow {
   value: string;
@@ -23,6 +24,12 @@ export default function Settings() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showKey, setShowKey] = useState(false);
+  const [pwaOn, setPwaOn] = useState(!pwaDisabled());
+
+  const togglePwa = async () => {
+    if (pwaOn) { await unregisterSW(); setPwaOn(false); }
+    else { enablePWA(); setPwaOn(true); location.reload(); }
+  };
 
   useEffect(() => {
     fetch(`${BACKEND}/api/settings`)
@@ -167,6 +174,25 @@ export default function Settings() {
                   position: 'absolute', top: '3px', width: '18px', height: '18px', borderRadius: '50%', backgroundColor: '#fff',
                   transition: 'left 200ms', left: form.auto_ffmpeg_320kbps === 'true' ? '23px' : '3px',
                 }} />
+              </button>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '24px' }}>
+            <h3 style={{ color: '#FFFFFF', fontSize: '15px', fontWeight: 600, fontFamily: 'Outfit, sans-serif', marginBottom: '16px', marginTop: 0 }}>Offline App (PWA)</h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', backgroundColor: '#1E1E1E', borderRadius: '10px', border: '1px solid #2A2A2A' }}>
+              <div>
+                <div style={{ color: '#FFFFFF', fontSize: '14px', fontWeight: 500 }}>Install & offline downloads</div>
+                <div style={{ color: '#666', fontSize: '12px', marginTop: '2px' }}>Service worker for installability + offline playback. Turn off to disable.</div>
+              </div>
+              <button
+                onClick={togglePwa}
+                style={{
+                  width: '44px', height: '24px', borderRadius: '12px', border: 'none', cursor: 'pointer',
+                  backgroundColor: pwaOn ? '#E63946' : '#2A2A2A', position: 'relative', transition: 'background-color 200ms',
+                }}
+              >
+                <div style={{ position: 'absolute', top: '3px', width: '18px', height: '18px', borderRadius: '50%', backgroundColor: '#fff', transition: 'left 200ms', left: pwaOn ? '23px' : '3px' }} />
               </button>
             </div>
           </div>
