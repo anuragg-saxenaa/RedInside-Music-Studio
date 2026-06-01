@@ -75,6 +75,7 @@ export default function TrackRow({ track, onDoubleClick, onEdit, isEditOpen }: T
       <div
         role="button"
         tabIndex={0}
+        data-testid={`play-btn-${track.id}`}
         onClick={() => { setSelectedTrack(track); playTrack(track); }}
         onDoubleClick={onDoubleClick}
         onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && (setSelectedTrack(track), playTrack(track))}
