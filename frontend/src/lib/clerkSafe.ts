@@ -18,12 +18,24 @@ export function useSafeAuth() {
   };
 }
 
+// Desktop (Tauri) standalone build runs without Clerk, so there's no live user
+// profile. Bake the studio owner's identity at build time (VITE_DESKTOP_USER_*)
+// so the UI shows the same name/email as the cloud build instead of "User".
+const DESKTOP_USER = import.meta.env.VITE_DESKTOP_USER_EMAIL
+  ? {
+      fullName: import.meta.env.VITE_DESKTOP_USER_NAME || null,
+      username: import.meta.env.VITE_DESKTOP_USER_NAME || null,
+      imageUrl: '',
+      primaryEmailAddress: { emailAddress: import.meta.env.VITE_DESKTOP_USER_EMAIL },
+    }
+  : null;
+
 export function useSafeUser() {
   if (CLERK_ON) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     return useUser();
   }
-  return { user: null, isLoaded: true, isSignedIn: true };
+  return { user: DESKTOP_USER, isLoaded: true, isSignedIn: true };
 }
 
 export function useSafeClerk() {
