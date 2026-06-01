@@ -1,11 +1,12 @@
-// True when running inside the Tauri (macOS/desktop) webview. The native app
-// must NOT use a service worker: the tauri://localhost origin breaks Workbox
-// navigation caching (stale cached index → blank screen).
+// True when running inside a native webview (Tauri macOS desktop, or Capacitor
+// iOS). Native shells must NOT use a service worker: the custom origin
+// (tauri://localhost / capacitor://localhost) breaks Workbox navigation caching
+// (stale cached index → blank screen).
 export function isTauri(): boolean {
-  if (import.meta.env.VITE_TAURI) return true;
+  if (import.meta.env.VITE_TAURI || import.meta.env.VITE_NATIVE) return true;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const w = window as any;
-  return !!(w.isTauri || w.__TAURI_INTERNALS__ || w.__TAURI__);
+  return !!(w.isTauri || w.__TAURI_INTERNALS__ || w.__TAURI__ || w.Capacitor?.isNativePlatform?.());
 }
 
 // Registers the service worker in production only. Disabled via ?nopwa or
