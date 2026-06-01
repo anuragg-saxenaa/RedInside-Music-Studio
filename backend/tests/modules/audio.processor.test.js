@@ -33,12 +33,7 @@ async function cleanupOutput() {
 }
 
 before(async () => {
-  // Skip in CI environment
-  if (process.env.CI) {
-    throw new Error('Skipping audio processor tests in CI');
-  }
-
-  // Verify test audio exists
+  // Verify test audio exists (CI installs ffmpeg + the fixture is committed)
   try {
     await fs.access(testAudioPath);
   } catch {

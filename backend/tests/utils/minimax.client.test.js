@@ -10,10 +10,18 @@ test('should create client with API key', () => {
 });
 
 test('should build request headers', async () => {
-  const client = new MinimaxClient('test-key');
-  const headers = await client.getHeaders();
-  assert.strictEqual(headers.Authorization, 'Bearer test-key');
-  assert.strictEqual(headers['Content-Type'], 'application/json');
+  // getEffectiveKey() prefers process.env.MINIMAX_API_KEY (set in CI) over the
+  // constructor key — clear it so this unit test is deterministic.
+  const savedKey = process.env.MINIMAX_API_KEY;
+  delete process.env.MINIMAX_API_KEY;
+  try {
+    const client = new MinimaxClient('test-key');
+    const headers = await client.getHeaders();
+    assert.strictEqual(headers.Authorization, 'Bearer test-key');
+    assert.strictEqual(headers['Content-Type'], 'application/json');
+  } finally {
+    if (savedKey !== undefined) process.env.MINIMAX_API_KEY = savedKey;
+  }
 });
 
 test('should throw for invalid params in generateLyrics', async () => {
