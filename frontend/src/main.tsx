@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { SharedAudioProvider } from './contexts/SharedAudioContext';
 import { ClerkProvider } from '@clerk/clerk-react';
+import { registerSW } from './pwa/registerSW';
 
 // Intercept all relative /api/ fetch calls: rewrite URL + inject Clerk JWT
 if (import.meta.env.VITE_API_BASE_URL) {
@@ -62,3 +63,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       : tree}
   </React.StrictMode>
 );
+
+// Register the PWA service worker (production only; no-op otherwise)
+registerSW();
