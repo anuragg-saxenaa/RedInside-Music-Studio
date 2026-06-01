@@ -6,6 +6,7 @@ import { DownloadsProvider } from './contexts/DownloadsContext';
 import { ClerkProvider } from '@clerk/clerk-react';
 import { registerSW } from './pwa/registerSW';
 import UpdateToast from './pwa/UpdateToast';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Intercept all relative /api/ fetch calls: rewrite URL + inject Clerk JWT
 if (import.meta.env.VITE_API_BASE_URL) {
@@ -58,12 +59,14 @@ const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ?? '';
 // Only mount ClerkProvider when a key is configured. Without it (local dev / E2E),
 // render the app directly — useSafeAuth/useSafeUser/useSafeClerk return inert stubs.
 const tree = (
-  <SharedAudioProvider>
-    <DownloadsProvider>
-      <App />
-      <UpdateToast />
-    </DownloadsProvider>
-  </SharedAudioProvider>
+  <ErrorBoundary>
+    <SharedAudioProvider>
+      <DownloadsProvider>
+        <App />
+        <UpdateToast />
+      </DownloadsProvider>
+    </SharedAudioProvider>
+  </ErrorBoundary>
 );
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

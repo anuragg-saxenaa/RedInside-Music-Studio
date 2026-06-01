@@ -10,10 +10,14 @@ export function useAuthFetch() {
     const token = await getToken();
     // Prefix relative /api/ URLs with API_BASE in production
     const fullUrl = (url.startsWith('/api/') && API_BASE) ? `${API_BASE}${url}` : url;
+    // Desktop (Tauri) standalone build authenticates with a baked shared secret
+    // instead of interactive login (Google OAuth is blocked in embedded webviews).
+    const desktopToken = import.meta.env.VITE_DESKTOP_TOKEN;
     return fetch(fullUrl, {
       ...options,
       headers: {
         ...(options.headers || {}),
+        ...(desktopToken ? { 'X-Desktop-Token': desktopToken } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });

@@ -125,8 +125,8 @@ export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
     if (activePlaylistId && playlistTracks[activePlaylistId] !== undefined) {
       authFetch(`/api/playlists/${activePlaylistId}/tracks`)
         .then(r => r.json())
-        .then((ts: MusicGeneration[]) =>
-          setPlaylistTracks(prev => ({ ...prev, [activePlaylistId]: ts }))
+        .then((ts: unknown) =>
+          setPlaylistTracks(prev => ({ ...prev, [activePlaylistId]: Array.isArray(ts) ? ts as MusicGeneration[] : [] }))
         )
         .catch(() => {});
     }
@@ -539,8 +539,8 @@ export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
                       if (next && !playlistTracks[pl.id]) {
                         authFetch(`/api/playlists/${pl.id}/tracks`)
                           .then(r => r.json())
-                          .then((ts: MusicGeneration[]) =>
-                            setPlaylistTracks(prev => ({ ...prev, [pl.id]: ts }))
+                          .then((ts: unknown) =>
+                            setPlaylistTracks(prev => ({ ...prev, [pl.id]: Array.isArray(ts) ? ts as MusicGeneration[] : [] }))
                           )
                           .catch(() => {});
                       }
