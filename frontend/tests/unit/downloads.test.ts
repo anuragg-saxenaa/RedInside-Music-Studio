@@ -62,4 +62,16 @@ describe('downloadTrack', () => {
     await expect(downloadTrack({ id: 'mErr', projectId: 'p' })).rejects.toThrow();
     expect(await isDownloaded('mErr')).toBe(false);
   });
+
+  it('throws QuotaError when the estimate shows no room', async () => {
+    mockCaches();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (globalThis as any).fetch = async () => new Response(new Uint8Array(100), { status: 200 });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (navigator as any).storage = { estimate: async () => ({ usage: 999, quota: 1000 }), persist: async () => true };
+    await expect(downloadTrack({ id: 'mQuota', projectId: 'p' })).rejects.toMatchObject({ name: 'QuotaError' });
+    expect(await isDownloaded('mQuota')).toBe(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (navigator as any).storage;
+  });
 });

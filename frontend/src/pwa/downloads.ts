@@ -40,26 +40,37 @@ export async function isDownloaded(id: string): Promise<boolean> {
 
 export async function downloadTrack(t: TrackMeta): Promise<void> {
   await requestPersistOnce();
-  await putDownload({ musicId: t.id, title: t.title || 'Untitled', artist: t.artist || '', projectId: t.projectId, bytes: 0, status: 'pending', addedAt: Date.now() });
+  const title = t.title || 'Untitled';
+  const artist = t.artist || '';
+  // Preserve the original request time across all status transitions.
+  const existing = await getDownload(t.id);
+  const addedAt = existing?.addedAt ?? Date.now();
+  await putDownload({ musicId: t.id, title, artist, projectId: t.projectId, bytes: 0, status: 'pending', addedAt });
   try {
     const res = await fetch(audioUrl(t.id));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const buf = await res.clone().arrayBuffer();
 
-    // Quota guard — don't write if it would exceed available space.
+    // Quota guard — don't write if it would clearly exceed available space.
     const { usage, quota } = await storageEstimate();
     if (quota > 0 && usage + buf.byteLength > quota) {
       throw new QuotaError();
     }
 
     const cache = await caches.open(AUDIO_CACHE);
-    await cache.put(
-      audioUrl(t.id),
-      new Response(buf, { status: 200, headers: { 'Content-Type': 'audio/mpeg', 'Content-Length': String(buf.byteLength) } }),
-    );
-    await putDownload({ musicId: t.id, title: t.title || 'Untitled', artist: t.artist || '', projectId: t.projectId, bytes: buf.byteLength, status: 'done', addedAt: Date.now() });
+    try {
+      await cache.put(
+        audioUrl(t.id),
+        new Response(buf, { status: 200, headers: { 'Content-Type': 'audio/mpeg', 'Content-Length': String(buf.byteLength) } }),
+      );
+    } catch (e) {
+      // Cache write can still hit the real quota even if the estimate passed.
+      if (e instanceof DOMException && e.name === 'QuotaExceededError') throw new QuotaError();
+      throw e;
+    }
+    await putDownload({ musicId: t.id, title, artist, projectId: t.projectId, bytes: buf.byteLength, status: 'done', addedAt });
   } catch (e) {
-    await putDownload({ musicId: t.id, title: t.title || 'Untitled', artist: t.artist || '', projectId: t.projectId, bytes: 0, status: 'error', addedAt: Date.now() });
+    await putDownload({ musicId: t.id, title, artist, projectId: t.projectId, bytes: 0, status: 'error', addedAt });
     throw e;
   }
 }
@@ -75,11 +86,13 @@ export async function downloadMany(tracks: TrackMeta[], onProgress?: (done: numb
 }
 
 export async function removeDownload(id: string): Promise<void> {
+  // Delete the index row first so the UI never shows a "downloaded" track whose
+  // cache delete failed. An orphaned cache entry is harmless (SW LRU-evicts it).
+  await deleteDownload(id);
   try {
     const cache = await caches.open(AUDIO_CACHE);
     await cache.delete(audioUrl(id));
-  } catch { /* cache may not exist */ }
-  await deleteDownload(id);
+  } catch { /* cache may not exist; orphan is harmless */ }
 }
 
 export async function listDownloadedTracks(): Promise<DownloadRow[]> {
