@@ -359,6 +359,16 @@ The web app is an installable PWA with Spotify-style offline downloads. Spec: `d
 - **Data safety:** read-only w.r.t. user data — only caches copies of `/api/music/:id/file`; never writes/deletes Turso/R2. "Delete download" removes only the local cached copy.
 - **Not yet wired:** playlist/album-level Download buttons (same `DownloadButton` component, pass the track-id set) — fast follow.
 
+## Multi-Platform B/C/D/E (spec: `docs/superpowers/specs/2026-06-01-multiplatform-bcde-design.md`)
+
+All additive over the shared Turso+R2 backend; web app untouched.
+
+- **E — Media Session (shipped):** `src/pwa/mediaSession.ts` (`setNowPlaying/setPlaybackState/setPosition/clearNowPlaying/bindMediaActions`) wired into `WorkspaceContext` player → OS lock-screen / Now Playing / media keys. No-ops without the API. Unit-tested. Works in web/PWA and carries into desktop/iOS.
+- **D — Google Drive storage (shipped, env-gated):** `backend/src/modules/storage/gdrive.js` (Drive v3 REST, no SDK) + `gdrive.routes.js` (`/api/gdrive/status|auth|callback|disconnect`). Disabled (status `configured:false`, endpoints 503) unless `GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI` set. Refresh token in `settings`. `readBufferAnywhere` falls back local→R2→gdrive. OAuth callback auth-exempt. Unit-tested. Human step: create Google OAuth client, set the 3 env vars.
+- **B — macOS desktop (Tauri, scaffolded):** `frontend/src-tauri/tauri.conf.json` + scripts `tauri:dev`/`tauri:build`. Runbook: `docs/DESKTOP_IOS_SETUP.md`. Needs Rust (+ Apple Developer ID to notarize). Native crate generated locally via `npx tauri init`.
+- **C — iOS (Capacitor, scaffolded):** `frontend/capacitor.config.ts` + scripts `ios:add`/`ios:sync`/`ios:open`. Needs Xcode + Apple Developer account. `ios/` generated locally via `cap add ios` (gitignored).
+- CI does NOT build native targets; the web app + tests gate. `ios/`, `android/`, `src-tauri/target/`, `src-tauri/gen/` gitignored.
+
 ## CI / Pipeline (`.github/workflows/ci.yml`)
 
 Three jobs, all must stay green: **Lint & Type Check**, **Backend Tests**, **Frontend E2E Tests**. There is NO deploy workflow (Railway auto-deploys via its native GitHub integration; Vercel via CLI). Hard-won gotchas:
