@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useRef, useCallback, useEffect, type ReactNode } from 'react';
-import { useAuth } from '@clerk/clerk-react';
+import { useSafeAuth } from '../lib/clerkSafe';
 import type { Project, MusicGeneration, LyricsGeneration, Playlist, V4Tab } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
@@ -64,7 +64,7 @@ let persistentAudio: HTMLAudioElement | null = null;
 let persistentTrack: MusicGeneration | null = null;
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const { getToken } = useAuth();
+  const { getToken } = useSafeAuth();
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
   const authFetch = useCallback(async (url: string, options: RequestInit = {}) => {

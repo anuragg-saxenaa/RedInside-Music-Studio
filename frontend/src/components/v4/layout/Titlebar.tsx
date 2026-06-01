@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
-import { useClerk, useUser } from '@clerk/clerk-react';
+import { useSafeClerk as useClerk, useSafeUser as useUser } from '../../../lib/clerkSafe';
 
 export default function Titlebar() {
   const { projects, activeProjectId } = useWorkspace();

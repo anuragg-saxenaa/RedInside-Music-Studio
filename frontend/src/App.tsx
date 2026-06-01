@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '@clerk/clerk-react';
+import { useSafeAuth, CLERK_ON } from './lib/clerkSafe';
 import History from './pages/History';
 import ViralToolkit from './pages/ViralToolkit';
 import Settings from './pages/Settings';
@@ -13,7 +13,7 @@ import { SharedAudioProvider } from './contexts/SharedAudioContext';
 export type { Project, LyricsGeneration, MusicGeneration };
 
 function App() {
-  const { isSignedIn, isLoaded } = useAuth();
+  const { isSignedIn, isLoaded } = useSafeAuth();
 
   const [currentView, setCurrentView] = useState<'studio' | 'history' | 'viral' | 'settings' | 'share' | 'login'>(() => {
     if (window.location.hash.startsWith('#/share/')) return 'share';
@@ -53,13 +53,16 @@ function App() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  if (!isLoaded) return null;
+  // No Clerk configured → skip auth entirely (local dev / E2E)
+  if (CLERK_ON) {
+    if (!isLoaded) return null;
 
-  if (!isSignedIn && currentView !== 'share' && currentView !== 'login') {
-    return <Login />;
+    if (!isSignedIn && currentView !== 'share' && currentView !== 'login') {
+      return <Login />;
+    }
+
+    if (currentView === 'login') return <Login />;
   }
-
-  if (currentView === 'login') return <Login />;
 
   // StudioV4 is a full-viewport DAW — render it directly, no wrapper
   if (currentView === 'share') {

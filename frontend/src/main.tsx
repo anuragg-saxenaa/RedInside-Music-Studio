@@ -46,17 +46,19 @@ if (import.meta.env.VITE_API_BASE_URL) {
 }
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ?? '';
-// In dev without Clerk configured, app still renders (backend falls back to 'admin')
-if (!PUBLISHABLE_KEY && import.meta.env.DEV) {
-  console.warn('[Clerk] VITE_CLERK_PUBLISHABLE_KEY not set — running without auth');
-}
+
+// Only mount ClerkProvider when a key is configured. Without it (local dev / E2E),
+// render the app directly — useSafeAuth/useSafeUser/useSafeClerk return inert stubs.
+const tree = (
+  <SharedAudioProvider>
+    <App />
+  </SharedAudioProvider>
+);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
-      <SharedAudioProvider>
-        <App />
-      </SharedAudioProvider>
-    </ClerkProvider>
+    {PUBLISHABLE_KEY
+      ? <ClerkProvider publishableKey={PUBLISHABLE_KEY}>{tree}</ClerkProvider>
+      : tree}
   </React.StrictMode>
 );
