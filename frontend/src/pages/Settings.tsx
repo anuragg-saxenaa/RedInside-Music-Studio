@@ -16,6 +16,64 @@ interface SettingsData {
 
 const BACKEND = 'http://localhost:3000';
 
+// Google Drive sync — connect your own Google account; new songs + artwork are
+// copied to a "RedInside Music Studio" folder in your Drive. Uses relative /api
+// so the global fetch interceptor routes it to the cloud backend.
+function GoogleDriveSection() {
+  const [status, setStatus] = useState<{ configured: boolean; connected: boolean } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const refresh = () => fetch('/api/gdrive/status').then(r => r.json()).then(setStatus).catch(() => setStatus({ configured: false, connected: false }));
+  useEffect(() => {
+    refresh();
+    const onFocus = () => refresh();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, []);
+
+  const connect = async () => {
+    setBusy(true);
+    try {
+      const r = await fetch('/api/gdrive/auth');
+      if (r.status === 503) { alert('Google Drive is not configured yet — add the Google OAuth env vars on the backend.'); return; }
+      const { url } = await r.json();
+      if (url) window.open(url, '_blank');
+    } finally { setBusy(false); }
+  };
+  const disconnect = async () => { setBusy(true); try { await fetch('/api/gdrive/disconnect', { method: 'POST' }); await refresh(); } finally { setBusy(false); } };
+
+  const connected = status?.connected;
+  return (
+    <div style={{ marginBottom: '24px' }}>
+      <h3 style={{ color: '#FFFFFF', fontSize: '15px', fontWeight: 600, fontFamily: 'Outfit, sans-serif', marginBottom: '16px', marginTop: 0 }}>Google Drive Sync</h3>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', backgroundColor: '#1E1E1E', borderRadius: '10px', border: '1px solid #2A2A2A', gap: 12 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ color: '#FFFFFF', fontSize: '14px', fontWeight: 500 }}>
+            {connected ? 'Connected ✓' : 'Back up to your Google Drive'}
+          </div>
+          <div style={{ color: '#666', fontSize: '12px', marginTop: '2px' }}>
+            {status == null ? 'Checking…'
+              : !status.configured ? 'Not set up yet — backend needs Google OAuth env vars.'
+              : connected ? 'New songs & artwork are copied to a folder in your Drive.'
+              : 'Sign in with your Google account to sync songs & artwork.'}
+          </div>
+        </div>
+        <button
+          onClick={connected ? disconnect : connect}
+          disabled={busy || (status != null && !status.configured)}
+          style={{
+            flexShrink: 0, padding: '9px 16px', borderRadius: '8px', border: 'none', fontSize: '13px', fontWeight: 600,
+            cursor: busy || (status != null && !status.configured) ? 'not-allowed' : 'pointer',
+            backgroundColor: connected ? '#2A2A2A' : '#E63946', color: '#fff', opacity: (status != null && !status.configured) ? 0.5 : 1,
+          }}
+        >
+          {busy ? '…' : connected ? 'Disconnect' : 'Connect'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Settings() {
   const [settings, setSettings] = useState<Partial<SettingsData>>({});
   const [form, setForm] = useState<Record<string, string>>({});
@@ -196,6 +254,8 @@ export default function Settings() {
               </button>
             </div>
           </div>
+
+          <GoogleDriveSection />
 
           <button
             onClick={save}

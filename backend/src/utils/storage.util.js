@@ -164,7 +164,22 @@ class StorageUtil {
     }
   }
 
+  // Best-effort sync of a saved file to the connected Google Drive (drive.file
+  // scope → a dedicated app folder in the user's own Drive). Fire-and-forget so
+  // it never slows or fails a save; only runs when Drive is configured+connected.
+  _syncToGDrive(keyOrPath, buffer, mime = 'application/octet-stream') {
+    (async () => {
+      try {
+        const gdrive = await import('../modules/storage/gdrive.js');
+        if (gdrive.isConfigured() && (await gdrive.isConnected())) {
+          await gdrive.uploadFile(this.toR2Key(keyOrPath), buffer, mime);
+        }
+      } catch { /* gdrive optional */ }
+    })();
+  }
+
   async saveAudioFile(buffer, keyOrPath) {
+    this._syncToGDrive(keyOrPath, buffer, 'audio/mpeg');
     if (this.driver === 'r2') {
       await getS3().send(new PutObjectCommand({
         Bucket: this.bucket,
@@ -264,6 +279,7 @@ class StorageUtil {
   // Always dual-write artwork: local disk (for local driver serving) AND R2 (for cloud + cross-device sync)
   async saveArtwork(key, buffer, contentType = 'image/png') {
     const r2Key = this.toR2Key(key);
+    this._syncToGDrive(key, buffer, contentType);
     // Local disk
     try {
       const fullPath = this._localPath(key);
