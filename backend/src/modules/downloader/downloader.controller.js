@@ -50,6 +50,74 @@ export const DownloaderController = {
     } catch (e) { res.status(500).json({ error: e.message }); }
   },
 
+  // ── Download job queue (worker = desktop app on a residential IP) ──
+
+  // POST /api/youtube/jobs { url, projectId } — enqueue (called by any client/iOS)
+  async createJob(req, res) {
+    try {
+      const { url, projectId } = req.body || {};
+      if (!url || !projectId) return res.status(400).json({ error: 'url and projectId required' });
+      let host; try { host = new URL(url).hostname; } catch { return res.status(400).json({ error: 'Invalid URL' }); }
+      if (!ALLOWED_HOSTS.includes(host)) return res.status(400).json({ error: 'Only YouTube URLs supported' });
+      const { db } = await import('../../database/connection.js');
+      const id = `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      await db.execute({ sql: 'INSERT INTO download_jobs (id, url, project_id, status) VALUES (?, ?, ?, ?)', args: [id, url, projectId, 'pending'] });
+      logger.info('download job queued', { id, url });
+      res.status(202).json({ jobId: id, status: 'pending' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  },
+
+  // GET /api/youtube/jobs/next — worker claims the oldest pending job
+  async nextJob(req, res) {
+    try {
+      const { db } = await import('../../database/connection.js');
+      const r = await db.execute({ sql: "SELECT * FROM download_jobs WHERE status = 'pending' ORDER BY created_at ASC LIMIT 1" });
+      const job = r.rows?.[0];
+      if (!job) return res.json({ job: null });
+      const upd = await db.execute({ sql: "UPDATE download_jobs SET status = 'processing', claimed_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'pending'", args: [job.id] });
+      if (!upd.rowsAffected) return res.json({ job: null }); // raced — another worker took it
+      res.json({ job: { id: job.id, url: job.url, projectId: job.project_id } });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  },
+
+  // POST /api/youtube/jobs/:id/result { audioBase64, title, duration, ext } — worker uploads result
+  async submitJobResult(req, res) {
+    try {
+      const { id } = req.params;
+      const { audioBase64, title, duration, ext } = req.body || {};
+      const { db } = await import('../../database/connection.js');
+      const jr = await db.execute({ sql: 'SELECT * FROM download_jobs WHERE id = ?', args: [id] });
+      const job = jr.rows?.[0];
+      if (!job) return res.status(404).json({ error: 'job not found' });
+      if (!audioBase64) {
+        await db.execute({ sql: "UPDATE download_jobs SET status='failed', error=? WHERE id=?", args: [String(req.body?.error || 'no audio'), id] });
+        return res.status(400).json({ error: 'audioBase64 required' });
+      }
+      const buf = Buffer.from(audioBase64, 'base64');
+      const projectId = job.project_id;
+      const key = `projects/${projectId}/generations/music/${id}.${(ext || 'm4a').replace(/[^a-z0-9]/gi, '')}`;
+      try { await storage.saveAudioFile(buf, key); } catch (e) { logger.warn('R2 save failed', { error: e.message }); }
+      try { const lp = path.join(storage.basePath, key); fs.mkdirSync(path.dirname(lp), { recursive: true }); fs.writeFileSync(lp, buf); } catch { /* cloud disk read-only */ }
+      const version = await MusicModel.getNextVersion(projectId);
+      const music = await MusicModel.create({ projectId, title: title || 'YouTube import', model: 'youtube-download', originalFilePath: key, processedFilePath: null, durationSeconds: duration || 0, version });
+      await ProjectModel.incrementVersion(projectId, 'music');
+      await db.execute({ sql: "UPDATE download_jobs SET status='done', music_id=?, title=? WHERE id=?", args: [music.id, title || '', id] });
+      logger.info('download job completed by worker', { id, musicId: music.id });
+      res.json({ success: true, musicId: music.id });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  },
+
+  // GET /api/youtube/jobs/:id — client polls status
+  async jobStatus(req, res) {
+    try {
+      const { db } = await import('../../database/connection.js');
+      const r = await db.execute({ sql: 'SELECT id, status, music_id, title, error FROM download_jobs WHERE id = ?', args: [req.params.id] });
+      const j = r.rows?.[0];
+      if (!j) return res.status(404).json({ error: 'not found' });
+      res.json({ id: j.id, status: j.status, musicId: j.music_id, title: j.title, error: j.error });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  },
+
   // GET /api/youtube/suggest?q=... — instant type-ahead suggestions
   async suggest(req, res) {
     try {

@@ -19,8 +19,9 @@
   },
   "dependencies": {
     "@capacitor/app": "^8.1.0",
-    "@capacitor/core": "^8.3.4",
+    "@capacitor/core": "^8.4.0",
     "@capacitor/haptics": "^8.0.2",
+    "@capacitor/inappbrowser": "^4.0.0",
     "@capacitor/ios": "^8.3.4",
     "@clerk/clerk-react": "^5.61.8",
     "axios": "^1.6.0",

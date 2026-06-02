@@ -16,6 +16,11 @@ export const DownloaderRoutes = [
     path: '/api/youtube/suggest',
     handler: DownloaderController.suggest,
   },
+  // Download job queue (desktop worker)
+  { method: 'post', path: '/api/youtube/jobs', handler: DownloaderController.createJob },
+  { method: 'get', path: '/api/youtube/jobs/next', handler: DownloaderController.nextJob },
+  { method: 'post', path: '/api/youtube/jobs/:id/result', handler: DownloaderController.submitJobResult },
+  { method: 'get', path: '/api/youtube/jobs/:id', handler: DownloaderController.jobStatus },
   {
     method: 'get',
     path: '/api/youtube/search',
