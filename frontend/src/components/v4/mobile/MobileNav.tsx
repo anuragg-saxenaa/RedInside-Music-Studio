@@ -14,7 +14,7 @@ function Icon({ id, active }: { id: MobileSection; active: boolean }) {
   const s = active ? C.red : 'rgba(255,255,255,0.5)';
   const p = { width: 23, height: 23, viewBox: '0 0 24 24', fill: 'none', stroke: s, strokeWidth: 1.9, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
   switch (id) {
-    case 'library': return (<svg {...p}><path d="M4 19V5a2 2 0 012-2h2v18H6a2 2 0 01-2-2zM10 3h2v18h-2zM15.4 3.5l3.9 1a2 2 0 011.4 2.4l-3.3 12.6"/></svg>);
+    case 'library': return (<svg {...p}><path d="M3 11.5L12 4l9 7.5M5 10v9a1 1 0 001 1h12a1 1 0 001-1v-9"/></svg>);
     case 'sounds':  return (<svg {...p}><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>);
     case 'studio':  return (<svg {...p}><path d="M12 2v6M12 16v6M5 12H2M22 12h-3M6.3 6.3L4 4M20 20l-2.3-2.3"/><circle cx="12" cy="12" r="4"/></svg>);
     case 'details': return (<svg {...p}><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>);
@@ -23,7 +23,7 @@ function Icon({ id, active }: { id: MobileSection; active: boolean }) {
 }
 
 const TABS: { id: MobileSection; label: string }[] = [
-  { id: 'library', label: 'Library' },
+  { id: 'library', label: 'Home' },
   { id: 'sounds',  label: 'Sounds' },
   { id: 'studio',  label: 'Studio' },
   { id: 'details', label: 'Details' },

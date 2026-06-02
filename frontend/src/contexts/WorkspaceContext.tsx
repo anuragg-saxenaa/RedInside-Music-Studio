@@ -35,6 +35,7 @@ interface WorkspaceContextType {
   removeTrackFromPlaylist: (playlistId: string, trackId: string) => void;
   createPlaylistNamed: (name: string) => Promise<string | null>;
   playQueue: (list: MusicGeneration[], startIndex?: number) => void;
+  recentTracks: MusicGeneration[];
   mobilePlaylistId: string | null;
   setMobilePlaylistId: (id: string | null) => void;
 
@@ -113,6 +114,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const queueRef = useRef<MusicGeneration[]>([]);
   const tracksRef = useRef<MusicGeneration[]>([]);
   const [mobilePlaylistId, setMobilePlaylistId] = useState<string | null>(null);
+  const RECENT_KEY = 'ris_recent_tracks';
+  const [recentTracks, setRecentTracks] = useState<MusicGeneration[]>(() => {
+    try { const s = localStorage.getItem(RECENT_KEY); return s ? JSON.parse(s) : []; } catch { return []; }
+  });
   const [selectedTrack, setSelectedTrack] = useState<MusicGeneration | null>(null);
   const [selectedLyrics, setSelectedLyrics] = useState<LyricsGeneration | null>(null);
   const [activeTab, setActiveTab] = useState<V4Tab>((savedUiState?.activeTab as V4Tab) ?? 'sounds');
@@ -410,6 +415,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const q = queueRef.current.length ? queueRef.current : tracksRef.current;
     const idx = q.findIndex(t => t.id === track.id);
     if (idx >= 0 && idx + 1 < q.length) preloadNext(`${API_BASE}/api/music/${q[idx + 1].id}/file`);
+    // Recently played (most-recent first, de-duped, capped) for the Home screen.
+    setRecentTracks(prev => {
+      const next = [track, ...prev.filter(t => t.id !== track.id)].slice(0, 16);
+      try { localStorage.setItem(RECENT_KEY, JSON.stringify(next)); } catch { /* quota */ }
+      return next;
+    });
   }, [playerVolume]);
 
   const togglePlay = useCallback(() => {
@@ -495,7 +506,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       projects, activeProjectId, activeProject, setActiveProjectId: setActiveProjectIdWrapped, refreshProjects,
       tracks, tracksLoading, selectedTrack, setSelectedTrack: setSelectedTrackWrapped, refreshTracks,
       likedIds, isLiked, toggleLike, addTrackToPlaylist, removeTrackFromPlaylist, createPlaylistNamed,
-      playQueue, mobilePlaylistId, setMobilePlaylistId,
+      playQueue, recentTracks, mobilePlaylistId, setMobilePlaylistId,
       selectedLyrics, setSelectedLyrics,
       activeTab: activeTab, setActiveTab: setActiveTabWrapped,
       playlists, refreshPlaylists,

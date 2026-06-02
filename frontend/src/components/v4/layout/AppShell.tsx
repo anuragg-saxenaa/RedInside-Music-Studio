@@ -5,6 +5,7 @@ import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import MobileNav, { type MobileSection } from '../mobile/MobileNav';
 import MobilePlayerFull from '../mobile/MobilePlayerFull';
 import MobilePlaylistView from '../mobile/MobilePlaylistView';
+import MobileHome from '../mobile/MobileHome';
 import PullToRefresh from '../mobile/PullToRefresh';
 import OfflineBanner from '../mobile/OfflineBanner';
 import { PlayIcon, PauseIcon } from '../shared/Icons';
@@ -130,7 +131,7 @@ function MobileMiniPlayer({ onExpand }: { onExpand: () => void }) {
 export default function AppShell({ titlebar, sidebar, centre, rightPanel, playerBar, mockBanner }: AppShellProps) {
   const isMobile = useMobile();
   const { playerTrack, setActiveTab, refreshProjects, refreshTracks, mobilePlaylistId, setMobilePlaylistId } = useWorkspace();
-  const [mobileSection, setMobileSection] = useState<MobileSection>('sounds');
+  const [mobileSection, setMobileSection] = useState<MobileSection>('library');
   const [showFullPlayer, setShowFullPlayer] = useState(false);
 
   const handleMobileNav = (section: MobileSection) => {
@@ -181,9 +182,9 @@ export default function AppShell({ titlebar, sidebar, centre, rightPanel, player
 
       {/* Content area — only one panel visible */}
       <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
-        {/* Library panel */}
+        {/* Home panel */}
         <div style={{ position: 'absolute', inset: 0, display: mobileSection === 'library' ? 'block' : 'none' }}>
-          <PullToRefresh onRefresh={refreshProjects}>{sidebar}</PullToRefresh>
+          <PullToRefresh onRefresh={refreshProjects}><MobileHome onOpenSounds={() => handleMobileNav('sounds')} /></PullToRefresh>
         </div>
 
         {/* Sounds / Studio — centre workspace (tab bar hides on mobile, nav handles tabs) */}
