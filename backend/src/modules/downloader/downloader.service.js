@@ -114,17 +114,17 @@ export const DownloaderService = {
     // Cookie-authenticated strategies FIRST (reliable bypass of bot-check/429).
     // android needs no JS challenge + authenticated = most robust. No-cookie
     // clients remain as fallback for when no cookie is configured.
+    // Note: ios/android clients don't support cookies in yt-dlp — only web* do.
     const strategies = [
       ...(cookiesFile ? [
-        { client: 'android', cookies: true },
-        { client: 'web',     cookies: true },
-        { client: 'ios',     cookies: true },
+        { client: 'web',        cookies: true },
         { client: 'web_safari', cookies: true },
+        { client: 'mweb',       cookies: true },
       ] : []),
       { client: 'android',    cookies: false },
       { client: 'web',        cookies: false },
-      { client: 'ios',        cookies: false },
       { client: 'web_safari', cookies: false },
+      { client: 'ios',        cookies: false },
       { client: 'mweb',       cookies: false },
     ];
 
@@ -159,6 +159,11 @@ export const DownloaderService = {
         '--retries', '3',
         '--no-check-certificates',
         '--force-overwrites',
+        // Enable the EJS (deno) challenge solver so web clients can solve YouTube's
+        // signature / n-challenge — required now, else only images are returned.
+        '--remote-components', 'ejs:github',
+        // Be gentle to avoid IP rate-limiting (429) on shared/datacenter IPs.
+        '--sleep-requests', '1',
         ...(strategy.cookies && cookiesFile ? ['--cookies', cookiesFile] : []),
         '--extractor-args', `youtube:player_client=${strategy.client}`,
         '--age-limit', '99',
