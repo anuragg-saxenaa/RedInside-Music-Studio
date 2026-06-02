@@ -38,6 +38,8 @@ interface WorkspaceContextType {
   queue: MusicGeneration[];
   addToQueue: (track: MusicGeneration) => void;
   playTrackNext: (track: MusicGeneration) => void;
+  sleepMinutes: number | null;
+  setSleepTimer: (minutes: number | null) => void;
   recentTracks: MusicGeneration[];
   mobilePlaylistId: string | null;
   setMobilePlaylistId: (id: string | null) => void;
@@ -119,6 +121,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [queue, setQueueState] = useState<MusicGeneration[]>([]);
   const setQueue = useCallback((list: MusicGeneration[]) => { queueRef.current = list; setQueueState(list); }, []);
   const [mobilePlaylistId, setMobilePlaylistId] = useState<string | null>(null);
+  const sleepRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [sleepMinutes, setSleepMinutes] = useState<number | null>(null);
   const RECENT_KEY = 'ris_recent_tracks';
   const [recentTracks, setRecentTracks] = useState<MusicGeneration[]>(() => {
     try { const s = localStorage.getItem(RECENT_KEY); return s ? JSON.parse(s) : []; } catch { return []; }
@@ -519,6 +523,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const toggleLoop = useCallback(() => setIsLooping(v => !v), []);
   const toggleShuffle = useCallback(() => setIsShuffled(v => !v), []);
 
+  // Sleep timer — pause playback after N minutes (null = off).
+  const setSleepTimer = useCallback((minutes: number | null) => {
+    if (sleepRef.current) { clearTimeout(sleepRef.current); sleepRef.current = null; }
+    if (minutes && minutes > 0) {
+      setSleepMinutes(minutes);
+      sleepRef.current = setTimeout(() => {
+        persistentAudio?.pause();
+        setPlayerIsPlaying(false); setPlaybackState('paused'); setSleepMinutes(null); sleepRef.current = null;
+      }, minutes * 60000);
+    } else {
+      setSleepMinutes(null);
+    }
+  }, []);
+
   // Keep refs in sync so ended handlers always see current values
   useEffect(() => { isLoopingRef.current = isLooping; }, [isLooping]);
   useEffect(() => { isShuffledRef.current = isShuffled; }, [isShuffled]);
@@ -529,7 +547,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       projects, activeProjectId, activeProject, setActiveProjectId: setActiveProjectIdWrapped, refreshProjects,
       tracks, tracksLoading, selectedTrack, setSelectedTrack: setSelectedTrackWrapped, refreshTracks,
       likedIds, isLiked, toggleLike, addTrackToPlaylist, removeTrackFromPlaylist, createPlaylistNamed,
-      playQueue, queue, addToQueue, playTrackNext, recentTracks, mobilePlaylistId, setMobilePlaylistId,
+      playQueue, queue, addToQueue, playTrackNext, sleepMinutes, setSleepTimer, recentTracks, mobilePlaylistId, setMobilePlaylistId,
       selectedLyrics, setSelectedLyrics,
       activeTab: activeTab, setActiveTab: setActiveTabWrapped,
       playlists, refreshPlaylists,

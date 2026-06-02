@@ -23,8 +23,9 @@ export default function MobilePlayerFull({ onClose }: Props) {
     playerTrack, playerIsPlaying, playerProgress, playerCurrentTime, playerDuration, playerVolume,
     togglePlay, seekTo, setPlayerVolume, playNext, playPrev,
     isLooping, isShuffled, toggleLoop, toggleShuffle,
-    isLiked, toggleLike,
+    isLiked, toggleLike, sleepMinutes, setSleepTimer,
   } = useWorkspace();
+  const [showSleep, setShowSleep] = useState(false);
 
   const liked = playerTrack ? isLiked(playerTrack.id) : false;
   const [showAddSheet, setShowAddSheet] = useState(false);
@@ -335,7 +336,29 @@ export default function MobilePlayerFull({ onClose }: Props) {
             style={{ flex: 1, accentColor: C.red, height: '4px' }}
           />
           <svg width="18" height="18" viewBox="0 0 24 24" fill="rgba(255,255,255,0.4)"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 00-2.5-4v8a4.5 4.5 0 002.5-4zM14 3.2v2.1a7 7 0 010 13.4v2.1a9 9 0 000-17.6z"/></svg>
+          {/* Sleep timer */}
+          <button onClick={() => { tapLight(); setShowSleep(v => !v); }} aria-label="Sleep timer"
+            style={{ ...iconBtn, width: 34, height: 34, minWidth: 34, minHeight: 34, color: sleepMinutes ? C.red : 'rgba(255,255,255,0.4)' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill={sleepMinutes ? C.red : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+          </button>
         </div>
+
+        {/* Sleep timer options */}
+        {showSleep && (
+          <div style={{ flexShrink: 0, display: 'flex', gap: 8, justifyContent: 'center', padding: '0 28px 10px', flexWrap: 'wrap' }}>
+            {[15, 30, 45, 60].map(m => (
+              <button key={m} onClick={() => { tapLight(); setSleepTimer(m); setShowSleep(false); }}
+                style={{ padding: '7px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  background: sleepMinutes === m ? C.red : 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}>
+                {m}m
+              </button>
+            ))}
+            <button onClick={() => { tapLight(); setSleepTimer(null); setShowSleep(false); }}
+              style={{ padding: '7px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              Off
+            </button>
+          </div>
+        )}
       </div>
 
       {showAddSheet && playerTrack && (
