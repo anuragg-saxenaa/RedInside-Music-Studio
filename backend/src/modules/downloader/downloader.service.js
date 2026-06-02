@@ -4,25 +4,40 @@ import fs from 'fs';
 import os from 'os';
 import logger from '../../utils/logger.js';
 
-// YouTube blocks datacenter IPs (Railway) unless authenticated. If YT_DLP_COOKIES
-// is set (a Netscape-format cookies.txt export of a logged-in YouTube session),
-// write it to a temp file so yt-dlp can pass --cookies. Returns the path or null.
-function getCookiesFile() {
-  // Prefer base64 (single-line, safe for env vars); fall back to raw text.
-  const b64 = process.env.YT_DLP_COOKIES_B64;
-  const raw = process.env.YT_DLP_COOKIES;
+// YouTube blocks datacenter IPs unless authenticated. A throwaway-account cookie
+// is configured ONCE on the server (DB setting `yt_dlp_cookies_b64`, or env) and
+// used for ALL downloads — no per-user setup. Writes it to a temp cookies.txt and
+// returns the path (cached), or null if none configured.
+let _cookieCache = { content: null, path: null };
+async function getCookiesFile() {
   let content = null;
-  if (b64 && b64.trim()) {
-    try { content = Buffer.from(b64.trim(), 'base64').toString('utf8'); } catch { /* bad b64 */ }
-  } else if (raw && raw.trim()) {
-    content = raw.replace(/\\n/g, '\n');
+  // 1) DB (owner-set via Settings — survives restarts, no redeploy to refresh).
+  try {
+    const { SettingsModel } = await import('../../database/models/settings.model.js');
+    const row = await SettingsModel.get('yt_dlp_cookies_b64');
+    if (row?.value && row.value.trim()) {
+      try { content = Buffer.from(row.value.trim(), 'base64').toString('utf8'); } catch { /* bad b64 */ }
+    }
+  } catch { /* settings unavailable */ }
+  // 2) Env fallback.
+  if (!content) {
+    const b64 = process.env.YT_DLP_COOKIES_B64;
+    const raw = process.env.YT_DLP_COOKIES;
+    if (b64 && b64.trim()) { try { content = Buffer.from(b64.trim(), 'base64').toString('utf8'); } catch { /* */ } }
+    else if (raw && raw.trim()) content = raw.replace(/\\n/g, '\n');
   }
   if (!content) return null;
+  if (_cookieCache.content === content && _cookieCache.path && fs.existsSync(_cookieCache.path)) return _cookieCache.path;
   try {
     const p = path.join(os.tmpdir(), 'yt-cookies.txt');
     fs.writeFileSync(p, content, { mode: 0o600 });
+    _cookieCache = { content, path: p };
     return p;
   } catch { return null; }
+}
+
+export async function hasCookies() {
+  return !!(await getCookiesFile());
 }
 
 export const DownloaderService = {
@@ -39,11 +54,11 @@ export const DownloaderService = {
    * Search YouTube via yt-dlp (no API key needed). Returns lightweight metadata
    * for each result. Reuses our cookies/PO-token setup so it works on cloud IPs.
    */
-  search(query, limit = 20) {
+  async search(query, limit = 20) {
+    const q = String(query || '').trim();
+    if (!q) return [];
+    const cookiesFile = await getCookiesFile();
     return new Promise((resolve, reject) => {
-      const q = String(query || '').trim();
-      if (!q) return resolve([]);
-      const cookiesFile = getCookiesFile();
       const args = [
         '--flat-playlist',
         '--dump-json',
@@ -92,7 +107,7 @@ export const DownloaderService = {
    */
   async download(url, outputDir, { onProgress } = {}) {
     fs.mkdirSync(outputDir, { recursive: true });
-    const cookiesFile = getCookiesFile();
+    const cookiesFile = await getCookiesFile();
 
     // Ordered fallback strategies. The bgutil PO-token plugin (when running)
     // auto-applies to all of them; clients are tried so we survive it being down.

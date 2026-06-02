@@ -25,6 +25,31 @@ export const DownloaderController = {
     res.json(s);
   },
 
+  // GET /api/youtube/cookies/status — is the server download cookie configured?
+  async cookiesStatus(req, res) {
+    try {
+      const { hasCookies } = await import('./downloader.service.js');
+      res.json({ configured: await hasCookies() });
+    } catch (e) { res.status(500).json({ configured: false, error: e.message }); }
+  },
+
+  // POST /api/youtube/cookies { cookies } — one-time server setup: store a
+  // throwaway YouTube account's cookies.txt (base64) so ALL downloads authenticate.
+  async setCookies(req, res) {
+    try {
+      const raw = String(req.body?.cookies || '');
+      if (!raw.trim()) return res.status(400).json({ error: 'cookies required' });
+      if (!/# Netscape|youtube\.com|\.google\.com/i.test(raw)) {
+        return res.status(400).json({ error: 'That does not look like a cookies.txt export.' });
+      }
+      const b64 = Buffer.from(raw, 'utf8').toString('base64');
+      const { SettingsModel } = await import('../../database/models/settings.model.js');
+      await SettingsModel.set('yt_dlp_cookies_b64', b64);
+      logger.info('yt-dlp cookies updated', { bytes: raw.length });
+      res.json({ success: true, configured: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  },
+
   // GET /api/youtube/search?q=... — in-app YouTube search (no API key; yt-dlp)
   async search(req, res) {
     const q = String(req.query.q || '').trim();

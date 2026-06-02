@@ -16,4 +16,14 @@ export const DownloaderRoutes = [
     path: '/api/youtube/search',
     handler: DownloaderController.search,
   },
+  {
+    method: 'get',
+    path: '/api/youtube/cookies/status',
+    handler: DownloaderController.cookiesStatus,
+  },
+  {
+    method: 'post',
+    path: '/api/youtube/cookies',
+    handler: DownloaderController.setCookies,
+  },
 ];
