@@ -1,0 +1,9 @@
+ios
+android
+src-tauri
+node_modules
+dist
+ios-native
+tests
+playwright-report
+test-results
