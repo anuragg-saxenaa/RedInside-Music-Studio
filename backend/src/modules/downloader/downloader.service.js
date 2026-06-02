@@ -8,11 +8,19 @@ import logger from '../../utils/logger.js';
 // is set (a Netscape-format cookies.txt export of a logged-in YouTube session),
 // write it to a temp file so yt-dlp can pass --cookies. Returns the path or null.
 function getCookiesFile() {
+  // Prefer base64 (single-line, safe for env vars); fall back to raw text.
+  const b64 = process.env.YT_DLP_COOKIES_B64;
   const raw = process.env.YT_DLP_COOKIES;
-  if (!raw || !raw.trim()) return null;
+  let content = null;
+  if (b64 && b64.trim()) {
+    try { content = Buffer.from(b64.trim(), 'base64').toString('utf8'); } catch { /* bad b64 */ }
+  } else if (raw && raw.trim()) {
+    content = raw.replace(/\\n/g, '\n');
+  }
+  if (!content) return null;
   try {
     const p = path.join(os.tmpdir(), 'yt-cookies.txt');
-    fs.writeFileSync(p, raw.replace(/\\n/g, '\n'), { mode: 0o600 });
+    fs.writeFileSync(p, content, { mode: 0o600 });
     return p;
   } catch { return null; }
 }
