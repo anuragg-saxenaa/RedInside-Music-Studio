@@ -78,7 +78,6 @@ export const DownloaderService = {
       const outputTemplate = path.join(outputDir, '%(title)s.%(ext)s');
       const args = [
         '-x',
-        '--verbose',
         '--audio-format', 'mp3',
         '--audio-quality', '0',
         '--print-json',
