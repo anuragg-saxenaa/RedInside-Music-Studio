@@ -37,15 +37,45 @@ export const DownloaderService = {
 
   /**
    * Download audio from YouTube URL as MP3, save to outputDir.
-   * Returns { filePath, title, duration }.
+   * Resilient: tries multiple extraction strategies in order (PO-token client,
+   * then alternate player clients, then cookies) until one succeeds — so a single
+   * blocked client never fails the whole download. Returns { filePath, title, duration }.
    */
-  download(url, outputDir, { onProgress } = {}) {
+  async download(url, outputDir, { onProgress } = {}) {
+    fs.mkdirSync(outputDir, { recursive: true });
+    const cookiesFile = getCookiesFile();
+
+    // Ordered fallback strategies. The bgutil PO-token plugin (when running)
+    // auto-applies to all of them; clients are tried so we survive it being down.
+    const strategies = [
+      { client: 'web_safari', cookies: false },
+      { client: 'android',    cookies: false },
+      { client: 'tv_embedded', cookies: false },
+      { client: 'ios',        cookies: false },
+      { client: 'mweb,web',   cookies: false },
+      ...(cookiesFile ? [{ client: 'web_safari', cookies: true }, { client: 'android', cookies: true }] : []),
+    ];
+
+    let lastErr = null;
+    for (let i = 0; i < strategies.length; i++) {
+      const s = strategies[i];
+      try {
+        const result = await this._runYtDlp(url, outputDir, s, cookiesFile, onProgress);
+        if (i > 0) logger.info('yt-dlp succeeded on fallback', { strategy: s, attempt: i + 1 });
+        return result;
+      } catch (e) {
+        lastErr = e;
+        logger.warn('yt-dlp strategy failed, trying next', { client: s.client, cookies: s.cookies, error: String(e.message).slice(-160) });
+        // Clean any partial files before the next attempt.
+        try { fs.readdirSync(outputDir).filter(f => f.endsWith('.part') || f.endsWith('.ytdl')).forEach(f => fs.unlinkSync(path.join(outputDir, f))); } catch { /* ignore */ }
+      }
+    }
+    throw new Error(`All download strategies failed: ${lastErr ? String(lastErr.message).slice(-240) : 'unknown'}`);
+  },
+
+  _runYtDlp(url, outputDir, strategy, cookiesFile, onProgress) {
     return new Promise((resolve, reject) => {
-      fs.mkdirSync(outputDir, { recursive: true });
-
       const outputTemplate = path.join(outputDir, '%(title)s.%(ext)s');
-
-      const cookiesFile = getCookiesFile();
       const args = [
         '-x',
         '--audio-format', 'mp3',
@@ -56,50 +86,36 @@ export const DownloaderService = {
         '--socket-timeout', '30',
         '--retries', '3',
         '--no-check-certificates',
-        // Cookies (when provided) are the reliable bypass for YouTube's bot check
-        // on datacenter IPs. Without them, fall through multiple player clients.
-        ...(cookiesFile ? ['--cookies', cookiesFile] : []),
-        '--extractor-args', 'youtube:player_client=default,web_safari,android,tv_embedded,mweb',
+        '--force-overwrites',
+        ...(strategy.cookies && cookiesFile ? ['--cookies', cookiesFile] : []),
+        '--extractor-args', `youtube:player_client=${strategy.client}`,
         '--age-limit', '99',
         '-o', outputTemplate,
         url,
       ];
 
-      logger.info('yt-dlp start', { cookies: !!cookiesFile });
       const proc = spawn('yt-dlp', args);
       let jsonOutput = '';
       let stderr = '';
-
       proc.stdout.on('data', d => { jsonOutput += d.toString(); });
       proc.stderr.on('data', d => {
         stderr += d.toString();
         const m = stderr.match(/\[download\]\s+([\d.]+)%/);
         if (m) onProgress?.(Math.min(85, parseFloat(m[1])), `Downloading ${m[1]}%`);
       });
-
       proc.on('close', code => {
-        if (code !== 0) {
-          return reject(new Error(`yt-dlp exited ${code}: ${stderr.slice(-300)}`));
-        }
+        if (code !== 0) return reject(new Error(`yt-dlp exited ${code}: ${stderr.slice(-300)}`));
         try {
           const lines = jsonOutput.trim().split('\n').filter(Boolean);
           const info = JSON.parse(lines[lines.length - 1]);
-          const title = info.title || 'Unknown';
-          const duration = info.duration || 0;
-
-          // yt-dlp --print-json prints before conversion; find the final mp3 file
           const files = fs.readdirSync(outputDir).filter(f => f.endsWith('.mp3'));
-          if (!files.length) return reject(new Error('Downloaded MP3 not found in output directory'));
-          const filePath = path.join(outputDir, files[0]);
-          resolve({ filePath, title, duration });
+          if (!files.length) return reject(new Error('Downloaded MP3 not found'));
+          resolve({ filePath: path.join(outputDir, files[0]), title: info.title || 'Unknown', duration: info.duration || 0 });
         } catch (e) {
           reject(new Error(`Failed to parse yt-dlp output: ${e.message}`));
         }
       });
-
-      proc.on('error', err => {
-        reject(new Error(`yt-dlp process error: ${err.message}`));
-      });
+      proc.on('error', err => reject(new Error(`yt-dlp process error: ${err.message}`)));
     });
   },
 };
