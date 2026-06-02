@@ -95,7 +95,9 @@ export class NativeAudioShim {
     if (!this._metaFired && dur > 0) { this._metaFired = true; this._l.loadedmetadata.forEach((f) => f()); }
     this._l.timeupdate.forEach((f) => f());
   }
-  _onEnded() { if (active !== this) return; this._ended = true; this._paused = true; this._l.ended.forEach((f) => f()); }
+  // Guard re-entry: the native side can fire `ended` twice (DidPlayToEndTime +
+  // FailedToPlayToEndTime), which would skip a track on auto-advance.
+  _onEnded() { if (active !== this || this._ended) return; this._ended = true; this._paused = true; this._l.ended.forEach((f) => f()); }
   _onState(isPlaying: boolean) { if (active !== this) return; this._paused = !isPlaying; }
 }
 

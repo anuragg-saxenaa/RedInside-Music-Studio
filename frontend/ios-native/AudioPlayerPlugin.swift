@@ -27,9 +27,14 @@ public class AudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
     private var commandsReady = false
     private var artworkCache: [String: MPMediaItemArtwork] = [:]
     private var meta: [String: String] = [:]
-    // Prebuffered next track (Spotify-style instant skip).
+    // Prebuffered next track (Spotify-style instant skip). We warm an AVURLAsset
+    // (NOT an AVPlayerItem attached to a player) — an item owned by one AVPlayer
+    // cannot be moved to another, which throws NSInvalidArgumentException and
+    // crashes the app on rapid next. From a warmed asset we build a fresh item.
     private var preloadUrl: String?
-    private var preloadItem: AVPlayerItem?
+    private var preloadAsset: AVURLAsset?
+    // Whether playback was active when an interruption (call/Siri) began.
+    private var wasPlayingBeforeInterruption = false
 
     public override func load() {
         do {
@@ -45,16 +50,33 @@ public class AudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
               let raw = info[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
         if type == .began {
-            // System paused us (e.g. incoming call). Reflect in UI/Now Playing.
+            // System paused us (e.g. incoming call). Remember we were playing so we
+            // can resume even when the OS omits the .shouldResume hint (common after
+            // phone calls). Reflect in UI/Now Playing.
+            wasPlayingBeforeInterruption = (player?.rate ?? 0) > 0
             updateNowPlaying(isPlaying: false)
             notifyListeners("statechange", data: ["isPlaying": false])
         } else if type == .ended {
             let opts = AVAudioSession.InterruptionOptions(rawValue: info[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0)
-            if opts.contains(.shouldResume) {
+            // Resume if the system asks OR if we were playing before — Apple Music /
+            // Spotify behaviour. Reactivate the session first; it isn't always ready
+            // the instant the call ends, so retry briefly.
+            let shouldResume = opts.contains(.shouldResume) || wasPlayingBeforeInterruption
+            wasPlayingBeforeInterruption = false
+            if shouldResume {
                 try? AVAudioSession.sharedInstance().setActive(true)
-                player?.play()
-                updateNowPlaying(isPlaying: true)
-                notifyListeners("statechange", data: ["isPlaying": true])
+                let resume = { [weak self] in
+                    guard let self = self else { return }
+                    try? AVAudioSession.sharedInstance().setActive(true)
+                    self.player?.play()
+                    self.updateNowPlaying(isPlaying: true)
+                    self.notifyListeners("statechange", data: ["isPlaying": true])
+                }
+                resume()
+                // Retry once shortly after — the audio route/session can settle late.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    if (self.player?.rate ?? 0) == 0 { resume() }
+                }
             }
         }
     }
@@ -71,15 +93,16 @@ public class AudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
 
         DispatchQueue.main.async {
             self.teardownObservers()
-            // Reuse the prebuffered item if it's this track (instant skip).
+            // Build a fresh item, reusing the warmed asset if it's this track (instant
+            // skip). A fresh item is never owned by another player → no crash.
             let item: AVPlayerItem
-            if self.preloadUrl == urlStr, let pre = self.preloadItem {
-                item = pre
+            if self.preloadUrl == urlStr, let asset = self.preloadAsset {
+                item = AVPlayerItem(asset: asset)
             } else {
                 item = AVPlayerItem(url: url)
-                item.preferredForwardBufferDuration = 4
             }
-            self.preloadUrl = nil; self.preloadItem = nil
+            item.preferredForwardBufferDuration = 4
+            self.preloadUrl = nil; self.preloadAsset = nil
             if self.player == nil { self.player = AVPlayer(playerItem: item) }
             else { self.player?.replaceCurrentItem(with: item) }
             self.player?.automaticallyWaitsToMinimizeStalling = false // start ASAP
@@ -98,17 +121,13 @@ public class AudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
         guard let urlStr = call.getString("url"), let url = URL(string: urlStr) else { call.resolve(); return }
         DispatchQueue.main.async {
             if self.preloadUrl == urlStr { call.resolve(); return }
-            let item = AVPlayerItem(url: url)
-            item.preferredForwardBufferDuration = 6
-            // Attaching to a muted, paused AVPlayer kicks off buffering in the background.
-            let warm = AVPlayer(playerItem: item)
-            warm.volume = 0
-            warm.automaticallyWaitsToMinimizeStalling = true
-            warm.pause()
+            // Warm the asset's metadata + first bytes WITHOUT attaching it to any
+            // AVPlayer. loadTrack later builds a fresh AVPlayerItem from this asset,
+            // so there's never a two-player ownership conflict (the rapid-next crash).
+            let asset = AVURLAsset(url: url)
+            asset.loadValuesAsynchronously(forKeys: ["playable", "duration"], completionHandler: nil)
             self.preloadUrl = urlStr
-            self.preloadItem = item
-            // keep `warm` alive briefly via the item association; release ref after buffering window
-            DispatchQueue.main.asyncAfter(deadline: .now() + 8) { _ = warm }
+            self.preloadAsset = asset
             call.resolve()
         }
     }
