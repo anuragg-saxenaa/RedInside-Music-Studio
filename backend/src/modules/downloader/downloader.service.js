@@ -111,13 +111,21 @@ export const DownloaderService = {
 
     // Ordered fallback strategies. The bgutil PO-token plugin (when running)
     // auto-applies to all of them; clients are tried so we survive it being down.
+    // Cookie-authenticated strategies FIRST (reliable bypass of bot-check/429).
+    // android needs no JS challenge + authenticated = most robust. No-cookie
+    // clients remain as fallback for when no cookie is configured.
     const strategies = [
-      { client: 'web',        cookies: false }, // deno solves its JS challenge
+      ...(cookiesFile ? [
+        { client: 'android', cookies: true },
+        { client: 'web',     cookies: true },
+        { client: 'ios',     cookies: true },
+        { client: 'web_safari', cookies: true },
+      ] : []),
       { client: 'android',    cookies: false },
+      { client: 'web',        cookies: false },
       { client: 'ios',        cookies: false },
       { client: 'web_safari', cookies: false },
       { client: 'mweb',       cookies: false },
-      ...(cookiesFile ? [{ client: 'web', cookies: true }, { client: 'android', cookies: true }] : []),
     ];
 
     let lastErr = null;
