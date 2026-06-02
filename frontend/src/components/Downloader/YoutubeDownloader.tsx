@@ -143,16 +143,27 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
   const [searchQ, setSearchQ] = useState('');
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<{ id: string; title: string; channel: string; duration: number; thumbnail: string; url: string }[] | null>(null);
-  const runSearch = useCallback(async () => {
-    const q = searchQ.trim();
-    if (!q) return;
-    setSearching(true); setSearchResults(null); setError(null);
+  const searchSeq = useRef(0);
+  const runSearch = useCallback(async (term?: string) => {
+    const q = (term ?? searchQ).trim();
+    if (!q) { setSearchResults(null); return; }
+    const seq = ++searchSeq.current;
+    setSearching(true); setError(null);
     try {
       const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(q)}`);
       const data = await res.json();
-      setSearchResults(Array.isArray(data.results) ? data.results : []);
-    } catch { setSearchResults([]); }
-    finally { setSearching(false); }
+      if (seq === searchSeq.current) setSearchResults(Array.isArray(data.results) ? data.results : []);
+    } catch { if (seq === searchSeq.current) setSearchResults([]); }
+    finally { if (seq === searchSeq.current) setSearching(false); }
+  }, [searchQ]);
+
+  // Type-ahead: live search as the user types (debounced); ignores stale responses.
+  useEffect(() => {
+    const q = searchQ.trim();
+    if (q.length < 2) { setSearchResults(null); return; }
+    const t = setTimeout(() => runSearch(q), 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQ]);
 
   const reset = () => {
@@ -250,7 +261,7 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
               />
               {searchQ && <button onClick={() => { setSearchQ(''); setSearchResults(null); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 15 }}>✕</button>}
             </div>
-            <button onClick={runSearch} disabled={searching || !searchQ.trim()} style={{ background: searchQ.trim() ? 'linear-gradient(135deg,#E63946,#b22032)' : 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 600, padding: '0 16px', cursor: searchQ.trim() ? 'pointer' : 'default', whiteSpace: 'nowrap' }}>
+            <button onClick={() => runSearch()} disabled={searching || !searchQ.trim()} style={{ background: searchQ.trim() ? 'linear-gradient(135deg,#E63946,#b22032)' : 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 600, padding: '0 16px', cursor: searchQ.trim() ? 'pointer' : 'default', whiteSpace: 'nowrap' }}>
               {searching ? '…' : 'Search'}
             </button>
           </div>

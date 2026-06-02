@@ -36,6 +36,27 @@ public class AudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
             try AVAudioSession.sharedInstance().setActive(true)
         } catch { print("AudioSession error: \(error)") }
+        // Resume after interruptions (phone calls, Siri) like Apple Music/Spotify.
+        NotificationCenter.default.addObserver(self, selector: #selector(handleInterruption), name: AVAudioSession.interruptionNotification, object: nil)
+    }
+
+    @objc private func handleInterruption(_ n: Notification) {
+        guard let info = n.userInfo,
+              let raw = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+        if type == .began {
+            // System paused us (e.g. incoming call). Reflect in UI/Now Playing.
+            updateNowPlaying(isPlaying: false)
+            notifyListeners("statechange", data: ["isPlaying": false])
+        } else if type == .ended {
+            let opts = AVAudioSession.InterruptionOptions(rawValue: info[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0)
+            if opts.contains(.shouldResume) {
+                try? AVAudioSession.sharedInstance().setActive(true)
+                player?.play()
+                updateNowPlaying(isPlaying: true)
+                notifyListeners("statechange", data: ["isPlaying": true])
+            }
+        }
     }
 
     @objc func loadTrack(_ call: CAPPluginCall) {
@@ -117,10 +138,13 @@ public class AudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
             self.updateElapsed(cur, duration: dur.isFinite ? dur : 0)
         }
         NotificationCenter.default.addObserver(self, selector: #selector(didEnd), name: .AVPlayerItemDidPlayToEndTime, object: item)
+        // Advance even if a track fails/stalls so playback never gets "stuck".
+        NotificationCenter.default.addObserver(self, selector: #selector(didEnd), name: .AVPlayerItemFailedToPlayToEndTime, object: item)
     }
     private func teardownObservers() {
         if let t = timeObserver { player?.removeTimeObserver(t); timeObserver = nil }
         NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: nil)
+        NotificationCenter.default.removeObserver(self, name: .AVPlayerItemFailedToPlayToEndTime, object: nil)
     }
     @objc private func didEnd() { notifyListeners("ended", data: [:]) }
 
