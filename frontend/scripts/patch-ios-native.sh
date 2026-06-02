@@ -52,4 +52,16 @@ if [ -f "$STORY" ] && grep -q 'customClass="CAPBridgeViewController"' "$STORY"; 
   echo "✔ Storyboard → MainViewController"
 fi
 
+# 4. Add the Swift files to the Xcode project (cap-generated pbxproj only compiles
+#    AppDelegate.swift; app-local files must be registered as build sources or
+#    they're silently skipped — caused "no playback" + black screen).
+PBX="ios/App/App.xcodeproj/project.pbxproj"
+if [ -f "$PBX" ] && ! grep -q "AudioPlayerPlugin.swift" "$PBX"; then
+  /usr/bin/perl -0pi -e 's|(\t\t504EC3081FED79650016851F /\* AppDelegate.swift in Sources \*/ = \{isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /\* AppDelegate.swift \*/; \};\n)|$1\t\tAA0002AA0002AA0002AA0002 /* AudioPlayerPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001AA0001AA0001AA0001 /* AudioPlayerPlugin.swift */; };\n\t\tAA0004AA0004AA0004AA0004 /* NowPlayingPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0003AA0003AA0003AA0003 /* NowPlayingPlugin.swift */; };\n\t\tAA0006AA0006AA0006AA0006 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0005AA0005AA0005AA0005 /* MainViewController.swift */; };\n|' "$PBX"
+  /usr/bin/perl -0pi -e 's|(\t\t504EC3071FED79650016851F /\* AppDelegate.swift \*/ = \{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; \};\n)|$1\t\tAA0001AA0001AA0001AA0001 /* AudioPlayerPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerPlugin.swift; sourceTree = "<group>"; };\n\t\tAA0003AA0003AA0003AA0003 /* NowPlayingPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingPlugin.swift; sourceTree = "<group>"; };\n\t\tAA0005AA0005AA0005AA0005 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };\n|' "$PBX"
+  /usr/bin/perl -0pi -e 's|(\t\t\t\t504EC3071FED79650016851F /\* AppDelegate.swift \*/,\n)|$1\t\t\t\tAA0001AA0001AA0001AA0001 /* AudioPlayerPlugin.swift */,\n\t\t\t\tAA0003AA0003AA0003AA0003 /* NowPlayingPlugin.swift */,\n\t\t\t\tAA0005AA0005AA0005AA0005 /* MainViewController.swift */,\n|' "$PBX"
+  /usr/bin/perl -0pi -e 's|(\t\t\t\t504EC3081FED79650016851F /\* AppDelegate.swift in Sources \*/,\n)|$1\t\t\t\tAA0002AA0002AA0002AA0002 /* AudioPlayerPlugin.swift in Sources */,\n\t\t\t\tAA0004AA0004AA0004AA0004 /* NowPlayingPlugin.swift in Sources */,\n\t\t\t\tAA0006AA0006AA0006AA0006 /* MainViewController.swift in Sources */,\n|' "$PBX"
+  echo "✔ Added Swift files to Xcode project"
+fi
+
 echo "Done. Rebuild: npx cap run ios"
