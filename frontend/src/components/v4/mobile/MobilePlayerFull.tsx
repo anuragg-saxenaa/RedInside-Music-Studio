@@ -1,9 +1,10 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { PlayIcon, PauseIcon, PrevIcon, NextIcon, ShuffleIcon, LoopIcon } from '../shared/Icons';
 import { tapLight, tapMedium, selectionChanged } from '../../../lib/haptics';
 import AddToPlaylistSheet from './AddToPlaylistSheet';
+import { useAuthFetch } from '../../../hooks/useAuthFetch';
 
 function fmtTime(s: number) {
   if (!s || !isFinite(s)) return '0:00';
@@ -26,6 +27,21 @@ export default function MobilePlayerFull({ onClose }: Props) {
 
   const liked = playerTrack ? isLiked(playerTrack.id) : false;
   const [showAddSheet, setShowAddSheet] = useState(false);
+  const authFetch = useAuthFetch();
+  const [showLyrics, setShowLyrics] = useState(false);
+  const [lyrics, setLyrics] = useState<string | null>(null);
+  const [lyricsLoading, setLyricsLoading] = useState(false);
+
+  // Fetch lyrics for the current track when the lyrics view is opened.
+  useEffect(() => {
+    if (!showLyrics || !playerTrack?.lyrics_id) { if (!playerTrack?.lyrics_id) setLyrics(null); return; }
+    setLyricsLoading(true); setLyrics(null);
+    authFetch(`/api/lyrics/${playerTrack.lyrics_id}`)
+      .then(r => r.json())
+      .then((d: { content?: string }) => setLyrics(d?.content || ''))
+      .catch(() => setLyrics(''))
+      .finally(() => setLyricsLoading(false));
+  }, [showLyrics, playerTrack?.lyrics_id, authFetch]);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const artRef = useRef<HTMLDivElement>(null);
@@ -169,7 +185,21 @@ export default function MobilePlayerFull({ onClose }: Props) {
           </div>
         </div>
 
-        {/* Artwork */}
+        {/* Lyrics view (replaces artwork when toggled) */}
+        {showLyrics ? (
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '8px 30px 20px', WebkitOverflowScrolling: 'touch' }}>
+            {lyricsLoading && <div style={{ color: 'rgba(255,255,255,0.4)', textAlign: 'center', paddingTop: 40, fontSize: 14 }}>Loading lyrics…</div>}
+            {!lyricsLoading && (!lyrics || !lyrics.trim()) && (
+              <div style={{ color: 'rgba(255,255,255,0.4)', textAlign: 'center', paddingTop: 40, fontSize: 14 }}>No lyrics for this track.</div>
+            )}
+            {!lyricsLoading && lyrics && lyrics.trim() && (
+              <div style={{ fontSize: 21, lineHeight: 1.65, fontWeight: 700, color: '#fff', letterSpacing: '-0.01em', whiteSpace: 'pre-wrap', paddingBottom: 20, animation: 'ris-art-in 400ms ease' }}>
+                {lyrics.trim()}
+              </div>
+            )}
+          </div>
+        ) : (
+        /* Artwork */
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 28px', minHeight: 0 }}>
           <div
             ref={artRef}
@@ -198,9 +228,10 @@ export default function MobilePlayerFull({ onClose }: Props) {
             )}
           </div>
         </div>
+        )}
 
-        {/* Title + artist + like */}
-        <div style={{ flexShrink: 0, padding: '0 28px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+        {/* Title + artist + like + lyrics toggle */}
+        <div style={{ flexShrink: 0, padding: '0 28px', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: '24px', fontWeight: 700, color: '#fff', letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {title}
@@ -209,6 +240,13 @@ export default function MobilePlayerFull({ onClose }: Props) {
               {artist}
             </div>
           </div>
+          <button
+            style={{ ...iconBtn, width: 40, height: 40, color: showLyrics ? C.red : 'rgba(255,255,255,0.6)' }}
+            onClick={() => { tapLight(); setShowLyrics(v => !v); }}
+            aria-label="Toggle lyrics"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h10M4 10h16M4 14h10M4 18h16"/></svg>
+          </button>
           <button
             style={{ ...iconBtn, width: 40, height: 40 }}
             onClick={() => { if (playerTrack) { tapMedium(); toggleLike(playerTrack); } }}
