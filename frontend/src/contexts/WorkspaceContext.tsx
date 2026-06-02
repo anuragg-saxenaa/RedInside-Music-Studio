@@ -55,6 +55,7 @@ interface WorkspaceContextType {
 
   playerTrack: MusicGeneration | null;
   playerIsPlaying: boolean;
+  playerLoading: boolean;
   playerProgress: number;
   playerCurrentTime: number;
   playerDuration: number;
@@ -133,6 +134,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [playerTrack, setPlayerTrack] = useState<MusicGeneration | null>(persistentTrack);
   const [playerIsPlaying, setPlayerIsPlaying] = useState(false);
+  const [playerLoading, setPlayerLoading] = useState(false);
   const [playerProgress, setPlayerProgress] = useState(0);
   const [playerCurrentTime, setPlayerCurrentTime] = useState(0);
   const [playerDuration, setPlayerDuration] = useState(0);
@@ -407,10 +409,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setPlayerTrack(track);
     setSelectedTrack(track);
     setPlayerIsPlaying(true);
+    setPlayerLoading(true); // instant feedback until audio actually starts
     setPlayerProgress(0);
     setPlayerCurrentTime(0);
     setNowPlaying({ title: track.title || `Track v${track.version}`, artist: track.artist || '', artworkUrl: nowPlayingArt(track) });
     const updateTime = () => {
+      if (audio.currentTime > 0) setPlayerLoading(false);
       if (audio.duration && isFinite(audio.duration)) {
         setPlayerProgress(audio.currentTime / audio.duration);
         setPlayerCurrentTime(audio.currentTime);
@@ -559,7 +563,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       selectedLyrics, setSelectedLyrics,
       activeTab: activeTab, setActiveTab: setActiveTabWrapped,
       playlists, refreshPlaylists,
-      playerTrack, playerIsPlaying, playerProgress, playerCurrentTime, playerDuration, playerVolume,
+      playerTrack, playerIsPlaying, playerLoading, playerProgress, playerCurrentTime, playerDuration, playerVolume,
       playTrack, togglePlay, seekTo, setPlayerVolume, playNext, playPrev,
       isLooping, isShuffled, toggleLoop, toggleShuffle,
       isMockMode,

@@ -22,7 +22,7 @@ interface AppShellProps {
 
 // Mobile mini player bar
 function MobileMiniPlayer({ onExpand }: { onExpand: () => void }) {
-  const { playerTrack, playerIsPlaying, playerProgress, togglePlay, playNext, playPrev } = useWorkspace();
+  const { playerTrack, playerIsPlaying, playerLoading, playerProgress, togglePlay, playNext, playPrev } = useWorkspace();
   const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
   const artworkUrl = playerTrack?.artwork_url
     ? (playerTrack.artwork_url.startsWith('http') ? playerTrack.artwork_url : `${API_BASE}/api/projects/${playerTrack.project_id}/artwork/${playerTrack.id}`)
@@ -122,8 +122,11 @@ function MobileMiniPlayer({ onExpand }: { onExpand: () => void }) {
           color: C.text,
         }}
       >
-        {playerIsPlaying ? <PauseIcon size={20} /> : <PlayIcon size={20} />}
+        {playerLoading
+          ? <span style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${C.red}55`, borderTopColor: C.red, display: 'inline-block', animation: 'ris-spin 0.7s linear infinite' }} />
+          : playerIsPlaying ? <PauseIcon size={20} /> : <PlayIcon size={20} />}
       </button>
+      <style>{`@keyframes ris-spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }

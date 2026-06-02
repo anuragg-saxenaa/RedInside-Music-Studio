@@ -258,7 +258,7 @@ export const ProjectsController = {
       if (!buf) return res.status(204).send();
 
       res.setHeader('Content-Type', 'image/png');
-      res.setHeader('Cache-Control', 'public, max-age=60');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
       return res.send(buf);
     } catch (error) {
       next(error);
@@ -299,7 +299,7 @@ export const ProjectsController = {
       const buf = await storage.readBufferAnywhere(album.artwork_path);
       if (!buf) return res.status(404).json({ error: 'File not found' });
       res.setHeader('Content-Type', 'image/png');
-      res.setHeader('Cache-Control', 'public, max-age=60');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
       res.send(buf);
     } catch (err) { next(err); }
   },

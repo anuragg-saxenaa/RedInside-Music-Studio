@@ -20,7 +20,7 @@ interface Props {
 
 export default function MobilePlayerFull({ onClose }: Props) {
   const {
-    playerTrack, playerIsPlaying, playerProgress, playerCurrentTime, playerDuration, playerVolume,
+    playerTrack, playerIsPlaying, playerLoading, playerProgress, playerCurrentTime, playerDuration, playerVolume,
     togglePlay, seekTo, setPlayerVolume, playNext, playPrev,
     isLooping, isShuffled, toggleLoop, toggleShuffle,
     isLiked, toggleLike, sleepMinutes, setSleepTimer,
@@ -155,6 +155,7 @@ export default function MobilePlayerFull({ onClose }: Props) {
       <style>{`
         @keyframes ris-player-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
         @keyframes ris-art-in { from { opacity: 0; transform: scale(1.08); } to { opacity: 1; transform: scale(1); } }
+        @keyframes ris-spin { to { transform: rotate(360deg); } }
       `}</style>
 
       {/* ── Ambient backdrop: blurred artwork + scrim ── */}
@@ -324,7 +325,9 @@ export default function MobilePlayerFull({ onClose }: Props) {
               boxShadow: `0 8px 28px ${C.red}66, inset 0 1px 1px rgba(255,255,255,0.4)`,
             }}
           >
-            {playerIsPlaying ? <PauseIcon size={28} /> : <span style={{ marginLeft: '4px' }}><PlayIcon size={28} /></span>}
+            {playerLoading
+              ? <span style={{ width: 26, height: 26, borderRadius: '50%', border: '3px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', display: 'inline-block', animation: 'ris-spin 0.7s linear infinite' }} />
+              : playerIsPlaying ? <PauseIcon size={28} /> : <span style={{ marginLeft: '4px' }}><PlayIcon size={28} /></span>}
           </button>
           <button onClick={() => { tapLight(); playNext(); }} style={{ ...iconBtn, width: 56, height: 56, color: '#fff' }}>
             <NextIcon size={32} />

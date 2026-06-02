@@ -20,23 +20,29 @@ function fmtDuration(s?: number | null) {
   return `${m}:${sec.toString().padStart(2, '0')}`;
 }
 
-function Badge({ label, color }: { label: string; color: string }) {
+function Badge({ label, color, icon }: { label: string; color: string; icon?: React.ReactNode }) {
   return (
     <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 3,
       fontSize: '9px',
       fontWeight: 700,
-      letterSpacing: '0.6px',
-      padding: '2px 5px',
-      borderRadius: '3px',
-      border: `1px solid ${color}44`,
+      letterSpacing: '0.5px',
+      padding: '2.5px 6px',
+      borderRadius: '6px',
+      border: `1px solid ${color}55`,
       color,
-      background: `${color}11`,
+      background: `${color}1a`,
       flexShrink: 0,
+      lineHeight: 1,
     }}>
-      {label}
+      {icon}{label}
     </span>
   );
 }
+
+const YT_GLYPH = (
+  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M23 7.5a3 3 0 00-2.1-2.1C19 5 12 5 12 5s-7 0-8.9.4A3 3 0 001 7.5 31 31 0 00.5 12 31 31 0 001 16.5a3 3 0 002.1 2.1C5 19 12 19 12 19s7 0 8.9-.4a3 3 0 002.1-2.1A31 31 0 0023.5 12 31 31 0 0023 7.5zM9.8 15.3V8.7l5.7 3.3z"/></svg>
+);
 
 export default function TrackRow({ track, onDoubleClick, onEdit, isEditOpen }: TrackRowProps) {
   const { selectedTrack, setSelectedTrack, playTrack, playerTrack, playerIsPlaying, refreshTracks, setActiveTab } = useWorkspace();
@@ -138,7 +144,7 @@ export default function TrackRow({ track, onDoubleClick, onEdit, isEditOpen }: T
           <div style={{ color: C.textDim, fontSize: '11px', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
             <span>{fmtDuration(track.duration_seconds)}{track.bitrate ? ` · ${track.bitrate}kbps` : ''}</span>
             {track.model?.includes('youtube')
-              ? <Badge label="YOUTUBE" color="#ff2d55" />
+              ? <Badge label="YouTube" color="#ff2d55" icon={YT_GLYPH} />
               : <Badge label="AI" color={C.red} />}
             {isMastered && <Badge label="MASTERED" color={C.gold} />}
             {track.is_instrumental && <Badge label="INSTRUMENTAL" color="#60a5fa" />}
