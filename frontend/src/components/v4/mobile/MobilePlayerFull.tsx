@@ -3,6 +3,7 @@ import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { PlayIcon, PauseIcon, PrevIcon, NextIcon, ShuffleIcon, LoopIcon } from '../shared/Icons';
 import { tapLight, tapMedium, selectionChanged } from '../../../lib/haptics';
+import AddToPlaylistSheet from './AddToPlaylistSheet';
 
 function fmtTime(s: number) {
   if (!s || !isFinite(s)) return '0:00';
@@ -24,6 +25,7 @@ export default function MobilePlayerFull({ onClose }: Props) {
   } = useWorkspace();
 
   const liked = playerTrack ? isLiked(playerTrack.id) : false;
+  const [showAddSheet, setShowAddSheet] = useState(false);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const artRef = useRef<HTMLDivElement>(null);
@@ -161,7 +163,7 @@ export default function MobilePlayerFull({ onClose }: Props) {
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2.4" strokeLinecap="round"><path d="M6 9l6 6 6-6"/></svg>
             </button>
             <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 600 }}>Now Playing</span>
-            <button style={iconBtn}>
+            <button style={iconBtn} aria-label="Add to playlist" onClick={() => { if (playerTrack) { tapLight(); setShowAddSheet(true); } }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="rgba(255,255,255,0.7)"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
             </button>
           </div>
@@ -290,6 +292,10 @@ export default function MobilePlayerFull({ onClose }: Props) {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="rgba(255,255,255,0.4)"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 00-2.5-4v8a4.5 4.5 0 002.5-4zM14 3.2v2.1a7 7 0 010 13.4v2.1a9 9 0 000-17.6z"/></svg>
         </div>
       </div>
+
+      {showAddSheet && playerTrack && (
+        <AddToPlaylistSheet track={playerTrack} onClose={() => setShowAddSheet(false)} />
+      )}
     </div>
   );
 }

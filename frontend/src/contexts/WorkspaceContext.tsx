@@ -31,6 +31,12 @@ interface WorkspaceContextType {
   likedIds: Set<string>;
   isLiked: (trackId: string) => boolean;
   toggleLike: (track: MusicGeneration) => void;
+  addTrackToPlaylist: (playlistId: string, trackId: string) => void;
+  removeTrackFromPlaylist: (playlistId: string, trackId: string) => void;
+  createPlaylistNamed: (name: string) => Promise<string | null>;
+  playQueue: (list: MusicGeneration[], startIndex?: number) => void;
+  mobilePlaylistId: string | null;
+  setMobilePlaylistId: (id: string | null) => void;
 
   selectedLyrics: LyricsGeneration | null;
   setSelectedLyrics: (l: LyricsGeneration | null) => void;
@@ -104,6 +110,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [tracksLoading, setTracksLoading] = useState(false);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const likedPlaylistId = useRef<string | null>(null);
+  const queueRef = useRef<MusicGeneration[]>([]);
+  const [mobilePlaylistId, setMobilePlaylistId] = useState<string | null>(null);
   const [selectedTrack, setSelectedTrack] = useState<MusicGeneration | null>(null);
   const [selectedLyrics, setSelectedLyrics] = useState<LyricsGeneration | null>(null);
   const [activeTab, setActiveTab] = useState<V4Tab>((savedUiState?.activeTab as V4Tab) ?? 'sounds');
@@ -304,6 +312,37 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     } catch { /* keep optimistic state; will reconcile on next load */ }
   }, [authFetch, likedIds, refreshPlaylists]);
 
+  // Generic playlist membership (used by the add-to-playlist sheet).
+  const addTrackToPlaylist = useCallback(async (playlistId: string, trackId: string) => {
+    try {
+      await authFetch(`/api/playlists/${playlistId}/tracks`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ musicId: trackId }),
+      });
+      if (playlistId === likedPlaylistId.current) setLikedIds(prev => new Set(prev).add(trackId));
+      refreshPlaylists();
+    } catch { /* ignore */ }
+  }, [authFetch, refreshPlaylists]);
+
+  const removeTrackFromPlaylist = useCallback(async (playlistId: string, trackId: string) => {
+    try {
+      await authFetch(`/api/playlists/${playlistId}/tracks/${trackId}`, { method: 'DELETE' });
+      if (playlistId === likedPlaylistId.current) setLikedIds(prev => { const n = new Set(prev); n.delete(trackId); return n; });
+      refreshPlaylists();
+    } catch { /* ignore */ }
+  }, [authFetch, refreshPlaylists]);
+
+  const createPlaylistNamed = useCallback(async (name: string): Promise<string | null> => {
+    try {
+      const created = await (await authFetch('/api/playlists', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      })).json();
+      refreshPlaylists();
+      return created?.id ?? null;
+    } catch { return null; }
+  }, [authFetch, refreshPlaylists]);
+
   // Load likes once on mount. Deps intentionally empty — loadLikes closes over a
   // stable authFetch; keying the effect on it would re-fire every render (the
   // no-Clerk auth stub returns a fresh getToken each render), causing a fetch loop.
@@ -326,7 +365,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const activeProject = projects.find(p => p.id === activeProjectId) ?? null;
 
-  const playTrack = useCallback((track: MusicGeneration) => {
+  const playTrack = useCallback((track: MusicGeneration, preserveQueue = false) => {
+    // A direct tap (Sounds list, etc.) clears the queue so next/prev follow the
+    // project tracks; playlist playback passes preserveQueue to keep its queue.
+    if (!preserveQueue) queueRef.current = [];
     // If this exact track is already loaded, toggle play/pause instead of restarting
     if (persistentAudio && persistentTrack?.id === track.id && persistentAudio.src) {
       if (persistentAudio.paused) { persistentAudio.play().catch(() => {}); setPlayerIsPlaying(true); setPlaybackState('playing'); }
@@ -381,26 +423,35 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (persistentAudio) persistentAudio.volume = v;
   }, []);
 
+  // Active play source: the playlist queue if one is set, else the project tracks.
+  const playQueue = useCallback((list: MusicGeneration[], startIndex = 0) => {
+    if (!list.length) return;
+    queueRef.current = list.slice();
+    playTrack(list[Math.max(0, Math.min(startIndex, list.length - 1))], true);
+  }, [playTrack]);
+
   const playNext = useCallback(() => {
-    if (!playerTrack || tracks.length === 0) return;
-    if (isShuffledRef.current && tracks.length > 1) {
-      const others = tracks.filter(t => t.id !== playerTrack.id);
-      playTrack(others[Math.floor(Math.random() * others.length)]);
+    const q = queueRef.current.length ? queueRef.current : tracks;
+    if (!playerTrack || q.length === 0) return;
+    if (isShuffledRef.current && q.length > 1) {
+      const others = q.filter(t => t.id !== playerTrack.id);
+      playTrack(others[Math.floor(Math.random() * others.length)], true);
       return;
     }
-    const idx = tracks.findIndex(t => t.id === playerTrack.id);
-    const isLast = idx === tracks.length - 1;
+    const idx = q.findIndex(t => t.id === playerTrack.id);
+    const isLast = idx === q.length - 1;
     if (isLast && !isLoopingRef.current) return;
-    playTrack(tracks[(idx + 1) % tracks.length]);
+    playTrack(q[(idx + 1) % q.length], true);
   }, [playerTrack, tracks, playTrack]);
 
   // Keep playNextRef current so ended handlers can call it without stale closure
   useEffect(() => { playNextRef.current = playNext; }, [playNext]);
 
   const playPrev = useCallback(() => {
-    if (!playerTrack || tracks.length === 0) return;
-    const idx = tracks.findIndex(t => t.id === playerTrack.id);
-    playTrack(tracks[(idx - 1 + tracks.length) % tracks.length]);
+    const q = queueRef.current.length ? queueRef.current : tracks;
+    if (!playerTrack || q.length === 0) return;
+    const idx = q.findIndex(t => t.id === playerTrack.id);
+    playTrack(q[(idx - 1 + q.length) % q.length], true);
   }, [playerTrack, tracks, playTrack]);
 
   useEffect(() => { playPrevRef.current = playPrev; }, [playPrev]);
@@ -437,7 +488,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     <WorkspaceContext.Provider value={{
       projects, activeProjectId, activeProject, setActiveProjectId: setActiveProjectIdWrapped, refreshProjects,
       tracks, tracksLoading, selectedTrack, setSelectedTrack: setSelectedTrackWrapped, refreshTracks,
-      likedIds, isLiked, toggleLike,
+      likedIds, isLiked, toggleLike, addTrackToPlaylist, removeTrackFromPlaylist, createPlaylistNamed,
+      playQueue, mobilePlaylistId, setMobilePlaylistId,
       selectedLyrics, setSelectedLyrics,
       activeTab: activeTab, setActiveTab: setActiveTabWrapped,
       playlists, refreshPlaylists,

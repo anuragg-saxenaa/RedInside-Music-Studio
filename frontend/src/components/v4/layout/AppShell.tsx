@@ -4,6 +4,7 @@ import { useMobile } from '../../../hooks/useMobile';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import MobileNav, { type MobileSection } from '../mobile/MobileNav';
 import MobilePlayerFull from '../mobile/MobilePlayerFull';
+import MobilePlaylistView from '../mobile/MobilePlaylistView';
 import PullToRefresh from '../mobile/PullToRefresh';
 import OfflineBanner from '../mobile/OfflineBanner';
 import { PlayIcon, PauseIcon } from '../shared/Icons';
@@ -128,7 +129,7 @@ function MobileMiniPlayer({ onExpand }: { onExpand: () => void }) {
 
 export default function AppShell({ titlebar, sidebar, centre, rightPanel, playerBar, mockBanner }: AppShellProps) {
   const isMobile = useMobile();
-  const { playerTrack, setActiveTab, refreshProjects, refreshTracks } = useWorkspace();
+  const { playerTrack, setActiveTab, refreshProjects, refreshTracks, mobilePlaylistId, setMobilePlaylistId } = useWorkspace();
   const [mobileSection, setMobileSection] = useState<MobileSection>('sounds');
   const [showFullPlayer, setShowFullPlayer] = useState(false);
 
@@ -224,6 +225,11 @@ export default function AppShell({ titlebar, sidebar, centre, rightPanel, player
         onChange={handleMobileNav}
         hasTrack={!!playerTrack}
       />
+
+      {/* Full-screen playlist detail overlay */}
+      {mobilePlaylistId && (
+        <MobilePlaylistView playlistId={mobilePlaylistId} onBack={() => setMobilePlaylistId(null)} />
+      )}
 
       {/* Full-screen player overlay */}
       {showFullPlayer && (

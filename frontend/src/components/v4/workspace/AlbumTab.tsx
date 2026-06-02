@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { useAuthFetch } from '../../../hooks/useAuthFetch';
+import DownloadButton from '../downloads/DownloadButton';
 import type { Album, MusicGeneration } from '../../../types';
 
 export default function AlbumTab() {
@@ -304,8 +305,13 @@ export default function AlbumTab() {
 
           {/* Tracklist */}
           <div>
-            <div style={{ color: 'rgba(255,255,255,0.28)', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.4px', marginBottom: '8px' }}>
-              Tracklist — drag to reorder
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ color: 'rgba(255,255,255,0.28)', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.4px' }}>
+                Tracklist — drag to reorder
+              </div>
+              {albumTracks.length > 0 && (
+                <DownloadButton label="Download album" tracks={albumTracks.map(t => ({ id: t.id, title: t.title || `Track v${t.version}`, artist: t.artist, projectId: t.project_id }))} />
+              )}
             </div>
 
             {albumTracks.map((t, idx) => (

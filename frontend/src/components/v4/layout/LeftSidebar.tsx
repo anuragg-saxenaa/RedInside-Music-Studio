@@ -39,7 +39,7 @@ interface LeftSidebarProps {
 }
 
 export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
-  const { projects, activeProjectId, setActiveProjectId, refreshProjects, playlists, refreshPlaylists, tracks, playTrack, setSelectedTrack, playerTrack, playerIsPlaying, setActiveTab } = useWorkspace();
+  const { projects, activeProjectId, setActiveProjectId, refreshProjects, playlists, refreshPlaylists, tracks, playTrack, setSelectedTrack, playerTrack, playerIsPlaying, setActiveTab, setMobilePlaylistId } = useWorkspace();
   const authFetch = useAuthFetch();
   const isMobile = useMobile();
   const [newProjectName, setNewProjectName] = useState('');
@@ -541,6 +541,7 @@ export default function LeftSidebar({ onOpenSearch }: LeftSidebarProps) {
                     role="button"
                     tabIndex={0}
                     onClick={() => {
+                      if (isMobile) { setMobilePlaylistId(pl.id); return; }
                       const next = expanded ? null : pl.id;
                       setActivePlaylistId(next);
                       if (next && !playlistTracks[pl.id]) {
