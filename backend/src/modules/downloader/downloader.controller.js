@@ -50,6 +50,14 @@ export const DownloaderController = {
     } catch (e) { res.status(500).json({ error: e.message }); }
   },
 
+  // GET /api/youtube/suggest?q=... — instant type-ahead suggestions
+  async suggest(req, res) {
+    try {
+      const suggestions = await DownloaderService.suggest(String(req.query.q || ''));
+      res.json({ suggestions });
+    } catch { res.json({ suggestions: [] }); }
+  },
+
   // GET /api/youtube/search?q=... — in-app YouTube search (no API key; yt-dlp)
   async search(req, res) {
     const q = String(req.query.q || '').trim();

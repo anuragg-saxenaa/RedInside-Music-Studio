@@ -143,12 +143,17 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
   const [searchQ, setSearchQ] = useState('');
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<{ id: string; title: string; channel: string; duration: number; thumbnail: string; url: string }[] | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSug, setShowSug] = useState(false);
   const searchSeq = useRef(0);
+  const sugSeq = useRef(0);
+
   const runSearch = useCallback(async (term?: string) => {
     const q = (term ?? searchQ).trim();
     if (!q) { setSearchResults(null); return; }
+    setShowSug(false);
     const seq = ++searchSeq.current;
-    setSearching(true); setError(null);
+    setSearching(true); setError(null); setSearchResults([]);
     try {
       const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(q)}`);
       const data = await res.json();
@@ -157,14 +162,22 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
     finally { if (seq === searchSeq.current) setSearching(false); }
   }, [searchQ]);
 
-  // Type-ahead: live search as the user types (debounced); ignores stale responses.
+  // Instant type-ahead suggestions (fast, no yt-dlp) — smooth as you type.
   useEffect(() => {
     const q = searchQ.trim();
-    if (q.length < 2) { setSearchResults(null); return; }
-    const t = setTimeout(() => runSearch(q), 350);
+    if (q.length < 1) { setSuggestions([]); setShowSug(false); return; }
+    const t = setTimeout(async () => {
+      const seq = ++sugSeq.current;
+      try {
+        const res = await fetch(`/api/youtube/suggest?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        if (seq === sugSeq.current) { setSuggestions(Array.isArray(data.suggestions) ? data.suggestions : []); setShowSug(true); }
+      } catch { /* ignore */ }
+    }, 120);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQ]);
+
+  const pickSuggestion = (s: string) => { setSearchQ(s); setSuggestions([]); setShowSug(false); runSearch(s); };
 
   const reset = () => {
     if (stalledRef.current) { clearInterval(stalledRef.current); stalledRef.current = null; }
@@ -249,27 +262,53 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
         <div style={{ animation: 'ytFadeUp 0.25s ease' }}>
 
           {/* ── Search YouTube ── */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 8, position: 'relative' }}>
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 9, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '0 13px' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3" strokeLinecap="round"/></svg>
               <input
                 value={searchQ}
                 onChange={e => setSearchQ(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && runSearch()}
+                onKeyDown={e => { if (e.key === 'Enter') runSearch(); if (e.key === 'Escape') setShowSug(false); }}
+                onFocus={() => suggestions.length && setShowSug(true)}
                 placeholder="Search YouTube — song, artist…"
                 style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: '#fff', fontSize: 13, padding: '11px 0', fontFamily: 'inherit' }}
               />
-              {searchQ && <button onClick={() => { setSearchQ(''); setSearchResults(null); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 15 }}>✕</button>}
+              {searchQ && <button onClick={() => { setSearchQ(''); setSearchResults(null); setSuggestions([]); setShowSug(false); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 15 }}>✕</button>}
             </div>
             <button onClick={() => runSearch()} disabled={searching || !searchQ.trim()} style={{ background: searchQ.trim() ? 'linear-gradient(135deg,#E63946,#b22032)' : 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 600, padding: '0 16px', cursor: searchQ.trim() ? 'pointer' : 'default', whiteSpace: 'nowrap' }}>
               {searching ? '…' : 'Search'}
             </button>
+
+            {/* Type-ahead suggestions dropdown */}
+            {showSug && suggestions.length > 0 && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 30, background: 'rgba(20,10,16,0.97)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, overflow: 'hidden', boxShadow: '0 12px 40px rgba(0,0,0,0.5)', animation: 'ytFadeUp 0.15s ease' }}>
+                {suggestions.map((s, i) => (
+                  <button key={i} onClick={() => pickSuggestion(s)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', background: 'none', border: 'none', borderBottom: i < suggestions.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none', color: '#fff', cursor: 'pointer', padding: '10px 14px', fontSize: 13, textAlign: 'left' }}
+                    onMouseOver={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                    onMouseOut={e => (e.currentTarget.style.background = 'none')}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3" strokeLinecap="round"/></svg>
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Search results */}
           {searchResults && (
-            <div style={{ marginBottom: 14, maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {searchResults.length === 0 && <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12, textAlign: 'center', padding: '14px' }}>No results.</div>}
+            <div style={{ marginBottom: 14, maxHeight: 340, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {searching && searchResults.length === 0 && Array.from({ length: 5 }).map((_, i) => (
+                <div key={`sk${i}`} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 7 }}>
+                  <div style={{ width: 64, height: 40, borderRadius: 5, flexShrink: 0, background: 'linear-gradient(90deg,rgba(255,255,255,0.05),rgba(255,255,255,0.11),rgba(255,255,255,0.05))', backgroundSize: '400% 100%', animation: 'ris-shimmer 1.4s ease infinite' }} />
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ width: `${70 - i * 6}%`, height: 11, borderRadius: 4, background: 'linear-gradient(90deg,rgba(255,255,255,0.05),rgba(255,255,255,0.11),rgba(255,255,255,0.05))', backgroundSize: '400% 100%', animation: 'ris-shimmer 1.4s ease infinite' }} />
+                    <div style={{ width: '40%', height: 9, borderRadius: 4, background: 'rgba(255,255,255,0.05)' }} />
+                  </div>
+                </div>
+              ))}
+              <style>{`@keyframes ris-shimmer{0%{background-position:100% 50%}100%{background-position:0 50%}}`}</style>
+              {!searching && searchResults.length === 0 && <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12, textAlign: 'center', padding: '14px' }}>No results.</div>}
               {searchResults.map(r => (
                 <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 9, padding: 7 }}>
                   <div style={{ width: 64, height: 40, borderRadius: 5, overflow: 'hidden', flexShrink: 0, background: '#000' }}>

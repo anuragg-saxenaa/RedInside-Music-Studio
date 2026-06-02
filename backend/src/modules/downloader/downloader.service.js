@@ -51,6 +51,22 @@ export const DownloaderService = {
   },
 
   /**
+   * Instant search suggestions (YouTube's public autocomplete — fast, no key).
+   * Returns up to 10 query strings for type-ahead.
+   */
+  async suggest(query) {
+    const q = String(query || '').trim();
+    if (!q) return [];
+    try {
+      const res = await fetch(`https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=${encodeURIComponent(q)}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(2500),
+      });
+      const data = await res.json(); // ["query", ["s1","s2",...]]
+      return Array.isArray(data?.[1]) ? data[1].slice(0, 10) : [];
+    } catch { return []; }
+  },
+
+  /**
    * Search YouTube via yt-dlp (no API key needed). Returns lightweight metadata
    * for each result. Reuses our cookies/PO-token setup so it works on cloud IPs.
    */

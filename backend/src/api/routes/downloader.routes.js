@@ -13,6 +13,11 @@ export const DownloaderRoutes = [
   },
   {
     method: 'get',
+    path: '/api/youtube/suggest',
+    handler: DownloaderController.suggest,
+  },
+  {
+    method: 'get',
     path: '/api/youtube/search',
     handler: DownloaderController.search,
   },
