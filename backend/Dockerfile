@@ -1,7 +1,8 @@
 FROM node:20-alpine
 
 RUN corepack enable && corepack prepare pnpm@9 --activate && \
-    apk add --no-cache python3 make g++ ffmpeg py3-pip git && \
+    apk add --no-cache python3 make g++ ffmpeg py3-pip git \
+      pkgconf cairo-dev pango-dev jpeg-dev giflib-dev pixman-dev && \
     pip3 install --no-cache-dir --break-system-packages --upgrade yt-dlp bgutil-ytdlp-pot-provider
 
 # PO-token provider — generates the token YouTube now requires from datacenter
