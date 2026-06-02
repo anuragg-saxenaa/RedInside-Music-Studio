@@ -60,6 +60,7 @@ export const DownloaderController = {
       let host; try { host = new URL(url).hostname; } catch { return res.status(400).json({ error: 'Invalid URL' }); }
       if (!ALLOWED_HOSTS.includes(host)) return res.status(400).json({ error: 'Only YouTube URLs supported' });
       const { default: db } = await import('../../database/connection.js');
+      await db.execute("CREATE TABLE IF NOT EXISTS download_jobs (id TEXT PRIMARY KEY, url TEXT NOT NULL, project_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', music_id TEXT, title TEXT, error TEXT, claimed_at TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)");
       const id = `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       await db.execute({ sql: 'INSERT INTO download_jobs (id, url, project_id, status) VALUES (?, ?, ?, ?)', args: [id, url, projectId, 'pending'] });
       logger.info('download job queued', { id, url });
