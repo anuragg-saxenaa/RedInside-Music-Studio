@@ -59,7 +59,7 @@ export const DownloaderController = {
       if (!url || !projectId) return res.status(400).json({ error: 'url and projectId required' });
       let host; try { host = new URL(url).hostname; } catch { return res.status(400).json({ error: 'Invalid URL' }); }
       if (!ALLOWED_HOSTS.includes(host)) return res.status(400).json({ error: 'Only YouTube URLs supported' });
-      const { db } = await import('../../database/connection.js');
+      const { default: db } = await import('../../database/connection.js');
       const id = `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       await db.execute({ sql: 'INSERT INTO download_jobs (id, url, project_id, status) VALUES (?, ?, ?, ?)', args: [id, url, projectId, 'pending'] });
       logger.info('download job queued', { id, url });
@@ -70,7 +70,7 @@ export const DownloaderController = {
   // GET /api/youtube/jobs/next — worker claims the oldest pending job
   async nextJob(req, res) {
     try {
-      const { db } = await import('../../database/connection.js');
+      const { default: db } = await import('../../database/connection.js');
       const r = await db.execute({ sql: "SELECT * FROM download_jobs WHERE status = 'pending' ORDER BY created_at ASC LIMIT 1" });
       const job = r.rows?.[0];
       if (!job) return res.json({ job: null });
@@ -85,7 +85,7 @@ export const DownloaderController = {
     try {
       const { id } = req.params;
       const { audioBase64, title, duration, ext } = req.body || {};
-      const { db } = await import('../../database/connection.js');
+      const { default: db } = await import('../../database/connection.js');
       const jr = await db.execute({ sql: 'SELECT * FROM download_jobs WHERE id = ?', args: [id] });
       const job = jr.rows?.[0];
       if (!job) return res.status(404).json({ error: 'job not found' });
@@ -110,7 +110,7 @@ export const DownloaderController = {
   // GET /api/youtube/jobs/:id — client polls status
   async jobStatus(req, res) {
     try {
-      const { db } = await import('../../database/connection.js');
+      const { default: db } = await import('../../database/connection.js');
       const r = await db.execute({ sql: 'SELECT id, status, music_id, title, error FROM download_jobs WHERE id = ?', args: [req.params.id] });
       const j = r.rows?.[0];
       if (!j) return res.status(404).json({ error: 'not found' });
