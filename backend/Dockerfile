@@ -22,5 +22,6 @@ EXPOSE 3000
 
 RUN mkdir -p /app/database /app/storage
 
-# Start the PO-token provider in the background, then migrate + boot the API.
-CMD ["sh", "-c", "node /opt/bgutil/server/build/main.js >/tmp/pot.log 2>&1 & node src/database/migrate.js && node src/server.js"]
+# Start the PO-token provider in the background (logs to stdout, prefixed), then
+# migrate + boot the API.
+CMD ["sh", "-c", "(node /opt/bgutil/server/build/main.js 2>&1 | sed 's/^/[POT] /' &) ; sleep 1 ; node src/database/migrate.js && node src/server.js"]

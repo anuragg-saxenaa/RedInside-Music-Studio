@@ -78,6 +78,7 @@ export const DownloaderService = {
       const outputTemplate = path.join(outputDir, '%(title)s.%(ext)s');
       const args = [
         '-x',
+        '--verbose',
         '--audio-format', 'mp3',
         '--audio-quality', '0',
         '--print-json',
@@ -104,7 +105,11 @@ export const DownloaderService = {
         if (m) onProgress?.(Math.min(85, parseFloat(m[1])), `Downloading ${m[1]}%`);
       });
       proc.on('close', code => {
-        if (code !== 0) return reject(new Error(`yt-dlp exited ${code}: ${stderr.slice(-300)}`));
+        if (code !== 0) {
+          // Full stderr to server logs for diagnosis (plugin loading, POT, etc.)
+          logger.error('yt-dlp failed', { client: strategy.client, cookies: strategy.cookies, stderr: stderr.slice(-2000) });
+          return reject(new Error(`yt-dlp exited ${code}: ${stderr.slice(-300)}`));
+        }
         try {
           const lines = jsonOutput.trim().split('\n').filter(Boolean);
           const info = JSON.parse(lines[lines.length - 1]);
