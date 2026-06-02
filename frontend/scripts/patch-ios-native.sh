@@ -36,14 +36,20 @@ else
   echo "• AppDelegate: AVAudioSession already configured"
 fi
 
-# 3. Native plugins: AudioPlayer (AVPlayer playback + Now Playing + remote
-#    commands — lock-screen/AirPods/car next-prev + background auto-advance) and
-#    the legacy NowPlaying helper.
-for plug in AudioPlayerPlugin NowPlayingPlugin; do
-  if [ -f "ios-native/$plug.swift" ]; then
-    cp "ios-native/$plug.swift" "ios/App/App/$plug.swift"
-    echo "✔ Copied $plug.swift into ios/App/App"
+# 3. Native plugins + bridge VC that registers them (app-local plugins are NOT
+#    auto-discovered). AudioPlayer = AVPlayer playback + Now Playing + remote
+#    commands (lock-screen/AirPods/car next-prev + background auto-advance).
+for f in AudioPlayerPlugin NowPlayingPlugin MainViewController; do
+  if [ -f "ios-native/$f.swift" ]; then
+    cp "ios-native/$f.swift" "ios/App/App/$f.swift"
+    echo "✔ Copied $f.swift into ios/App/App"
   fi
 done
+# Point the storyboard at MainViewController so capacitorDidLoad registers plugins
+STORY="ios/App/App/Base.lproj/Main.storyboard"
+if [ -f "$STORY" ] && grep -q 'customClass="CAPBridgeViewController"' "$STORY"; then
+  /usr/bin/sed -i '' 's|customClass="CAPBridgeViewController" customModule="Capacitor"|customClass="MainViewController" customModule="App" customModuleProvider="target"|' "$STORY"
+  echo "✔ Storyboard → MainViewController"
+fi
 
 echo "Done. Rebuild: npx cap run ios"
