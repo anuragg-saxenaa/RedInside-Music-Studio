@@ -381,9 +381,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const activeProject = projects.find(p => p.id === activeProjectId) ?? null;
 
   const playTrack = useCallback((track: MusicGeneration, preserveQueue = false) => {
-    // A direct tap (Sounds list, etc.) clears the queue so next/prev follow the
-    // project tracks; playlist playback passes preserveQueue to keep its queue.
-    if (!preserveQueue) { queueRef.current = []; setQueueState([]); }
+    if (!track) return; // guard — never load an undefined track (crash safety)
+    // A direct tap (Sounds list, etc.) seeds the queue from the project tracks so
+    // next/prev + Up Next work everywhere; playlist playback passes preserveQueue.
+    if (!preserveQueue) {
+      const base = tracksRef.current;
+      const q = base.some(t => t.id === track.id) ? base.slice() : [track];
+      queueRef.current = q; setQueueState(q);
+    }
     // If this exact track is already loaded, toggle play/pause instead of restarting
     if (persistentAudio && persistentTrack?.id === track.id && persistentAudio.src) {
       if (persistentAudio.paused) { persistentAudio.play().catch(() => {}); setPlayerIsPlaying(true); setPlaybackState('playing'); }
@@ -474,28 +479,31 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [queueBase, setQueue, playerTrack]);
 
   const playNext = useCallback(() => {
-    const q = queueRef.current.length ? queueRef.current : tracks;
+    const q = queueRef.current.length ? queueRef.current : tracksRef.current;
     if (!playerTrack || q.length === 0) return;
     if (isShuffledRef.current && q.length > 1) {
       const others = q.filter(t => t.id !== playerTrack.id);
-      playTrack(others[Math.floor(Math.random() * others.length)], true);
+      const pick = others[Math.floor(Math.random() * others.length)];
+      if (pick) playTrack(pick, true);
       return;
     }
     const idx = q.findIndex(t => t.id === playerTrack.id);
     const isLast = idx === q.length - 1;
     if (isLast && !isLoopingRef.current) return;
-    playTrack(q[(idx + 1) % q.length], true);
-  }, [playerTrack, tracks, playTrack]);
+    const next = q[(idx + 1) % q.length];
+    if (next) playTrack(next, true);
+  }, [playerTrack, playTrack]);
 
   // Keep playNextRef current so ended handlers can call it without stale closure
   useEffect(() => { playNextRef.current = playNext; }, [playNext]);
 
   const playPrev = useCallback(() => {
-    const q = queueRef.current.length ? queueRef.current : tracks;
+    const q = queueRef.current.length ? queueRef.current : tracksRef.current;
     if (!playerTrack || q.length === 0) return;
     const idx = q.findIndex(t => t.id === playerTrack.id);
-    playTrack(q[(idx - 1 + q.length) % q.length], true);
-  }, [playerTrack, tracks, playTrack]);
+    const prev = q[(idx - 1 + q.length) % q.length];
+    if (prev) playTrack(prev, true);
+  }, [playerTrack, playTrack]);
 
   useEffect(() => { playPrevRef.current = playPrev; }, [playPrev]);
 

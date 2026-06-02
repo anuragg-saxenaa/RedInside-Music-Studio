@@ -36,15 +36,23 @@ export default function MobilePlayerFull({ onClose }: Props) {
   const [lyricsLoading, setLyricsLoading] = useState(false);
 
   // Fetch lyrics for the current track when the lyrics view is opened.
+  // Deps intentionally exclude authFetch (it's a fresh fn each render under the
+  // no-Clerk auth stub — including it would re-run this effect every render →
+  // perpetual "loading"). Keyed only on the view toggle + track lyrics id.
+  const lyricsId = playerTrack?.lyrics_id;
   useEffect(() => {
-    if (!showLyrics || !playerTrack?.lyrics_id) { if (!playerTrack?.lyrics_id) setLyrics(null); return; }
+    if (!showLyrics) return;
+    if (!lyricsId) { setLyrics(''); setLyricsLoading(false); return; }
+    let cancelled = false;
     setLyricsLoading(true); setLyrics(null);
-    authFetch(`/api/lyrics/${playerTrack.lyrics_id}`)
+    authFetch(`/api/lyrics/${lyricsId}`)
       .then(r => r.json())
-      .then((d: { content?: string }) => setLyrics(d?.content || ''))
-      .catch(() => setLyrics(''))
-      .finally(() => setLyricsLoading(false));
-  }, [showLyrics, playerTrack?.lyrics_id, authFetch]);
+      .then((d: { content?: string }) => { if (!cancelled) setLyrics(d?.content || ''); })
+      .catch(() => { if (!cancelled) setLyrics(''); })
+      .finally(() => { if (!cancelled) setLyricsLoading(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showLyrics, lyricsId]);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const artRef = useRef<HTMLDivElement>(null);

@@ -8,9 +8,10 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
 // "Up Next" — the active play queue. Tap any track to jump to it.
 export default function QueueSheet({ onClose }: Props) {
-  const { queue, playerTrack, playQueue } = useWorkspace();
-  const curIdx = playerTrack ? queue.findIndex(t => t.id === playerTrack.id) : -1;
-  const upNext = curIdx >= 0 ? queue.slice(curIdx + 1) : queue;
+  const { queue, tracks, playerTrack, playQueue } = useWorkspace();
+  const q = queue.length ? queue : tracks;
+  const curIdx = playerTrack ? q.findIndex(t => t.id === playerTrack.id) : -1;
+  const upNext = curIdx >= 0 ? q.slice(curIdx + 1) : q;
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 2600, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'flex-end', animation: 'ris-fade 200ms ease' }}>
@@ -22,9 +23,9 @@ export default function QueueSheet({ onClose }: Props) {
           {upNext.length === 0 && <div style={{ color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '24px', fontSize: 14 }}>Nothing queued.</div>}
           {upNext.map((t) => {
             const art = t.artwork_url ? (t.artwork_url.startsWith('http') ? t.artwork_url : `${API_BASE}/api/projects/${t.project_id}/artwork/${t.id}`) : null;
-            const realIdx = queue.findIndex(x => x.id === t.id);
+            const realIdx = q.findIndex(x => x.id === t.id);
             return (
-              <button key={t.id} onClick={() => { tapLight(); playQueue(queue, realIdx); onClose(); }} style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '8px 22px' }}>
+              <button key={t.id} onClick={() => { tapLight(); playQueue(q, realIdx); onClose(); }} style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '8px 22px' }}>
                 <div style={{ width: 44, height: 44, borderRadius: 7, overflow: 'hidden', flexShrink: 0, background: `linear-gradient(135deg, ${C.redDark}, #080108)` }}>{art && <img src={art} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}</div>
                 <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
                   <div style={{ fontSize: 15, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title || `Track v${t.version}`}</div>
