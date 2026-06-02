@@ -58,46 +58,25 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
   const inputRef = useRef<HTMLInputElement>(null);
   const stalledRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // WebSocket event listener
+  // Poll the download job — a worker (desktop, residential IP) processes it.
   useEffect(() => {
     if (!downloadId) return;
-    const handler = (ev: MessageEvent) => {
-      try {
-        const data = JSON.parse(ev.data);
-        if (data.downloadId !== downloadId) return;
-        if (data.event === 'download.progress') {
-          setProgress(data.progress ?? 0);
-          setMessage(data.message ?? '');
-        } else if (data.event === 'download.completed') {
-          if (stalledRef.current) { clearInterval(stalledRef.current); stalledRef.current = null; }
-          setDlState('done');
-          setResult({ musicId: data.result.musicId, title: data.result.title, duration: data.result.duration });
-          onDownloaded?.(data.result.musicId, data.result.title);
-        } else if (data.event === 'download.failed') {
-          if (stalledRef.current) { clearInterval(stalledRef.current); stalledRef.current = null; }
-          setDlState('error');
-          setError(data.error || 'Download failed');
-        }
-      } catch { /* ignore */ }
-    };
-    const ws = (window as unknown as Record<string, unknown>).__studioWs as WebSocket | undefined;
-    ws?.addEventListener('message', handler);
-
-    // Polling fallback — works even when WebSocket events don't reach the client
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+    let elapsed = 0;
     const poll = setInterval(async () => {
+      elapsed += 2;
       try {
-        const r = await fetch(`${API_BASE}/api/downloader/status/${downloadId}`);
+        const r = await fetch(`/api/youtube/jobs/${downloadId}`);
         if (!r.ok) return;
         const s = await r.json();
-        if (typeof s.progress === 'number') { setProgress(s.progress); if (s.message) setMessage(s.message); }
-        if (s.state === 'done' && s.result) {
+        if (s.status === 'pending') setMessage('Queued — waiting for a download worker…');
+        else if (s.status === 'processing') { setProgress(Math.min(85, 20 + elapsed * 3)); setMessage('Downloading on worker…'); }
+        else if (s.status === 'done') {
           clearInterval(poll);
           if (stalledRef.current) { clearInterval(stalledRef.current); stalledRef.current = null; }
-          setDlState('done');
-          setResult({ musicId: s.result.musicId, title: s.result.title, duration: s.result.duration });
-          onDownloaded?.(s.result.musicId, s.result.title);
-        } else if (s.state === 'error') {
+          setProgress(100); setDlState('done');
+          setResult({ musicId: s.musicId, title: s.title || 'YouTube import' });
+          onDownloaded?.(s.musicId, s.title || '');
+        } else if (s.status === 'failed') {
           clearInterval(poll);
           if (stalledRef.current) { clearInterval(stalledRef.current); stalledRef.current = null; }
           setDlState('error');
@@ -105,8 +84,7 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
         }
       } catch { /* ignore poll errors */ }
     }, 2000);
-
-    return () => { ws?.removeEventListener('message', handler); clearInterval(poll); };
+    return () => clearInterval(poll);
   }, [downloadId, onDownloaded]);
 
   const isValidUrl = url.trim().length > 10 && (url.includes('youtube.com') || url.includes('youtu.be'));
@@ -124,15 +102,17 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
     setResult(null);
     if (stalledRef.current) clearInterval(stalledRef.current);
     stalledRef.current = setInterval(() => setStalledSec(s => s + 1), 1000);
+    setMessage('Queuing…');
     try {
-      const res = await fetch('/api/downloader/youtube', {
+      // Enqueue a job — a worker (desktop, residential IP) downloads + syncs it.
+      const res = await fetch('/api/youtube/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: u, projectId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Request failed');
-      setDownloadId(data.downloadId);
+      setDownloadId(data.jobId);
     } catch (e) {
       setDlState('error');
       setError((e as Error).message);
