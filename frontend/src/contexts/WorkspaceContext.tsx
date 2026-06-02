@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useRef, useCallback, useEffect, type ReactNode } from 'react';
 import { useSafeAuth } from '../lib/clerkSafe';
 import { setNowPlaying, setPlaybackState, setPosition, clearNowPlaying, bindMediaActions } from '../pwa/mediaSession';
+import { createAudio, setRemoteHandlers, isNativeApp } from '../pwa/nativeAudio';
 import type { Project, MusicGeneration, LyricsGeneration, Playlist, V4Tab } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
@@ -169,7 +170,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         if (raw) {
           const { track, currentTime }: PersistedPlayer = JSON.parse(raw);
           persistentTrack = track;
-          const audio = new Audio(`${API_BASE}/api/music/${track.id}/file`);
+          const audio = createAudio(`${API_BASE}/api/music/${track.id}/file`, { title: track.title || `Track v${track.version}`, artist: track.artist || '', artworkUrl: nowPlayingArt(track) });
           persistentAudio = audio;
           audioRef.current = audio;
           audio.volume = playerVolume;
@@ -334,7 +335,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       return;
     }
     if (persistentAudio) { persistentAudio.pause(); persistentAudio.src = ''; }
-    const audio = new Audio(`${API_BASE}/api/music/${track.id}/file`);
+    const audio = createAudio(`${API_BASE}/api/music/${track.id}/file`, { title: track.title || `Track v${track.version}`, artist: track.artist || '', artworkUrl: nowPlayingArt(track) });
     audio.volume = playerVolume;
     persistentAudio = audio;
     audioRef.current = audio;
@@ -413,6 +414,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       prev: () => playPrevRef.current(),
       seekTo: (sec: number) => { if (persistentAudio && isFinite(persistentAudio.duration)) persistentAudio.currentTime = sec; },
     });
+    // Native (iOS): lock-screen / AirPods / car hardware controls come through the
+    // AudioPlayer plugin. next/prev advance the queue; statechange syncs play/pause UI.
+    if (isNativeApp()) {
+      setRemoteHandlers({
+        next: () => playNextRef.current(),
+        prev: () => playPrevRef.current(),
+        state: (isPlaying: boolean) => setPlayerIsPlaying(isPlaying),
+      });
+    }
     return () => clearNowPlaying();
   }, []);
 

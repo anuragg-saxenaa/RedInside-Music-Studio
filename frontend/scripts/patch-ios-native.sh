@@ -36,10 +36,14 @@ else
   echo "• AppDelegate: AVAudioSession already configured"
 fi
 
-# 3. Native Now Playing plugin (lock-screen artwork + remote commands)
-if [ -f "ios-native/NowPlayingPlugin.swift" ]; then
-  cp ios-native/NowPlayingPlugin.swift ios/App/App/NowPlayingPlugin.swift
-  echo "✔ Copied NowPlayingPlugin.swift into ios/App/App"
-fi
+# 3. Native plugins: AudioPlayer (AVPlayer playback + Now Playing + remote
+#    commands — lock-screen/AirPods/car next-prev + background auto-advance) and
+#    the legacy NowPlaying helper.
+for plug in AudioPlayerPlugin NowPlayingPlugin; do
+  if [ -f "ios-native/$plug.swift" ]; then
+    cp "ios-native/$plug.swift" "ios/App/App/$plug.swift"
+    echo "✔ Copied $plug.swift into ios/App/App"
+  fi
+done
 
 echo "Done. Rebuild: npx cap run ios"
