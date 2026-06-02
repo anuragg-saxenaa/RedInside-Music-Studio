@@ -178,6 +178,8 @@ export const DownloaderService = {
         // Enable the EJS (deno) challenge solver so web clients can solve YouTube's
         // signature / n-challenge — required now, else only images are returned.
         '--remote-components', 'ejs:github',
+        // Point the bgutil plugin at the dedicated PO-token provider service.
+        '--extractor-args', `youtubepot-bgutilhttp:base_url=${process.env.POT_BASE_URL || 'http://pot-provider.railway.internal:4416'}`,
         // Be gentle to avoid IP rate-limiting (429) on shared/datacenter IPs.
         '--sleep-requests', '1',
         ...(strategy.cookies && cookiesFile ? ['--cookies', cookiesFile] : []),
