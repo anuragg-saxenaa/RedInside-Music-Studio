@@ -36,6 +36,55 @@ export const DownloaderService = {
   },
 
   /**
+   * Search YouTube via yt-dlp (no API key needed). Returns lightweight metadata
+   * for each result. Reuses our cookies/PO-token setup so it works on cloud IPs.
+   */
+  search(query, limit = 20) {
+    return new Promise((resolve, reject) => {
+      const q = String(query || '').trim();
+      if (!q) return resolve([]);
+      const cookiesFile = getCookiesFile();
+      const args = [
+        '--flat-playlist',
+        '--dump-json',
+        '--no-warnings',
+        '--ignore-errors',
+        ...(cookiesFile ? ['--cookies', cookiesFile] : []),
+        '--extractor-args', 'youtube:player_client=web_safari,android',
+        `ytsearch${Math.min(40, Math.max(1, limit))}:${q}`,
+      ];
+      const proc = spawn('yt-dlp', args);
+      let out = '';
+      let err = '';
+      proc.stdout.on('data', d => { out += d.toString(); });
+      proc.stderr.on('data', d => { err += d.toString(); });
+      proc.on('close', () => {
+        const results = [];
+        for (const line of out.split('\n')) {
+          const s = line.trim();
+          if (!s) continue;
+          try {
+            const e = JSON.parse(s);
+            if (!e.id) continue;
+            const thumbs = Array.isArray(e.thumbnails) ? e.thumbnails : [];
+            results.push({
+              id: e.id,
+              title: e.title || 'Untitled',
+              channel: e.channel || e.uploader || '',
+              duration: e.duration || 0,
+              thumbnail: thumbs.length ? thumbs[thumbs.length - 1].url : `https://i.ytimg.com/vi/${e.id}/hqdefault.jpg`,
+              url: `https://www.youtube.com/watch?v=${e.id}`,
+            });
+          } catch { /* skip non-JSON line */ }
+        }
+        if (results.length === 0 && err) logger.warn('yt-dlp search empty', { stderr: err.slice(-200) });
+        resolve(results);
+      });
+      proc.on('error', e => reject(new Error(`yt-dlp search error: ${e.message}`)));
+    });
+  },
+
+  /**
    * Download audio from YouTube URL as MP3, save to outputDir.
    * Resilient: tries multiple extraction strategies in order (PO-token client,
    * then alternate player clients, then cookies) until one succeeds — so a single

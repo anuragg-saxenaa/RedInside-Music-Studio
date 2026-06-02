@@ -11,4 +11,9 @@ export const DownloaderRoutes = [
     path: '/api/downloader/status/:downloadId',
     handler: DownloaderController.status,
   },
+  {
+    method: 'get',
+    path: '/api/youtube/search',
+    handler: DownloaderController.search,
+  },
 ];

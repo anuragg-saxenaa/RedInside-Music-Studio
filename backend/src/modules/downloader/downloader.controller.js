@@ -25,6 +25,19 @@ export const DownloaderController = {
     res.json(s);
   },
 
+  // GET /api/youtube/search?q=... — in-app YouTube search (no API key; yt-dlp)
+  async search(req, res) {
+    const q = String(req.query.q || '').trim();
+    if (!q) return res.json({ results: [] });
+    try {
+      const results = await DownloaderService.search(q, 24);
+      res.json({ results });
+    } catch (e) {
+      logger.error('youtube search failed', { error: e.message });
+      res.status(500).json({ error: 'Search failed', results: [] });
+    }
+  },
+
   async youtube(req, res, next) {
     try {
       const { url, projectId } = req.body;

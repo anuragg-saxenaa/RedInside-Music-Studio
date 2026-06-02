@@ -111,8 +111,11 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
 
   const isValidUrl = url.trim().length > 10 && (url.includes('youtube.com') || url.includes('youtu.be'));
 
-  const handleDownload = useCallback(async () => {
-    if (!isValidUrl || dlState === 'running') return;
+  const handleDownload = useCallback(async (targetUrl?: string) => {
+    const u = (targetUrl ?? url).trim();
+    const valid = u.length > 10 && (u.includes('youtube.com') || u.includes('youtu.be'));
+    if (!valid || dlState === 'running') return;
+    if (targetUrl) setUrl(targetUrl);
     setDlState('running');
     setProgress(2);
     setStalledSec(0);
@@ -125,7 +128,7 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
       const res = await fetch('/api/downloader/youtube', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url.trim(), projectId }),
+        body: JSON.stringify({ url: u, projectId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Request failed');
@@ -134,7 +137,23 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
       setDlState('error');
       setError((e as Error).message);
     }
-  }, [url, projectId, dlState, isValidUrl]);
+  }, [url, projectId, dlState]);
+
+  // ── In-app YouTube search ──
+  const [searchQ, setSearchQ] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<{ id: string; title: string; channel: string; duration: number; thumbnail: string; url: string }[] | null>(null);
+  const runSearch = useCallback(async () => {
+    const q = searchQ.trim();
+    if (!q) return;
+    setSearching(true); setSearchResults(null); setError(null);
+    try {
+      const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      setSearchResults(Array.isArray(data.results) ? data.results : []);
+    } catch { setSearchResults([]); }
+    finally { setSearching(false); }
+  }, [searchQ]);
 
   const reset = () => {
     if (stalledRef.current) { clearInterval(stalledRef.current); stalledRef.current = null; }
@@ -217,6 +236,48 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
       {/* IDLE STATE */}
       {dlState === 'idle' && (
         <div style={{ animation: 'ytFadeUp 0.25s ease' }}>
+
+          {/* ── Search YouTube ── */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 9, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '0 13px' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3" strokeLinecap="round"/></svg>
+              <input
+                value={searchQ}
+                onChange={e => setSearchQ(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && runSearch()}
+                placeholder="Search YouTube — song, artist…"
+                style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: '#fff', fontSize: 13, padding: '11px 0', fontFamily: 'inherit' }}
+              />
+              {searchQ && <button onClick={() => { setSearchQ(''); setSearchResults(null); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 15 }}>✕</button>}
+            </div>
+            <button onClick={runSearch} disabled={searching || !searchQ.trim()} style={{ background: searchQ.trim() ? 'linear-gradient(135deg,#E63946,#b22032)' : 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 600, padding: '0 16px', cursor: searchQ.trim() ? 'pointer' : 'default', whiteSpace: 'nowrap' }}>
+              {searching ? '…' : 'Search'}
+            </button>
+          </div>
+
+          {/* Search results */}
+          {searchResults && (
+            <div style={{ marginBottom: 14, maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {searchResults.length === 0 && <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12, textAlign: 'center', padding: '14px' }}>No results.</div>}
+              {searchResults.map(r => (
+                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 9, padding: 7 }}>
+                  <div style={{ width: 64, height: 40, borderRadius: 5, overflow: 'hidden', flexShrink: 0, background: '#000' }}>
+                    <img src={r.thumbnail} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, color: '#fff', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</div>
+                    <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.channel}{r.duration ? ` · ${formatDuration(r.duration)}` : ''}</div>
+                  </div>
+                  <button onClick={() => handleDownload(r.url)} style={{ flexShrink: 0, background: 'rgba(230,57,70,0.15)', border: '1px solid rgba(230,57,70,0.4)', color: '#E63946', borderRadius: 8, fontSize: 11, fontWeight: 700, padding: '7px 12px', cursor: 'pointer' }}>
+                    Download
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {searchResults && <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)', textAlign: 'center', letterSpacing: '0.1em', margin: '0 0 10px' }}>— OR PASTE A LINK —</div>}
+
           <div style={{
             display: 'flex',
             background: focused ? 'rgba(230,57,70,0.04)' : 'rgba(255,255,255,0.03)',
@@ -260,7 +321,7 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
             />
 
             <button
-              onClick={handleDownload}
+              onClick={() => handleDownload()}
               disabled={!isValidUrl}
               style={{
                 background: isValidUrl ? 'linear-gradient(135deg, #E63946 0%, #b22032 100%)' : 'rgba(255,255,255,0.04)',
