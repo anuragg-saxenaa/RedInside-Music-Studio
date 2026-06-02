@@ -6,6 +6,7 @@ interface AudioPlayerPlugin {
   pause(): Promise<void>;
   seek(o: { position: number }): Promise<void>;
   setVolume(o: { volume: number }): Promise<void>;
+  preload(o: { url: string }): Promise<void>;
   addListener(event: string, cb: (data: { currentTime?: number; duration?: number; isPlaying?: boolean }) => void): Promise<{ remove: () => void }>;
 }
 
@@ -13,6 +14,11 @@ const AudioPlayer = registerPlugin<AudioPlayerPlugin>('AudioPlayer');
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const isNativeApp = (): boolean => !!(window as any).Capacitor?.isNativePlatform?.();
+
+// Prebuffer the next track (native) so skip/auto-advance is instant.
+export function preloadNext(url: string): void {
+  if (isNativeApp() && url) AudioPlayer.preload({ url }).catch(() => {});
+}
 
 export interface AudioMeta { title?: string; artist?: string; album?: string; artworkUrl?: string | null }
 

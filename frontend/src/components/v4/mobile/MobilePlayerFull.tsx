@@ -236,7 +236,7 @@ export default function MobilePlayerFull({ onClose }: Props) {
             onTouchEnd={e => { if (isDragging.current) { e.stopPropagation(); seekTo(getFrac(e.changedTouches[0].clientX)); isDragging.current = false; setDragProgress(null); tapLight(); } }}
           >
             <div style={{ position: 'absolute', left: 0, right: 0, height: dragProgress !== null ? '7px' : '5px', background: 'rgba(255,255,255,0.18)', borderRadius: '4px', transition: 'height 140ms' }}>
-              <div style={{ height: '100%', width: `${displayFraction * 100}%`, background: `linear-gradient(90deg, ${C.red}, #ff5a6a)`, borderRadius: '4px' }} />
+              <div style={{ height: '100%', width: `${displayFraction * 100}%`, background: `linear-gradient(90deg, ${C.red}, #ff5a6a)`, borderRadius: '4px', transition: dragProgress !== null ? 'none' : 'width 0.5s linear' }} />
             </div>
             <div style={{
               position: 'absolute', top: '50%', left: `${displayFraction * 100}%`,

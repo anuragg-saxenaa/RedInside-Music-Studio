@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useRef, useCallback, useEffect, type ReactNode } from 'react';
 import { useSafeAuth } from '../lib/clerkSafe';
 import { setNowPlaying, setPlaybackState, setPosition, clearNowPlaying, bindMediaActions } from '../pwa/mediaSession';
-import { createAudio, setRemoteHandlers, isNativeApp } from '../pwa/nativeAudio';
+import { createAudio, setRemoteHandlers, isNativeApp, preloadNext } from '../pwa/nativeAudio';
 import type { Project, MusicGeneration, LyricsGeneration, Playlist, V4Tab } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
@@ -111,6 +111,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const likedPlaylistId = useRef<string | null>(null);
   const queueRef = useRef<MusicGeneration[]>([]);
+  const tracksRef = useRef<MusicGeneration[]>([]);
   const [mobilePlaylistId, setMobilePlaylistId] = useState<string | null>(null);
   const [selectedTrack, setSelectedTrack] = useState<MusicGeneration | null>(null);
   const [selectedLyrics, setSelectedLyrics] = useState<LyricsGeneration | null>(null);
@@ -405,6 +406,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (isLoopingRef.current) { audio.currentTime = 0; audio.play().catch(() => {}); }
       else { setPlayerIsPlaying(false); playNextRef.current(); }
     });
+    // Prebuffer the next track so skip / auto-advance is instant (native).
+    const q = queueRef.current.length ? queueRef.current : tracksRef.current;
+    const idx = q.findIndex(t => t.id === track.id);
+    if (idx >= 0 && idx + 1 < q.length) preloadNext(`${API_BASE}/api/music/${q[idx + 1].id}/file`);
   }, [playerVolume]);
 
   const togglePlay = useCallback(() => {
@@ -483,6 +488,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   // Keep refs in sync so ended handlers always see current values
   useEffect(() => { isLoopingRef.current = isLooping; }, [isLooping]);
   useEffect(() => { isShuffledRef.current = isShuffled; }, [isShuffled]);
+  useEffect(() => { tracksRef.current = tracks; }, [tracks]);
 
   return (
     <WorkspaceContext.Provider value={{

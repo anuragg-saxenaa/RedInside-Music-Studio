@@ -19,6 +19,7 @@ public class AudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "pause", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "seek", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setVolume", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "preload", returnType: CAPPluginReturnPromise),
     ]
 
     private var player: AVPlayer?
@@ -26,6 +27,9 @@ public class AudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
     private var commandsReady = false
     private var artworkCache: [String: MPMediaItemArtwork] = [:]
     private var meta: [String: String] = [:]
+    // Prebuffered next track (Spotify-style instant skip).
+    private var preloadUrl: String?
+    private var preloadItem: AVPlayerItem?
 
     public override func load() {
         do {
@@ -46,15 +50,44 @@ public class AudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
 
         DispatchQueue.main.async {
             self.teardownObservers()
-            let item = AVPlayerItem(url: url)
+            // Reuse the prebuffered item if it's this track (instant skip).
+            let item: AVPlayerItem
+            if self.preloadUrl == urlStr, let pre = self.preloadItem {
+                item = pre
+            } else {
+                item = AVPlayerItem(url: url)
+                item.preferredForwardBufferDuration = 4
+            }
+            self.preloadUrl = nil; self.preloadItem = nil
             if self.player == nil { self.player = AVPlayer(playerItem: item) }
             else { self.player?.replaceCurrentItem(with: item) }
+            self.player?.automaticallyWaitsToMinimizeStalling = false // start ASAP
             self.player?.volume = Float(call.getDouble("volume") ?? 1.0)
             if startAt > 0 { self.player?.seek(to: CMTime(seconds: startAt, preferredTimescale: 1000)) }
-            self.player?.play()
+            if #available(iOS 10.0, *) { self.player?.playImmediately(atRate: 1.0) } else { self.player?.play() }
             self.addObservers(for: item)
             self.setupCommands()
             self.updateNowPlaying(isPlaying: true)
+            call.resolve()
+        }
+    }
+
+    // Prebuffer the next track's item so the next loadTrack starts instantly.
+    @objc func preload(_ call: CAPPluginCall) {
+        guard let urlStr = call.getString("url"), let url = URL(string: urlStr) else { call.resolve(); return }
+        DispatchQueue.main.async {
+            if self.preloadUrl == urlStr { call.resolve(); return }
+            let item = AVPlayerItem(url: url)
+            item.preferredForwardBufferDuration = 6
+            // Attaching to a muted, paused AVPlayer kicks off buffering in the background.
+            let warm = AVPlayer(playerItem: item)
+            warm.volume = 0
+            warm.automaticallyWaitsToMinimizeStalling = true
+            warm.pause()
+            self.preloadUrl = urlStr
+            self.preloadItem = item
+            // keep `warm` alive briefly via the item association; release ref after buffering window
+            DispatchQueue.main.asyncAfter(deadline: .now() + 8) { _ = warm }
             call.resolve()
         }
     }

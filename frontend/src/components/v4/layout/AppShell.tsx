@@ -82,7 +82,7 @@ function MobileMiniPlayer({ onExpand }: { onExpand: () => void }) {
     >
       {/* Progress bar at top */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'rgba(255,255,255,0.08)' }}>
-        <div style={{ height: '100%', width: `${playerProgress * 100}%`, background: C.red, transition: 'width 0.1s linear' }} />
+        <div style={{ height: '100%', width: `${playerProgress * 100}%`, background: C.red, transition: 'width 0.5s linear' }} />
       </div>
 
       {/* Artwork */}
