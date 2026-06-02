@@ -4,6 +4,7 @@ import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { PlayIcon, PauseIcon, PrevIcon, NextIcon, ShuffleIcon, LoopIcon } from '../shared/Icons';
 import { tapLight, tapMedium, selectionChanged } from '../../../lib/haptics';
 import AddToPlaylistSheet from './AddToPlaylistSheet';
+import QueueSheet from './QueueSheet';
 import { useAuthFetch } from '../../../hooks/useAuthFetch';
 
 function fmtTime(s: number) {
@@ -27,6 +28,7 @@ export default function MobilePlayerFull({ onClose }: Props) {
 
   const liked = playerTrack ? isLiked(playerTrack.id) : false;
   const [showAddSheet, setShowAddSheet] = useState(false);
+  const [showQueue, setShowQueue] = useState(false);
   const authFetch = useAuthFetch();
   const [showLyrics, setShowLyrics] = useState(false);
   const [lyrics, setLyrics] = useState<string | null>(null);
@@ -179,9 +181,14 @@ export default function MobilePlayerFull({ onClose }: Props) {
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2.4" strokeLinecap="round"><path d="M6 9l6 6 6-6"/></svg>
             </button>
             <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 600 }}>Now Playing</span>
-            <button style={iconBtn} aria-label="Add to playlist" onClick={() => { if (playerTrack) { tapLight(); setShowAddSheet(true); } }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="rgba(255,255,255,0.7)"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <button style={iconBtn} aria-label="Up Next queue" onClick={() => { tapLight(); setShowQueue(true); }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeLinecap="round"><path d="M4 6h11M4 12h11M4 18h7M16 13v7M19.5 15.5L16 13l-3.5 2.5"/></svg>
+              </button>
+              <button style={iconBtn} aria-label="Add to playlist" onClick={() => { if (playerTrack) { tapLight(); setShowAddSheet(true); } }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="rgba(255,255,255,0.7)"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -334,6 +341,7 @@ export default function MobilePlayerFull({ onClose }: Props) {
       {showAddSheet && playerTrack && (
         <AddToPlaylistSheet track={playerTrack} onClose={() => setShowAddSheet(false)} />
       )}
+      {showQueue && <QueueSheet onClose={() => setShowQueue(false)} />}
     </div>
   );
 }

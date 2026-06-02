@@ -35,6 +35,9 @@ interface WorkspaceContextType {
   removeTrackFromPlaylist: (playlistId: string, trackId: string) => void;
   createPlaylistNamed: (name: string) => Promise<string | null>;
   playQueue: (list: MusicGeneration[], startIndex?: number) => void;
+  queue: MusicGeneration[];
+  addToQueue: (track: MusicGeneration) => void;
+  playTrackNext: (track: MusicGeneration) => void;
   recentTracks: MusicGeneration[];
   mobilePlaylistId: string | null;
   setMobilePlaylistId: (id: string | null) => void;
@@ -113,6 +116,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const likedPlaylistId = useRef<string | null>(null);
   const queueRef = useRef<MusicGeneration[]>([]);
   const tracksRef = useRef<MusicGeneration[]>([]);
+  const [queue, setQueueState] = useState<MusicGeneration[]>([]);
+  const setQueue = useCallback((list: MusicGeneration[]) => { queueRef.current = list; setQueueState(list); }, []);
   const [mobilePlaylistId, setMobilePlaylistId] = useState<string | null>(null);
   const RECENT_KEY = 'ris_recent_tracks';
   const [recentTracks, setRecentTracks] = useState<MusicGeneration[]>(() => {
@@ -374,7 +379,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const playTrack = useCallback((track: MusicGeneration, preserveQueue = false) => {
     // A direct tap (Sounds list, etc.) clears the queue so next/prev follow the
     // project tracks; playlist playback passes preserveQueue to keep its queue.
-    if (!preserveQueue) queueRef.current = [];
+    if (!preserveQueue) { queueRef.current = []; setQueueState([]); }
     // If this exact track is already loaded, toggle play/pause instead of restarting
     if (persistentAudio && persistentTrack?.id === track.id && persistentAudio.src) {
       if (persistentAudio.paused) { persistentAudio.play().catch(() => {}); setPlayerIsPlaying(true); setPlaybackState('playing'); }
@@ -442,9 +447,27 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   // Active play source: the playlist queue if one is set, else the project tracks.
   const playQueue = useCallback((list: MusicGeneration[], startIndex = 0) => {
     if (!list.length) return;
-    queueRef.current = list.slice();
+    setQueue(list.slice());
     playTrack(list[Math.max(0, Math.min(startIndex, list.length - 1))], true);
-  }, [playTrack]);
+  }, [playTrack, setQueue]);
+
+  // Base queue for add operations: the active queue, else the current playing track.
+  const queueBase = useCallback(() => {
+    if (queueRef.current.length) return queueRef.current.slice();
+    return playerTrack ? [playerTrack] : [];
+  }, [playerTrack]);
+
+  const addToQueue = useCallback((track: MusicGeneration) => {
+    const base = queueBase().filter(t => t.id !== track.id);
+    setQueue([...base, track]);
+  }, [queueBase, setQueue]);
+
+  const playTrackNext = useCallback((track: MusicGeneration) => {
+    const base = queueBase().filter(t => t.id !== track.id);
+    const idx = playerTrack ? base.findIndex(t => t.id === playerTrack.id) : -1;
+    base.splice(idx + 1, 0, track);
+    setQueue(base);
+  }, [queueBase, setQueue, playerTrack]);
 
   const playNext = useCallback(() => {
     const q = queueRef.current.length ? queueRef.current : tracks;
@@ -506,7 +529,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       projects, activeProjectId, activeProject, setActiveProjectId: setActiveProjectIdWrapped, refreshProjects,
       tracks, tracksLoading, selectedTrack, setSelectedTrack: setSelectedTrackWrapped, refreshTracks,
       likedIds, isLiked, toggleLike, addTrackToPlaylist, removeTrackFromPlaylist, createPlaylistNamed,
-      playQueue, recentTracks, mobilePlaylistId, setMobilePlaylistId,
+      playQueue, queue, addToQueue, playTrackNext, recentTracks, mobilePlaylistId, setMobilePlaylistId,
       selectedLyrics, setSelectedLyrics,
       activeTab: activeTab, setActiveTab: setActiveTabWrapped,
       playlists, refreshPlaylists,

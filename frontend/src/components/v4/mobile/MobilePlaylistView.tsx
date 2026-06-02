@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { useAuthFetch } from '../../../hooks/useAuthFetch';
 import { PlayIcon, PauseIcon, ShuffleIcon } from '../shared/Icons';
 import SwipeRow from './SwipeRow';
 import DownloadButton from '../downloads/DownloadButton';
+import TrackActionsSheet from './TrackActionsSheet';
 import { tapLight, tapMedium } from '../../../lib/haptics';
 import type { MusicGeneration } from '../../../types';
 
@@ -16,7 +17,23 @@ export default function MobilePlaylistView({ playlistId, onBack }: Props) {
   const { playlists, playQueue, removeTrackFromPlaylist, playerTrack, playerIsPlaying, togglePlay, toggleShuffle } = useWorkspace();
   const authFetch = useAuthFetch();
   const [tracks, setTracks] = useState<MusicGeneration[] | null>(null);
+  const [actionTrack, setActionTrack] = useState<MusicGeneration | null>(null);
+  const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lpFired = useRef(false);
+  const lpStart = useRef({ x: 0, y: 0 });
   const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+  const longPress = (t: MusicGeneration) => ({
+    onTouchStart: (e: React.TouchEvent) => {
+      lpFired.current = false;
+      lpStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      lpTimer.current = setTimeout(() => { lpFired.current = true; tapMedium(); setActionTrack(t); }, 480);
+    },
+    onTouchMove: (e: React.TouchEvent) => {
+      if (Math.abs(e.touches[0].clientX - lpStart.current.x) > 8 || Math.abs(e.touches[0].clientY - lpStart.current.y) > 8) { if (lpTimer.current) clearTimeout(lpTimer.current); }
+    },
+    onTouchEnd: () => { if (lpTimer.current) clearTimeout(lpTimer.current); },
+  });
 
   const playlist = playlists.find(p => p.id === playlistId);
   const isLiked = playlist?.name === 'Liked Songs';
@@ -77,7 +94,8 @@ export default function MobilePlaylistView({ playlistId, onBack }: Props) {
             <SwipeRow key={t.id} onDelete={() => { removeTrackFromPlaylist(playlistId, t.id); setTracks(prev => (prev || []).filter(x => x.id !== t.id)); }}>
               <div
                 role="button" tabIndex={0}
-                onClick={() => { tapLight(); if (playing) togglePlay(); else playQueue(list, i); }}
+                {...longPress(t)}
+                onClick={() => { if (lpFired.current) return; tapLight(); if (playing) togglePlay(); else playQueue(list, i); }}
                 style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 18px', background: playing ? 'rgba(230,57,70,0.08)' : C.bgApp, cursor: 'pointer' }}
               >
                 <div style={{ width: 46, height: 46, borderRadius: 8, flexShrink: 0, overflow: 'hidden', background: `linear-gradient(135deg, ${C.redDark}, #080108)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -95,6 +113,8 @@ export default function MobilePlaylistView({ playlistId, onBack }: Props) {
           );
         })}
       </div>
+
+      {actionTrack && <TrackActionsSheet track={actionTrack} onClose={() => setActionTrack(null)} />}
     </div>
   );
 }
