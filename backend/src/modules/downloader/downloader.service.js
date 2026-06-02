@@ -1,7 +1,21 @@
 import { spawn, execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import logger from '../../utils/logger.js';
+
+// YouTube blocks datacenter IPs (Railway) unless authenticated. If YT_DLP_COOKIES
+// is set (a Netscape-format cookies.txt export of a logged-in YouTube session),
+// write it to a temp file so yt-dlp can pass --cookies. Returns the path or null.
+function getCookiesFile() {
+  const raw = process.env.YT_DLP_COOKIES;
+  if (!raw || !raw.trim()) return null;
+  try {
+    const p = path.join(os.tmpdir(), 'yt-cookies.txt');
+    fs.writeFileSync(p, raw.replace(/\\n/g, '\n'), { mode: 0o600 });
+    return p;
+  } catch { return null; }
+}
 
 export const DownloaderService = {
   isAvailable() {
@@ -23,6 +37,7 @@ export const DownloaderService = {
 
       const outputTemplate = path.join(outputDir, '%(title)s.%(ext)s');
 
+      const cookiesFile = getCookiesFile();
       const args = [
         '-x',
         '--audio-format', 'mp3',
@@ -33,14 +48,16 @@ export const DownloaderService = {
         '--socket-timeout', '30',
         '--retries', '3',
         '--no-check-certificates',
-        // tv_embedded bypasses auth on server IPs; fallback through multiple clients
-        '--extractor-args', 'youtube:player-client=tv_embedded,android,ios,mweb,web',
-        '--add-headers', 'User-Agent:Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version',
+        // Cookies (when provided) are the reliable bypass for YouTube's bot check
+        // on datacenter IPs. Without them, fall through multiple player clients.
+        ...(cookiesFile ? ['--cookies', cookiesFile] : []),
+        '--extractor-args', 'youtube:player_client=default,web_safari,android,tv_embedded,mweb',
         '--age-limit', '99',
         '-o', outputTemplate,
         url,
       ];
 
+      logger.info('yt-dlp start', { cookies: !!cookiesFile });
       const proc = spawn('yt-dlp', args);
       let jsonOutput = '';
       let stderr = '';

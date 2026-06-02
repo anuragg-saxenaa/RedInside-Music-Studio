@@ -2,7 +2,7 @@ FROM node:20-alpine
 
 RUN corepack enable && corepack prepare pnpm@9 --activate && \
     apk add --no-cache python3 make g++ ffmpeg py3-pip && \
-    pip3 install --no-cache-dir --break-system-packages yt-dlp
+    pip3 install --no-cache-dir --break-system-packages --upgrade yt-dlp
 
 WORKDIR /app
 
