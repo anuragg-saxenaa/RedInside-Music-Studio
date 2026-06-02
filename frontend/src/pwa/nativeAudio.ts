@@ -1,7 +1,7 @@
 import { registerPlugin } from '@capacitor/core';
 
 interface AudioPlayerPlugin {
-  load(o: { url: string; title: string; artist: string; album: string; artworkUrl: string; volume: number; position?: number }): Promise<void>;
+  loadTrack(o: { url: string; title: string; artist: string; album: string; artworkUrl: string; volume: number; position?: number }): Promise<void>;
   play(): Promise<void>;
   pause(): Promise<void>;
   seek(o: { position: number }): Promise<void>;
@@ -67,7 +67,7 @@ export class NativeAudioShim {
     this._paused = false; this._ended = false;
     if (!this._loaded) {
       this._loaded = true;
-      return AudioPlayer.load({
+      return AudioPlayer.loadTrack({
         url: this._src,
         title: this._meta.title ?? '',
         artist: this._meta.artist ?? 'RedInside Studio',

@@ -14,7 +14,7 @@ public class AudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "AudioPlayerPlugin"
     public let jsName = "AudioPlayer"
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "load", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "loadTrack", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "play", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "pause", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "seek", returnType: CAPPluginReturnPromise),
@@ -34,7 +34,7 @@ public class AudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
         } catch { print("AudioSession error: \(error)") }
     }
 
-    @objc func load(_ call: CAPPluginCall) {
+    @objc func loadTrack(_ call: CAPPluginCall) {
         guard let urlStr = call.getString("url"), let url = URL(string: urlStr) else {
             call.reject("missing url"); return
         }
