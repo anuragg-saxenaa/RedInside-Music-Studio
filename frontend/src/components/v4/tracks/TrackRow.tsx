@@ -137,6 +137,9 @@ export default function TrackRow({ track, onDoubleClick, onEdit, isEditOpen }: T
           </div>
           <div style={{ color: C.textDim, fontSize: '11px', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
             <span>{fmtDuration(track.duration_seconds)}{track.bitrate ? ` · ${track.bitrate}kbps` : ''}</span>
+            {track.model?.includes('youtube')
+              ? <Badge label="YOUTUBE" color="#ff2d55" />
+              : <Badge label="AI" color={C.red} />}
             {isMastered && <Badge label="MASTERED" color={C.gold} />}
             {track.is_instrumental && <Badge label="INSTRUMENTAL" color="#60a5fa" />}
             {bpm && <Badge label={`${bpm} BPM`} color="rgba(255,255,255,0.5)" />}
