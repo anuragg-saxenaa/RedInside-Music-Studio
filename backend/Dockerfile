@@ -8,7 +8,7 @@ RUN corepack enable && corepack prepare pnpm@9 --activate && \
 # IPs, so downloads work server-side WITHOUT cookies. The yt-dlp plugin
 # (bgutil-ytdlp-pot-provider, pip) auto-connects to this server on :4416.
 RUN git clone --depth 1 https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git /opt/bgutil && \
-    cd /opt/bgutil/server && npm install && npx tsc
+    cd /opt/bgutil/server && npm install && (npm run build || npx tsc) && ls -la build/
 
 WORKDIR /app
 
