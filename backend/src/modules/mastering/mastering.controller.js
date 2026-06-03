@@ -155,9 +155,12 @@ export const MasteringController = {
               console.log(`[mastering] job ${jobId} ffmpeg done → ${outputPath}`);
               if (tempInput) fs.rmSync(tempInput, { force: true });
 
-              // Upload mastered WAV to R2 so it persists across deploys.
+              // Upload mastered WAV to R2 non-blocking — saveToMusic checks local first
+              // so this just ensures persistence across deploys. Don't await (WAV is large).
               const r2MasterKey = `projects/${pid}/masters/${id}_spotify_master.wav`;
-              try { await storage.saveAudioFile(fs.readFileSync(outputPath), r2MasterKey); console.log(`[mastering] job ${jobId} uploaded to R2`); } catch (e) { console.log(`[mastering] job ${jobId} R2 upload failed: ${e.message}`); }
+              storage.saveAudioFile(fs.readFileSync(outputPath), r2MasterKey)
+                .then(() => console.log(`[mastering] job ${jobId} uploaded to R2`))
+                .catch(e => console.log(`[mastering] job ${jobId} R2 upload failed: ${e.message}`));
 
               results.push({ musicId: id, status: 'success', masteredPath: outputPath, r2Key: r2MasterKey });
             } else {
@@ -177,9 +180,9 @@ export const MasteringController = {
 
               await new AudioMasteringService(mastersDir).masterToSpotify(inputPath, outputPath);
 
-              // Upload to R2
+              // Upload to R2 non-blocking
               const r2MasterKey = `projects/${projectId}/masters/${id}_spotify_master.wav`;
-              try { await storage.saveAudioFile(fs.readFileSync(outputPath), r2MasterKey); } catch (_) {}
+              storage.saveAudioFile(fs.readFileSync(outputPath), r2MasterKey).catch(() => {});
 
               if (saveToProject) {
                 const { MusicModel } = await import('../../database/models/music.model.js');
