@@ -6,11 +6,33 @@ import { v4 as uuidv4 } from 'uuid';
 import { execSync } from 'child_process';
 import JSZip from 'jszip';
 
-// In-memory async mastering jobs (same pattern as YouTube download status).
-const masteringJobs = new Map();
-function setJobStatus(id, data) {
-  masteringJobs.set(id, { ...masteringJobs.get(id), ...data, updatedAt: Date.now() });
-  setTimeout(() => masteringJobs.delete(id), 3600000); // clean up after 1h
+// Mastering job status stored in Turso DB (not in-memory — survives Railway
+// multi-instance + restarts). Self-heals the table on first use.
+let _dbReady = false;
+async function getDb() {
+  const { default: db } = await import('../../database/connection.js');
+  if (!_dbReady) {
+    await db.execute(`CREATE TABLE IF NOT EXISTS mastering_jobs (
+      id TEXT PRIMARY KEY, status TEXT NOT NULL DEFAULT 'processing',
+      progress INTEGER DEFAULT 0, result TEXT, error TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`);
+    _dbReady = true;
+  }
+  return db;
+}
+async function setJobStatus(id, data) {
+  try {
+    const db = await getDb();
+    const existing = (await db.execute({ sql: 'SELECT id FROM mastering_jobs WHERE id=?', args: [id] })).rows[0];
+    const result = data.results !== undefined ? JSON.stringify({ results: data.results, errors: data.errors, masteredPath: data.masteredPath, r2Key: data.r2Key, success: data.success }) : undefined;
+    if (existing) {
+      await db.execute({ sql: 'UPDATE mastering_jobs SET status=?, progress=?, result=?, error=? WHERE id=?',
+        args: [data.status ?? 'processing', data.progress ?? 0, result ?? null, data.error ?? null, id] });
+    } else {
+      await db.execute({ sql: 'INSERT INTO mastering_jobs (id, status, progress) VALUES (?,?,?)', args: [id, data.status ?? 'processing', data.progress ?? 0] });
+    }
+  } catch (e) { /* non-fatal — job status best-effort */ }
 }
 
 export const MasteringController = {
@@ -60,9 +82,13 @@ export const MasteringController = {
 
   // GET /api/mastering/status/:jobId — poll async mastering job
   async jobStatus(req, res) {
-    const job = masteringJobs.get(req.params.jobId);
-    if (!job) return res.status(404).json({ error: 'not found' });
-    res.json(job);
+    try {
+      const db = await getDb();
+      const row = (await db.execute({ sql: 'SELECT * FROM mastering_jobs WHERE id=?', args: [req.params.jobId] })).rows[0];
+      if (!row) return res.status(404).json({ error: 'not found' });
+      const result = row.result ? JSON.parse(row.result) : {};
+      res.json({ status: row.status, progress: row.progress, error: row.error, ...result });
+    } catch (e) { res.status(500).json({ error: e.message }); }
   },
 
   async process(req, res, next) {
