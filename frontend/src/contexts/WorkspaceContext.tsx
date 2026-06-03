@@ -443,9 +443,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const togglePlay = useCallback(() => {
     if (!persistentAudio) return;
-    if (playerIsPlaying) { persistentAudio.pause(); setPlayerIsPlaying(false); setPlaybackState('paused'); }
+    // Read actual audio state (not React state) — avoids double-press bug where
+    // playerIsPlaying can be stale vs real native AVPlayer state on iOS.
+    const actuallyPlaying = !persistentAudio.paused && !persistentAudio.ended;
+    if (actuallyPlaying) { persistentAudio.pause(); setPlayerIsPlaying(false); setPlaybackState('paused'); }
     else { persistentAudio.play().catch(() => {}); setPlayerIsPlaying(true); setPlaybackState('playing'); }
-  }, [playerIsPlaying]);
+  }, []);
 
   const seekTo = useCallback((fraction: number) => {
     if (!persistentAudio || !isFinite(persistentAudio.duration)) return;

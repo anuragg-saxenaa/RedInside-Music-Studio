@@ -27,12 +27,13 @@ public class AudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
     private var commandsReady = false
     private var artworkCache: [String: MPMediaItemArtwork] = [:]
     private var meta: [String: String] = [:]
-    // Prebuffered next track (Spotify-style instant skip). We warm an AVURLAsset
-    // (NOT an AVPlayerItem attached to a player) — an item owned by one AVPlayer
-    // cannot be moved to another, which throws NSInvalidArgumentException and
-    // crashes the app on rapid next. From a warmed asset we build a fresh item.
+    // Prebuffered next track. A dedicated muted AVPlayer holds the next AVPlayerItem
+    // and forces byte-level buffering so the skip is instant. loadTrack creates a
+    // NEW AVPlayerItem from the same cached AVURLAsset — different item, no cross-
+    // player ownership conflict (the old crash cause).
     private var preloadUrl: String?
     private var preloadAsset: AVURLAsset?
+    private var preloadPlayer: AVPlayer?   // muted, drives buffering
     // Whether playback was active when an interruption (call/Siri) began.
     private var wasPlayingBeforeInterruption = false
 
@@ -112,6 +113,11 @@ public class AudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
             self.addObservers(for: item)
             self.setupCommands()
             self.updateNowPlaying(isPlaying: true)
+            // Notify JS so playerIsPlaying React state is always authoritative from
+            // native — prevents the double-press / inverted icon bug.
+            self.notifyListeners("statechange", data: ["isPlaying": true])
+            // Release the preload player — its job is done.
+            self.preloadPlayer?.replaceCurrentItem(with: nil)
             call.resolve()
         }
     }
@@ -121,11 +127,17 @@ public class AudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
         guard let urlStr = call.getString("url"), let url = URL(string: urlStr) else { call.resolve(); return }
         DispatchQueue.main.async {
             if self.preloadUrl == urlStr { call.resolve(); return }
-            // Warm the asset's metadata + first bytes WITHOUT attaching it to any
-            // AVPlayer. loadTrack later builds a fresh AVPlayerItem from this asset,
-            // so there's never a two-player ownership conflict (the rapid-next crash).
+            // Warm a FRESH item in a dedicated muted player — this forces iOS to fetch
+            // actual audio bytes (not just metadata) so the next skip is instant.
+            // loadTrack creates another NEW item from the same asset, so the preload
+            // player and main player each own their own item — no crash.
             let asset = AVURLAsset(url: url)
-            asset.loadValuesAsynchronously(forKeys: ["playable", "duration"], completionHandler: nil)
+            let item = AVPlayerItem(asset: asset)
+            item.preferredForwardBufferDuration = 8
+            if self.preloadPlayer == nil { self.preloadPlayer = AVPlayer() }
+            self.preloadPlayer?.replaceCurrentItem(with: item)
+            self.preloadPlayer?.volume = 0
+            self.preloadPlayer?.play()  // muted play forces byte buffering
             self.preloadUrl = urlStr
             self.preloadAsset = asset
             call.resolve()
@@ -178,9 +190,9 @@ public class AudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
         c.pauseCommand.addTarget { [weak self] _ in self?.player?.pause(); self?.updateNowPlaying(isPlaying: false); self?.notifyListeners("statechange", data: ["isPlaying": false]); return .success }
         c.togglePlayPauseCommand.addTarget { [weak self] _ in
             guard let self = self, let p = self.player else { return .commandFailed }
-            if p.rate > 0 { p.pause(); self.notifyListeners("statechange", data: ["isPlaying": false]) }
-            else { p.play(); self.notifyListeners("statechange", data: ["isPlaying": true]) }
-            self.updateNowPlaying(isPlaying: p.rate == 0)
+            let playing = p.rate > 0
+            if playing { p.pause(); self.updateNowPlaying(isPlaying: false); self.notifyListeners("statechange", data: ["isPlaying": false]) }
+            else       { p.play();  self.updateNowPlaying(isPlaying: true);  self.notifyListeners("statechange", data: ["isPlaying": true]) }
             return .success
         }
         c.nextTrackCommand.addTarget { [weak self] _ in self?.notifyListeners("remoteNext", data: [:]); return .success }
