@@ -25,8 +25,11 @@ export default function SyncedLyricsView({ lines, currentTime, onSeek }: Props) 
 
   useEffect(() => {
     if (activeIndex < 0 || activeIndex === lastActiveRef.current) return;
+    // First mount (lastActive = -1): jump instantly so we're at the current line,
+    // not scrolling from the top. Subsequent advances scroll smoothly.
+    const behavior = lastActiveRef.current === -1 ? 'instant' : 'smooth';
     lastActiveRef.current = activeIndex;
-    lineRefs.current[activeIndex]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    lineRefs.current[activeIndex]?.scrollIntoView({ behavior: behavior as ScrollBehavior, block: 'center' });
   }, [activeIndex]);
 
   if (!lines.length) {
