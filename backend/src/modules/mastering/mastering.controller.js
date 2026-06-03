@@ -105,7 +105,7 @@ export const MasteringController = {
 
       // Return a jobId immediately — process in background to avoid Railway 60s timeout.
       const jobId = `master-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-      setJobStatus(jobId, { status: 'processing', progress: 0, results: [], errors: [] });
+      await setJobStatus(jobId, { status: 'processing', progress: 0 });
       res.status(202).json({ jobId, status: 'processing' });
 
       // Background processing
@@ -116,7 +116,7 @@ export const MasteringController = {
 
         for (let i = 0; i < ids.length; i++) {
           const id = ids[i];
-          setJobStatus(jobId, { progress: Math.round((i / total) * 80) });
+          await setJobStatus(jobId, { progress: Math.round((i / total) * 80) });
           try {
             if (isMusicId) {
               const { MusicModel } = await import('../../database/models/music.model.js');
