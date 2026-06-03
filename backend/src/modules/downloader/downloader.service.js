@@ -164,6 +164,10 @@ export const DownloaderService = {
   _runYtDlp(url, outputDir, strategy, cookiesFile, onProgress) {
     return new Promise((resolve, reject) => {
       const outputTemplate = path.join(outputDir, '%(title)s.%(ext)s');
+      // Residential proxy (e.g. PacketStream, IPRoyal) routes traffic through a
+      // real residential IP so YouTube doesn't block the Railway datacenter IP.
+      // Set YT_DLP_PROXY=http://user:pass@gate.proxy.example:port in Railway env.
+      const proxyArg = process.env.YT_DLP_PROXY ? ['--proxy', process.env.YT_DLP_PROXY] : [];
       const args = [
         '-x',
         '--audio-format', 'mp3',
@@ -182,6 +186,7 @@ export const DownloaderService = {
         '--extractor-args', `youtubepot-bgutilhttp:base_url=${process.env.POT_BASE_URL || 'http://pot-provider.railway.internal:4416'}`,
         // Be gentle to avoid IP rate-limiting (429) on shared/datacenter IPs.
         '--sleep-requests', '1',
+        ...proxyArg,
         ...(strategy.cookies && cookiesFile ? ['--cookies', cookiesFile] : []),
         '--extractor-args', `youtube:player_client=${strategy.client}`,
         '--age-limit', '99',

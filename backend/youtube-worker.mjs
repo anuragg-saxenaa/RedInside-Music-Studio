@@ -19,6 +19,9 @@ const API_BASE = process.env.API_BASE || 'https://redinside-music-studio-product
 const TOKEN = process.env.DESKTOP_TOKEN || '5aae34f9855442a8a3e3fce79c820d15918666fbf471dfff';
 const POLL_MS = Number(process.env.POLL_MS || 4000);
 const HDR = { 'X-Desktop-Token': TOKEN, 'Content-Type': 'application/json' };
+// Mac runs on residential IP already — no proxy needed. Set YT_DLP_PROXY only
+// if you want to override (e.g. for testing a proxy service).
+const PROXY = process.env.YT_DLP_PROXY ? ['--proxy', process.env.YT_DLP_PROXY] : [];
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 
@@ -28,7 +31,7 @@ function ytDownload(url, id) {
     const args = [
       '-f', 'bestaudio[ext=m4a]/bestaudio/best',
       '--no-playlist', '--print-json', '--no-warnings',
-      '--no-part', '-o', outTpl, url,
+      '--no-part', ...PROXY, '-o', outTpl, url,
     ];
     const p = spawn('yt-dlp', args);
     let out = '', err = '';
