@@ -113,6 +113,7 @@ export const MasteringController = {
         const results = [];
         const errors = [];
         const total = ids.length;
+        console.log(`[mastering] job ${jobId} started — ${total} track(s)`);
 
         for (let i = 0; i < ids.length; i++) {
           const id = ids[i];
@@ -120,6 +121,7 @@ export const MasteringController = {
           try {
             if (isMusicId) {
               const { MusicModel } = await import('../../database/models/music.model.js');
+              console.log(`[mastering] job ${jobId} looking up musicId ${id}`);
               const music = await MusicModel.findById(id);
               if (!music) { errors.push({ musicId: id, error: 'Music not found' }); continue; }
 
@@ -135,22 +137,27 @@ export const MasteringController = {
               const localPath = path.isAbsolute(r2Key) ? r2Key : path.join(storage.basePath, r2Key);
               if (fs.existsSync(localPath)) {
                 inputPath = localPath;
+                console.log(`[mastering] job ${jobId} using local file: ${localPath}`);
               } else {
+                console.log(`[mastering] job ${jobId} pulling from R2: ${r2Key}`);
                 const buf = await storage.readBufferAnywhere(r2Key);
                 if (!buf) { errors.push({ musicId: id, error: 'Audio not found on disk or R2' }); continue; }
                 const ext = path.extname(r2Key) || '.mp3';
                 tempInput = path.join(mastersDir, `${id}_tmp${ext}`);
                 fs.writeFileSync(tempInput, buf);
                 inputPath = tempInput;
+                console.log(`[mastering] job ${jobId} R2 pull ok, wrote ${buf.length} bytes to ${tempInput}`);
               }
 
+              console.log(`[mastering] job ${jobId} running ffmpeg on ${inputPath}`);
               const outputPath = path.join(mastersDir, `${id}_spotify_master.wav`);
               await new AudioMasteringService(mastersDir).masterToSpotify(inputPath, outputPath);
+              console.log(`[mastering] job ${jobId} ffmpeg done → ${outputPath}`);
               if (tempInput) fs.rmSync(tempInput, { force: true });
 
               // Upload mastered WAV to R2 so it persists across deploys.
               const r2MasterKey = `projects/${pid}/masters/${id}_spotify_master.wav`;
-              try { await storage.saveAudioFile(fs.readFileSync(outputPath), r2MasterKey); } catch (_) {}
+              try { await storage.saveAudioFile(fs.readFileSync(outputPath), r2MasterKey); console.log(`[mastering] job ${jobId} uploaded to R2`); } catch (e) { console.log(`[mastering] job ${jobId} R2 upload failed: ${e.message}`); }
 
               results.push({ musicId: id, status: 'success', masteredPath: outputPath, r2Key: r2MasterKey });
             } else {
@@ -188,17 +195,20 @@ export const MasteringController = {
               }
             }
           } catch (err) {
+            console.log(`[mastering] job ${jobId} error for ${id}: ${err.message}`);
             errors.push({ id, error: err.message });
           }
         }
 
-        setJobStatus(jobId, { status: errors.length === ids.length ? 'failed' : 'done', progress: 100, results, errors,
+        const finalStatus = errors.length === ids.length ? 'failed' : 'done';
+        console.log(`[mastering] job ${jobId} complete: ${finalStatus}, results=${results.length}, errors=${errors.length}`);
+        await setJobStatus(jobId, { status: finalStatus, progress: 100, results, errors,
           // Backward-compat fields for single-item callers
           success: results.length > 0,
           masteredPath: results[0]?.masteredPath,
           r2Key: results[0]?.r2Key,
         });
-      })().catch(err => setJobStatus(jobId, { status: 'failed', error: err.message }));
+      })().catch(async err => { console.log(`[mastering] job ${jobId} unhandled: ${err.message}`); await setJobStatus(jobId, { status: 'failed', error: err.message }); });
     } catch (error) {
       next(error);
     }
