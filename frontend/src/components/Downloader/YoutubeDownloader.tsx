@@ -326,26 +326,23 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
                 const isStreaming = streamingId === r.url;
                 return (
                   <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 9, padding: 7 }}>
-                    <div style={{ width: 64, height: 40, borderRadius: 5, overflow: 'hidden', flexShrink: 0, background: '#000', position: 'relative', cursor: 'pointer' }} onClick={() => handleStream(r.url, r.title, r.thumbnail)}>
+                    {/* Thumbnail — no click handler, no overlay */}
+                    <div style={{ width: 64, height: 40, borderRadius: 5, overflow: 'hidden', flexShrink: 0, background: '#111' }}>
                       <img src={r.thumbnail} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      {/* Play overlay on thumbnail */}
-                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.35)' }}>
-                        {isStreaming
-                          ? <span style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid #fff', borderTopColor: 'transparent', display: 'inline-block', animation: 'ris-spin 0.7s linear infinite' }} />
-                          : <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg>}
-                      </div>
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12.5, color: '#fff', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</div>
                       <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.channel}{r.duration ? ` · ${formatDuration(r.duration)}` : ''}</div>
                     </div>
-                    {/* Play (stream) */}
-                    <button onClick={() => handleStream(r.url, r.title, r.thumbnail)} disabled={isStreaming} style={{ flexShrink: 0, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: 8, fontSize: 11, fontWeight: 600, padding: '7px 10px', cursor: 'pointer', minWidth: 36 }}>
-                      {isStreaming ? '…' : '▶'}
+                    {/* Stream — play without saving */}
+                    <button onClick={() => handleStream(r.url, r.title, r.thumbnail)} disabled={isStreaming} title="Play (stream)" style={{ flexShrink: 0, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.14)', color: '#fff', borderRadius: 8, cursor: isStreaming ? 'default' : 'pointer' }}>
+                      {isStreaming
+                        ? <span style={{ width: 13, height: 13, borderRadius: '50%', border: `2px solid rgba(255,255,255,0.3)`, borderTopColor: '#fff', display: 'inline-block', animation: 'ris-spin 0.7s linear infinite' }} />
+                        : <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>}
                     </button>
-                    {/* Download (save to library) */}
-                    <button onClick={() => handleDownload(r.url)} disabled={dlState !== 'idle'} style={{ flexShrink: 0, background: 'rgba(230,57,70,0.12)', border: '1px solid rgba(230,57,70,0.3)', color: '#E63946', borderRadius: 8, fontSize: 11, fontWeight: 700, padding: '7px 10px', cursor: 'pointer', minWidth: 36 }}>
-                      ⬇
+                    {/* Download — save to library */}
+                    <button onClick={() => handleDownload(r.url)} disabled={dlState !== 'idle'} title="Download to library" style={{ flexShrink: 0, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(230,57,70,0.12)', border: '1px solid rgba(230,57,70,0.3)', color: '#E63946', borderRadius: 8, cursor: dlState !== 'idle' ? 'default' : 'pointer' }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v13M5 16l7 7 7-7"/><path d="M3 21h18"/></svg>
                     </button>
                   </div>
                 );
