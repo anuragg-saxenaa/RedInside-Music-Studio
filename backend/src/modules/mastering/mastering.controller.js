@@ -64,15 +64,15 @@ export const MasteringController = {
 
         for (const mId of ids) {
           try {
-            const music = MusicModel.findById(mId);
+            const music = await MusicModel.findById(mId);
             if (!music) {
               errors.push({ musicId: mId, error: 'Music not found' });
               continue;
             }
 
-            const inputPath = music.processed_file_path || music.original_file_path;
-            if (!inputPath || !fs.existsSync(inputPath)) {
-              errors.push({ musicId: mId, error: 'Audio file not found on disk' });
+            const r2Key = music.processed_file_path || music.original_file_path;
+            if (!r2Key) {
+              errors.push({ musicId: mId, error: 'No audio path on record' });
               continue;
             }
 
@@ -80,11 +80,42 @@ export const MasteringController = {
             const mastersDir = storage.getMastersDir(pid);
             if (!fs.existsSync(mastersDir)) fs.mkdirSync(mastersDir, { recursive: true });
 
+            // Resolve input: try local disk first, then pull from R2 to a temp file.
+            // Railway (and cloud) stores audio in R2 — fs.existsSync on an R2 key fails.
+            let inputPath;
+            let tempInput = null;
+            const localPath = path.isAbsolute(r2Key) ? r2Key : path.join(storage.basePath, r2Key);
+            if (fs.existsSync(localPath)) {
+              inputPath = localPath;
+            } else {
+              const buf = await storage.readBufferAnywhere(r2Key);
+              if (!buf) {
+                errors.push({ musicId: mId, error: 'Audio file not found on disk or R2' });
+                continue;
+              }
+              const ext = path.extname(r2Key) || '.mp3';
+              tempInput = path.join(mastersDir, `${mId}_tmp${ext}`);
+              fs.writeFileSync(tempInput, buf);
+              inputPath = tempInput;
+            }
+
             const outputPath = path.join(mastersDir, `${mId}_spotify_master.wav`);
             const service = new AudioMasteringService(mastersDir);
             await service.masterToSpotify(inputPath, outputPath);
 
-            results.push({ musicId: mId, status: 'success', masteredPath: outputPath });
+            if (tempInput) fs.rmSync(tempInput, { force: true });
+
+            // Upload mastered WAV to R2 so it survives container restarts and is
+            // accessible for saveToMusic + download even on cloud (Railway ephemeral disk).
+            const r2MasterKey = `projects/${pid}/masters/${mId}_spotify_master.wav`;
+            try {
+              const wavBuf = fs.readFileSync(outputPath);
+              await storage.saveAudioFile(wavBuf, r2MasterKey);
+            } catch (uploadErr) {
+              // Non-fatal: local file still exists for this request
+            }
+
+            results.push({ musicId: mId, status: 'success', masteredPath: outputPath, r2Key: r2MasterKey });
           } catch (err) {
             errors.push({ musicId: mId, error: err.message });
           }
@@ -222,22 +253,28 @@ export const MasteringController = {
       }
 
       const mastersDir = storage.getMastersDir(projectId);
+      if (!fs.existsSync(mastersDir)) fs.mkdirSync(mastersDir, { recursive: true });
       const saved = [];
 
-      // Ensure masters directory exists
-      if (!fs.existsSync(mastersDir)) {
-        return res.json({ saved: [] });
-      }
-
       for (const fileId of fileIds) {
-        const masterFiles = fs.readdirSync(mastersDir).filter(f => f.startsWith(fileId));
-        const masterFile = masterFiles.find(f => f.endsWith('_spotify_master.wav'));
+        // Find mastered WAV: check local disk first, then R2 (cloud-stored after process).
+        const localMasterName = `${fileId}_spotify_master.wav`;
+        const localMasterPath = path.join(mastersDir, localMasterName);
+        const r2MasterKey = `projects/${projectId}/masters/${localMasterName}`;
+        let masterPath = null;
 
-        if (!masterFile) {
-          continue; // Skip if not mastered
+        if (fs.existsSync(localMasterPath)) {
+          masterPath = localMasterPath;
+        } else {
+          // Pull from R2
+          const buf = await storage.readBufferAnywhere(r2MasterKey);
+          if (buf) {
+            fs.writeFileSync(localMasterPath, buf);
+            masterPath = localMasterPath;
+          }
         }
 
-        const masterPath = path.join(mastersDir, masterFile);
+        if (!masterPath) continue; // not mastered yet
 
         let duration = 0;
         try {
@@ -268,13 +305,20 @@ export const MasteringController = {
           }
         }
 
+        // Store mastered WAV in R2 so it plays on cloud + other devices.
+        const r2SaveKey = `projects/${projectId}/masters/${localMasterName}`;
+        try {
+          const wavBuf = fs.readFileSync(masterPath);
+          await storage.saveAudioFile(wavBuf, r2SaveKey);
+        } catch (_) { /* non-fatal */ }
+
         const version = await MusicModel.getNextVersion(projectId);
         const music = await MusicModel.create({
           projectId,
           version,
-          originalFilePath: masterPath, // mastered file
-          processedFilePath: masterPath,
-          title: masterFile.replace('_spotify_master.wav', ''),
+          originalFilePath: r2SaveKey,   // R2 key — readable everywhere
+          processedFilePath: r2SaveKey,
+          title: localMasterName.replace('_spotify_master.wav', ''),
           model: 'mastering',
           durationSeconds: duration,
         });
