@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
 
 // Inject keyframes once at module level
 let _stylesInjected = false;
@@ -28,6 +29,7 @@ interface YoutubeDownloaderProps {
 }
 
 type DlState = 'idle' | 'running' | 'done' | 'error';
+type StreamState = 'idle' | 'loading' | 'ready' | 'error';
 
 const BARS: [string, string][] = [
   ['ytBar1', '0.42s'],
@@ -45,6 +47,7 @@ const YT_ICON = (
 
 export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDownloaderProps) {
   useEffect(() => { injectStyles(); }, []);
+  const { playStreamUrl } = useWorkspace();
 
   const [url, setUrl] = useState('');
   const [dlState, setDlState] = useState<DlState>('idle');
@@ -158,6 +161,40 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
   }, [searchQ]);
 
   const pickSuggestion = (s: string) => { setSearchQ(s); setSuggestions([]); setShowSug(false); runSearch(s); };
+
+  // ── Stream (play without saving) ──
+  const [streamingId, setStreamingId] = useState<string | null>(null); // which result is streaming
+  const [streamState, setStreamState] = useState<StreamState>('idle');
+
+  const handleStream = useCallback(async (ytUrl: string, title: string, thumbnail?: string) => {
+    setStreamingId(ytUrl);
+    setStreamState('loading');
+    try {
+      const res = await fetch('/api/youtube/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: ytUrl, jobType: 'stream' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      const jobId = data.jobId;
+      // Poll for stream URL (fast — worker just runs yt-dlp --get-url)
+      for (let i = 0; i < 30; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        const sr = await fetch(`/api/youtube/jobs/${jobId}`);
+        const sj = await sr.json();
+        if (sj.status === 'done' && sj.streamUrl) {
+          playStreamUrl(sj.streamUrl, { title: sj.title || title, artworkUrl: thumbnail || null });
+          setStreamState('ready'); setStreamingId(null); return;
+        }
+        if (sj.status === 'failed') throw new Error(sj.error || 'Stream failed');
+      }
+      throw new Error('Timed out');
+    } catch (e) {
+      setStreamState('error'); setStreamingId(null);
+      setTimeout(() => setStreamState('idle'), 3000);
+    }
+  }, [playStreamUrl]);
 
   const reset = () => {
     if (stalledRef.current) { clearInterval(stalledRef.current); stalledRef.current = null; }
@@ -289,20 +326,34 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
               ))}
               <style>{`@keyframes ris-shimmer{0%{background-position:100% 50%}100%{background-position:0 50%}}`}</style>
               {!searching && searchResults.length === 0 && <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12, textAlign: 'center', padding: '14px' }}>No results.</div>}
-              {searchResults.map(r => (
-                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 9, padding: 7 }}>
-                  <div style={{ width: 64, height: 40, borderRadius: 5, overflow: 'hidden', flexShrink: 0, background: '#000' }}>
-                    <img src={r.thumbnail} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              {searchResults.map(r => {
+                const isStreaming = streamingId === r.url;
+                return (
+                  <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 9, padding: 7 }}>
+                    <div style={{ width: 64, height: 40, borderRadius: 5, overflow: 'hidden', flexShrink: 0, background: '#000', position: 'relative', cursor: 'pointer' }} onClick={() => handleStream(r.url, r.title, r.thumbnail)}>
+                      <img src={r.thumbnail} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      {/* Play overlay on thumbnail */}
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.35)' }}>
+                        {isStreaming
+                          ? <span style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid #fff', borderTopColor: 'transparent', display: 'inline-block', animation: 'ris-spin 0.7s linear infinite' }} />
+                          : <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg>}
+                      </div>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12.5, color: '#fff', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</div>
+                      <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.channel}{r.duration ? ` · ${formatDuration(r.duration)}` : ''}</div>
+                    </div>
+                    {/* Play (stream) */}
+                    <button onClick={() => handleStream(r.url, r.title, r.thumbnail)} disabled={isStreaming} style={{ flexShrink: 0, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: 8, fontSize: 11, fontWeight: 600, padding: '7px 10px', cursor: 'pointer', minWidth: 36 }}>
+                      {isStreaming ? '…' : '▶'}
+                    </button>
+                    {/* Download (save to library) */}
+                    <button onClick={() => handleDownload(r.url)} disabled={dlState === 'running'} style={{ flexShrink: 0, background: 'rgba(230,57,70,0.12)', border: '1px solid rgba(230,57,70,0.3)', color: '#E63946', borderRadius: 8, fontSize: 11, fontWeight: 700, padding: '7px 10px', cursor: 'pointer', minWidth: 36 }}>
+                      ⬇
+                    </button>
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12.5, color: '#fff', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</div>
-                    <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.channel}{r.duration ? ` · ${formatDuration(r.duration)}` : ''}</div>
-                  </div>
-                  <button onClick={() => handleDownload(r.url)} style={{ flexShrink: 0, background: 'rgba(230,57,70,0.15)', border: '1px solid rgba(230,57,70,0.4)', color: '#E63946', borderRadius: 8, fontSize: 11, fontWeight: 700, padding: '7px 12px', cursor: 'pointer' }}>
-                    Download
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 

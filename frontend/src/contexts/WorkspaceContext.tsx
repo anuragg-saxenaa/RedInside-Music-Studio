@@ -61,6 +61,7 @@ interface WorkspaceContextType {
   playerDuration: number;
   playerVolume: number;
   playTrack: (track: MusicGeneration) => void;
+  playStreamUrl: (streamUrl: string, meta: { title: string; artist?: string; artworkUrl?: string | null }) => void;
   togglePlay: () => void;
   seekTo: (fraction: number) => void;
   setPlayerVolume: (v: number) => void;
@@ -441,6 +442,32 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     });
   }, [playerVolume]);
 
+  // Play a transient stream URL (YouTube preview) — bypasses the library.
+  // The track is ephemeral: no musicId, no project attachment, just plays.
+  const playStreamUrl = useCallback((streamUrl: string, meta: { title: string; artist?: string; artworkUrl?: string | null }) => {
+    if (persistentAudio) { persistentAudio.pause(); persistentAudio.src = ''; }
+    const fakeTrack = { id: `stream-${Date.now()}`, title: meta.title, artist: meta.artist || '', version: 1, project_id: '' } as unknown as MusicGeneration;
+    const audio = createAudio(streamUrl, { title: meta.title, artist: meta.artist, artworkUrl: meta.artworkUrl });
+    audio.volume = playerVolume;
+    persistentAudio = audio; audioRef.current = audio; persistentTrack = fakeTrack;
+    audio.play().catch(() => {});
+    setPlayerTrack(fakeTrack); setSelectedTrack(fakeTrack);
+    setPlayerIsPlaying(true); setPlayerLoading(true);
+    setPlayerProgress(0); setPlayerCurrentTime(0); setPlayerDuration(0);
+    setNowPlaying({ title: meta.title, artist: meta.artist || '', artworkUrl: meta.artworkUrl ?? null });
+    setPlaybackState('playing');
+    audio.addEventListener('timeupdate', () => {
+      if ((audio as any).currentTime > 0) setPlayerLoading(false);
+      if (audio.duration && isFinite(audio.duration)) {
+        setPlayerProgress(audio.currentTime / audio.duration);
+        setPlayerCurrentTime(audio.currentTime); setPlayerDuration(audio.duration);
+        setPosition(audio.duration, audio.currentTime);
+      }
+    });
+    audio.addEventListener('loadedmetadata', () => { if (isFinite(audio.duration)) setPlayerDuration(audio.duration); });
+    audio.addEventListener('ended', () => { setPlayerIsPlaying(false); setPlaybackState('paused'); });
+  }, [playerVolume]);
+
   const togglePlay = useCallback(() => {
     if (!persistentAudio) return;
     // Read actual audio state (not React state) — avoids double-press bug where
@@ -567,7 +594,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       activeTab: activeTab, setActiveTab: setActiveTabWrapped,
       playlists, refreshPlaylists,
       playerTrack, playerIsPlaying, playerLoading, playerProgress, playerCurrentTime, playerDuration, playerVolume,
-      playTrack, togglePlay, seekTo, setPlayerVolume, playNext, playPrev,
+      playTrack, playStreamUrl, togglePlay, seekTo, setPlayerVolume, playNext, playPrev,
       isLooping, isShuffled, toggleLoop, toggleShuffle,
       isMockMode,
     }}>

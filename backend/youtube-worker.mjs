@@ -52,19 +52,52 @@ function ytDownload(url, id) {
   });
 }
 
-async function processJob(job) {
-  log('▶ job', job.id, job.url);
-  try {
-    const { file, title, duration, ext } = await ytDownload(job.url, job.id);
-    const audioBase64 = fs.readFileSync(file).toString('base64');
-    fs.rmSync(file, { force: true });
-    const r = await fetch(`${API_BASE}/api/youtube/jobs/${job.id}/result`, {
-      method: 'POST', headers: HDR,
-      body: JSON.stringify({ audioBase64, title, duration, ext }),
+function ytGetStreamUrl(url) {
+  return new Promise((resolve, reject) => {
+    const args = ['-f', 'bestaudio[ext=m4a]/bestaudio/best', '--get-url', '--no-playlist', ...PROXY, url];
+    const p = spawn('yt-dlp', args);
+    let out = '', err = '';
+    p.stdout.on('data', d => out += d);
+    p.stderr.on('data', d => err += d);
+    p.on('close', code => {
+      if (code !== 0) return reject(new Error(err.slice(-300) || `yt-dlp exit ${code}`));
+      const streamUrl = out.trim().split('\n')[0];
+      if (!streamUrl) return reject(new Error('no stream URL returned'));
+      resolve(streamUrl);
     });
-    const data = await r.json();
-    if (r.ok) log('✓ done', job.id, '→', title, `(musicId ${data.musicId})`);
-    else log('✗ upload failed', job.id, data.error);
+    p.on('error', e => reject(e));
+  });
+}
+
+async function processJob(job) {
+  log('▶', job.jobType || 'download', job.id, job.url);
+  try {
+    if (job.jobType === 'stream') {
+      // Stream: get direct audio URL only — no file download, done in seconds.
+      const streamUrl = await ytGetStreamUrl(job.url);
+      // Also grab title for display
+      const infoProc = spawn('yt-dlp', ['--print', 'title', '--no-playlist', ...PROXY, job.url]);
+      let title = ''; infoProc.stdout.on('data', d => title += d);
+      await new Promise(r => infoProc.on('close', r));
+      title = title.trim() || 'YouTube Stream';
+      const r = await fetch(`${API_BASE}/api/youtube/jobs/${job.id}/result`, {
+        method: 'POST', headers: HDR, body: JSON.stringify({ streamUrl, title }),
+      });
+      const data = await r.json();
+      if (r.ok) log('✓ stream', job.id, '→', title);
+      else log('✗ stream upload failed', data.error);
+    } else {
+      // Download: full file → upload to library.
+      const { file, title, duration, ext } = await ytDownload(job.url, job.id);
+      const audioBase64 = fs.readFileSync(file).toString('base64');
+      fs.rmSync(file, { force: true });
+      const r = await fetch(`${API_BASE}/api/youtube/jobs/${job.id}/result`, {
+        method: 'POST', headers: HDR, body: JSON.stringify({ audioBase64, title, duration, ext }),
+      });
+      const data = await r.json();
+      if (r.ok) log('✓ download', job.id, '→', title, `(musicId ${data.musicId})`);
+      else log('✗ upload failed', job.id, data.error);
+    }
   } catch (e) {
     log('✗ failed', job.id, e.message);
     await fetch(`${API_BASE}/api/youtube/jobs/${job.id}/result`, { method: 'POST', headers: HDR, body: JSON.stringify({ error: e.message }) }).catch(() => {});

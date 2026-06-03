@@ -52,19 +52,21 @@ export const DownloaderController = {
 
   // ── Download job queue (worker = desktop app on a residential IP) ──
 
-  // POST /api/youtube/jobs { url, projectId } — enqueue (called by any client/iOS)
+  // POST /api/youtube/jobs { url, projectId, jobType? } — enqueue
+  // jobType: 'download' (default) saves to library; 'stream' returns a play URL fast
   async createJob(req, res) {
     try {
-      const { url, projectId } = req.body || {};
-      if (!url || !projectId) return res.status(400).json({ error: 'url and projectId required' });
+      const { url, projectId, jobType = 'download' } = req.body || {};
+      if (!url) return res.status(400).json({ error: 'url required' });
+      if (jobType === 'download' && !projectId) return res.status(400).json({ error: 'projectId required for download' });
       let host; try { host = new URL(url).hostname; } catch { return res.status(400).json({ error: 'Invalid URL' }); }
       if (!ALLOWED_HOSTS.includes(host)) return res.status(400).json({ error: 'Only YouTube URLs supported' });
       const { default: db } = await import('../../database/connection.js');
-      await db.execute("CREATE TABLE IF NOT EXISTS download_jobs (id TEXT PRIMARY KEY, url TEXT NOT NULL, project_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', music_id TEXT, title TEXT, error TEXT, claimed_at TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)");
+      await db.execute("CREATE TABLE IF NOT EXISTS download_jobs (id TEXT PRIMARY KEY, url TEXT NOT NULL, project_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', music_id TEXT, title TEXT, error TEXT, claimed_at TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, job_type TEXT DEFAULT 'download', stream_url TEXT)");
       const id = `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      await db.execute({ sql: 'INSERT INTO download_jobs (id, url, project_id, status) VALUES (?, ?, ?, ?)', args: [id, url, projectId, 'pending'] });
-      logger.info('download job queued', { id, url });
-      res.status(202).json({ jobId: id, status: 'pending' });
+      await db.execute({ sql: 'INSERT INTO download_jobs (id, url, project_id, status, job_type) VALUES (?, ?, ?, ?, ?)', args: [id, url, projectId || '', 'pending', jobType] });
+      logger.info('job queued', { id, url, jobType });
+      res.status(202).json({ jobId: id, status: 'pending', jobType });
     } catch (e) { res.status(500).json({ error: e.message }); }
   },
 
@@ -76,20 +78,32 @@ export const DownloaderController = {
       const job = r.rows?.[0];
       if (!job) return res.json({ job: null });
       const upd = await db.execute({ sql: "UPDATE download_jobs SET status = 'processing', claimed_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'pending'", args: [job.id] });
-      if (!upd.rowsAffected) return res.json({ job: null }); // raced — another worker took it
-      res.json({ job: { id: job.id, url: job.url, projectId: job.project_id } });
+      if (!upd.rowsAffected) return res.json({ job: null });
+      res.json({ job: { id: job.id, url: job.url, projectId: job.project_id, jobType: job.job_type || 'download' } });
     } catch (e) { res.status(500).json({ error: e.message }); }
   },
 
-  // POST /api/youtube/jobs/:id/result { audioBase64, title, duration, ext } — worker uploads result
+  // POST /api/youtube/jobs/:id/result { audioBase64?, streamUrl?, title, duration, ext } — worker result
   async submitJobResult(req, res) {
     try {
       const { id } = req.params;
-      const { audioBase64, title, duration, ext } = req.body || {};
+      const { audioBase64, streamUrl, title, duration, ext } = req.body || {};
       const { default: db } = await import('../../database/connection.js');
       const jr = await db.execute({ sql: 'SELECT * FROM download_jobs WHERE id = ?', args: [id] });
       const job = jr.rows?.[0];
       if (!job) return res.status(404).json({ error: 'job not found' });
+
+      // Stream job — just store the URL and return immediately.
+      if (job.job_type === 'stream' || streamUrl) {
+        if (!streamUrl) {
+          await db.execute({ sql: "UPDATE download_jobs SET status='failed', error=? WHERE id=?", args: [String(req.body?.error || 'no stream url'), id] });
+          return res.status(400).json({ error: 'streamUrl required for stream jobs' });
+        }
+        await db.execute({ sql: "UPDATE download_jobs SET status='done', stream_url=?, title=? WHERE id=?", args: [streamUrl, title || '', id] });
+        logger.info('stream job completed', { id, title });
+        return res.json({ success: true, streamUrl });
+      }
+
       if (!audioBase64) {
         await db.execute({ sql: "UPDATE download_jobs SET status='failed', error=? WHERE id=?", args: [String(req.body?.error || 'no audio'), id] });
         return res.status(400).json({ error: 'audioBase64 required' });
@@ -112,10 +126,10 @@ export const DownloaderController = {
   async jobStatus(req, res) {
     try {
       const { default: db } = await import('../../database/connection.js');
-      const r = await db.execute({ sql: 'SELECT id, status, music_id, title, error FROM download_jobs WHERE id = ?', args: [req.params.id] });
+      const r = await db.execute({ sql: 'SELECT id, status, music_id, title, error, job_type, stream_url FROM download_jobs WHERE id = ?', args: [req.params.id] });
       const j = r.rows?.[0];
       if (!j) return res.status(404).json({ error: 'not found' });
-      res.json({ id: j.id, status: j.status, musicId: j.music_id, title: j.title, error: j.error });
+      res.json({ id: j.id, status: j.status, musicId: j.music_id, title: j.title, error: j.error, jobType: j.job_type, streamUrl: j.stream_url });
     } catch (e) { res.status(500).json({ error: e.message }); }
   },
 
