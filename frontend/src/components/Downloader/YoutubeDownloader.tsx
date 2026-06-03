@@ -29,7 +29,6 @@ interface YoutubeDownloaderProps {
 }
 
 type DlState = 'idle' | 'running' | 'done' | 'error';
-type StreamState = 'idle' | 'loading' | 'ready' | 'error';
 
 const BARS: [string, string][] = [
   ['ytBar1', '0.42s'],
@@ -164,11 +163,9 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
 
   // ── Stream (play without saving) ──
   const [streamingId, setStreamingId] = useState<string | null>(null); // which result is streaming
-  const [streamState, setStreamState] = useState<StreamState>('idle');
 
   const handleStream = useCallback(async (ytUrl: string, title: string, thumbnail?: string) => {
     setStreamingId(ytUrl);
-    setStreamState('loading');
     try {
       const res = await fetch('/api/youtube/jobs', {
         method: 'POST',
@@ -185,14 +182,13 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
         const sj = await sr.json();
         if (sj.status === 'done' && sj.streamUrl) {
           playStreamUrl(sj.streamUrl, { title: sj.title || title, artworkUrl: thumbnail || null });
-          setStreamState('ready'); setStreamingId(null); return;
+              setStreamingId(null); return;
         }
         if (sj.status === 'failed') throw new Error(sj.error || 'Stream failed');
       }
       throw new Error('Timed out');
     } catch (e) {
-      setStreamState('error'); setStreamingId(null);
-      setTimeout(() => setStreamState('idle'), 3000);
+      setStreamingId(null);
     }
   }, [playStreamUrl]);
 
@@ -348,7 +344,7 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
                       {isStreaming ? '…' : '▶'}
                     </button>
                     {/* Download (save to library) */}
-                    <button onClick={() => handleDownload(r.url)} disabled={dlState === 'running'} style={{ flexShrink: 0, background: 'rgba(230,57,70,0.12)', border: '1px solid rgba(230,57,70,0.3)', color: '#E63946', borderRadius: 8, fontSize: 11, fontWeight: 700, padding: '7px 10px', cursor: 'pointer', minWidth: 36 }}>
+                    <button onClick={() => handleDownload(r.url)} disabled={dlState !== 'idle'} style={{ flexShrink: 0, background: 'rgba(230,57,70,0.12)', border: '1px solid rgba(230,57,70,0.3)', color: '#E63946', borderRadius: 8, fontSize: 11, fontWeight: 700, padding: '7px 10px', cursor: 'pointer', minWidth: 36 }}>
                       ⬇
                     </button>
                   </div>
