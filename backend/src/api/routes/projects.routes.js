@@ -32,15 +32,10 @@ export const ProjectsController = {
 
   async getById(req, res, next) {
     try {
-      const userId = req.auth?.userId || 'dev-user';
       const { id } = req.params;
-      const result = await db.execute({ sql: 'SELECT * FROM projects WHERE id = ? AND user_id = ?', args: [id, userId] });
+      const result = await db.execute({ sql: 'SELECT * FROM projects WHERE id = ?', args: [id] });
       const project = result.rows[0];
-
-      if (!project) {
-        return res.status(404).json({ error: 'Project not found' });
-      }
-
+      if (!project) return res.status(404).json({ error: 'Project not found' });
       res.json(project);
     } catch (error) {
       next(error);
@@ -61,21 +56,11 @@ export const ProjectsController = {
 
   async update(req, res, next) {
     try {
-      const userId = req.auth?.userId || 'dev-user';
       const { id } = req.params;
       const { name, description, workflowMode } = req.body;
-
-      const existingResult = await db.execute({ sql: 'SELECT * FROM projects WHERE id = ? AND user_id = ?', args: [id, userId] });
-      if (!existingResult.rows[0]) {
-        return res.status(404).json({ error: 'Project not found' });
-      }
-
-      const project = await ProjectModel.update(id, {
-        name,
-        description,
-        workflowMode,
-      });
-
+      const existingResult = await db.execute({ sql: 'SELECT * FROM projects WHERE id = ?', args: [id] });
+      if (!existingResult.rows[0]) return res.status(404).json({ error: 'Project not found' });
+      const project = await ProjectModel.update(id, { name, description, workflowMode });
       res.json(project);
     } catch (error) {
       next(error);
@@ -84,14 +69,11 @@ export const ProjectsController = {
 
   async delete(req, res, next) {
     try {
-      const userId = req.auth?.userId || 'dev-user';
       const { id } = req.params;
-
-      const existingResult = await db.execute({ sql: 'SELECT * FROM projects WHERE id = ? AND user_id = ?', args: [id, userId] });
+      const existingResult = await db.execute({ sql: 'SELECT * FROM projects WHERE id = ?', args: [id] });
       if (!existingResult.rows[0]) {
         return res.status(404).json({ error: 'Project not found' });
       }
-
       await ProjectModel.delete(id);
       res.status(204).send();
     } catch (error) {
