@@ -259,83 +259,45 @@ export const MasteringController = {
   async saveToMusic(req, res, next) {
     try {
       const { projectId, fileIds } = req.body;
-
       if (!projectId || !Array.isArray(fileIds) || fileIds.length === 0) {
         return res.status(400).json({ error: 'projectId and fileIds required' });
       }
 
-      const mastersDir = storage.getMastersDir(projectId);
-      if (!fs.existsSync(mastersDir)) fs.mkdirSync(mastersDir, { recursive: true });
+      const { MusicModel } = await import('../../database/models/music.model.js');
+      const { ProjectModel } = await import('../../database/models/project.model.js');
+      const db = await getDb();
       const saved = [];
 
       for (const fileId of fileIds) {
-        // Find mastered WAV: check local disk first, then R2 (cloud-stored after process).
-        const localMasterName = `${fileId}_spotify_master.wav`;
-        const localMasterPath = path.join(mastersDir, localMasterName);
-        const r2MasterKey = `projects/${projectId}/masters/${localMasterName}`;
-        let masterPath = null;
+        // Look up the mastering job result to get r2Key + original track duration.
+        // This avoids downloading the 50MB WAV just to create a DB record.
+        const r2MasterKey = `projects/${projectId}/masters/${fileId}_spotify_master.wav`;
 
-        if (fs.existsSync(localMasterPath)) {
-          masterPath = localMasterPath;
-        } else {
-          // Pull from R2
-          const buf = await storage.readBufferAnywhere(r2MasterKey);
-          if (buf) {
-            fs.writeFileSync(localMasterPath, buf);
-            masterPath = localMasterPath;
-          }
-        }
-
-        if (!masterPath) continue; // not mastered yet
-
+        // Get duration from the original music track if fileId is a musicId.
         let duration = 0;
         try {
-          const dur = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${masterPath}"`, { encoding: 'utf8' });
-          duration = parseFloat(dur.trim()) || 0;
-        } catch (e) {}
+          const original = await MusicModel.findById(fileId);
+          if (original) duration = original.duration_seconds || 0;
+        } catch (_) {}
 
-        const { MusicModel } = await import('../../database/models/music.model.js');
-        const { ProjectModel } = await import('../../database/models/project.model.js');
-        const db = (await import('../../database/connection.js')).default;
-
-        // Ensure project exists in database (create if necessary)
-        let projectResult = await db.execute({ sql: 'SELECT * FROM projects WHERE id = ?', args: [projectId] });
-        let project = projectResult.rows[0];
-        if (!project) {
-          try {
-            // Insert directly with the provided projectId
-            await db.execute({
-              sql: 'INSERT INTO projects (id, name, description, workflow_mode) VALUES (?, ?, ?, ?)',
-              args: [projectId, `Mastering Project ${projectId}`, null, 'hybrid'],
-            });
-            const r2 = await db.execute({ sql: 'SELECT * FROM projects WHERE id = ?', args: [projectId] });
-            project = r2.rows[0];
-          } catch (e) {
-            // Project may already exist from concurrent request
-            const r3 = await db.execute({ sql: 'SELECT * FROM projects WHERE id = ?', args: [projectId] });
-            project = r3.rows[0];
-          }
-        }
-
-        // Store mastered WAV in R2 so it plays on cloud + other devices.
-        const r2SaveKey = `projects/${projectId}/masters/${localMasterName}`;
+        // Get title from original track or fall back to fileId
+        let title = fileId;
         try {
-          const wavBuf = fs.readFileSync(masterPath);
-          await storage.saveAudioFile(wavBuf, r2SaveKey);
-        } catch (_) { /* non-fatal */ }
+          const original = await MusicModel.findById(fileId);
+          if (original) title = (original.title || `Track v${original.version}`) + ' (Mastered)';
+        } catch (_) {}
 
         const version = await MusicModel.getNextVersion(projectId);
         const music = await MusicModel.create({
           projectId,
           version,
-          originalFilePath: r2SaveKey,   // R2 key — readable everywhere
-          processedFilePath: r2SaveKey,
-          title: localMasterName.replace('_spotify_master.wav', ''),
+          originalFilePath: r2MasterKey,
+          processedFilePath: r2MasterKey,
+          title,
           model: 'mastering',
           durationSeconds: duration,
         });
         await ProjectModel.incrementVersion(projectId, 'music');
-
         saved.push({ fileId, musicId: music.id, version });
       }
 
