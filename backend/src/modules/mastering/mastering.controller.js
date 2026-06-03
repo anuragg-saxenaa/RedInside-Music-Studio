@@ -6,6 +6,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { execSync } from 'child_process';
 import JSZip from 'jszip';
 
+// In-memory async mastering jobs (same pattern as YouTube download status).
+const masteringJobs = new Map();
+function setJobStatus(id, data) {
+  masteringJobs.set(id, { ...masteringJobs.get(id), ...data, updatedAt: Date.now() });
+  setTimeout(() => masteringJobs.delete(id), 3600000); // clean up after 1h
+}
+
 export const MasteringController = {
   async upload(req, res, next) {
     try {
@@ -51,155 +58,121 @@ export const MasteringController = {
     }
   },
 
+  // GET /api/mastering/status/:jobId — poll async mastering job
+  async jobStatus(req, res) {
+    const job = masteringJobs.get(req.params.jobId);
+    if (!job) return res.status(404).json({ error: 'not found' });
+    res.json(job);
+  },
+
   async process(req, res, next) {
     try {
       const { fileIds, fileId, musicId, musicIds, projectId, preset, saveToProject } = req.body;
 
-      // Handle musicId(s) - look up audio files from existing music DB records
-      if (musicId || musicIds) {
-        const { MusicModel } = await import('../../database/models/music.model.js');
-        const ids = Array.isArray(musicIds) ? musicIds : [musicId];
+      // Determine the list of IDs and whether they're musicIds or uploadedFileIds
+      const isMusicId = !!(musicId || musicIds);
+      const ids = isMusicId
+        ? (Array.isArray(musicIds) ? musicIds : [musicId])
+        : (Array.isArray(fileIds) ? fileIds : (fileIds ? [fileIds] : (fileId ? [fileId] : [])));
+
+      if (ids.length === 0) return res.status(400).json({ error: 'No file IDs provided' });
+
+      // Return a jobId immediately — process in background to avoid Railway 60s timeout.
+      const jobId = `master-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      setJobStatus(jobId, { status: 'processing', progress: 0, results: [], errors: [] });
+      res.status(202).json({ jobId, status: 'processing' });
+
+      // Background processing
+      (async () => {
         const results = [];
         const errors = [];
+        const total = ids.length;
 
-        for (const mId of ids) {
+        for (let i = 0; i < ids.length; i++) {
+          const id = ids[i];
+          setJobStatus(jobId, { progress: Math.round((i / total) * 80) });
           try {
-            const music = await MusicModel.findById(mId);
-            if (!music) {
-              errors.push({ musicId: mId, error: 'Music not found' });
-              continue;
-            }
+            if (isMusicId) {
+              const { MusicModel } = await import('../../database/models/music.model.js');
+              const music = await MusicModel.findById(id);
+              if (!music) { errors.push({ musicId: id, error: 'Music not found' }); continue; }
 
-            const r2Key = music.processed_file_path || music.original_file_path;
-            if (!r2Key) {
-              errors.push({ musicId: mId, error: 'No audio path on record' });
-              continue;
-            }
+              const r2Key = music.processed_file_path || music.original_file_path;
+              if (!r2Key) { errors.push({ musicId: id, error: 'No audio path' }); continue; }
 
-            const pid = projectId || music.project_id;
-            const mastersDir = storage.getMastersDir(pid);
-            if (!fs.existsSync(mastersDir)) fs.mkdirSync(mastersDir, { recursive: true });
+              const pid = projectId || music.project_id;
+              const mastersDir = storage.getMastersDir(pid);
+              if (!fs.existsSync(mastersDir)) fs.mkdirSync(mastersDir, { recursive: true });
 
-            // Resolve input: try local disk first, then pull from R2 to a temp file.
-            // Railway (and cloud) stores audio in R2 — fs.existsSync on an R2 key fails.
-            let inputPath;
-            let tempInput = null;
-            const localPath = path.isAbsolute(r2Key) ? r2Key : path.join(storage.basePath, r2Key);
-            if (fs.existsSync(localPath)) {
-              inputPath = localPath;
-            } else {
-              const buf = await storage.readBufferAnywhere(r2Key);
-              if (!buf) {
-                errors.push({ musicId: mId, error: 'Audio file not found on disk or R2' });
-                continue;
+              // Resolve input: local disk first, then pull from R2.
+              let inputPath, tempInput = null;
+              const localPath = path.isAbsolute(r2Key) ? r2Key : path.join(storage.basePath, r2Key);
+              if (fs.existsSync(localPath)) {
+                inputPath = localPath;
+              } else {
+                const buf = await storage.readBufferAnywhere(r2Key);
+                if (!buf) { errors.push({ musicId: id, error: 'Audio not found on disk or R2' }); continue; }
+                const ext = path.extname(r2Key) || '.mp3';
+                tempInput = path.join(mastersDir, `${id}_tmp${ext}`);
+                fs.writeFileSync(tempInput, buf);
+                inputPath = tempInput;
               }
-              const ext = path.extname(r2Key) || '.mp3';
-              tempInput = path.join(mastersDir, `${mId}_tmp${ext}`);
-              fs.writeFileSync(tempInput, buf);
-              inputPath = tempInput;
+
+              const outputPath = path.join(mastersDir, `${id}_spotify_master.wav`);
+              await new AudioMasteringService(mastersDir).masterToSpotify(inputPath, outputPath);
+              if (tempInput) fs.rmSync(tempInput, { force: true });
+
+              // Upload mastered WAV to R2 so it persists across deploys.
+              const r2MasterKey = `projects/${pid}/masters/${id}_spotify_master.wav`;
+              try { await storage.saveAudioFile(fs.readFileSync(outputPath), r2MasterKey); } catch (_) {}
+
+              results.push({ musicId: id, status: 'success', masteredPath: outputPath, r2Key: r2MasterKey });
+            } else {
+              // Uploaded file (not from music library)
+              const uploadDir = storage.getUploadDir(projectId);
+              const mastersDir = storage.getMastersDir(projectId);
+              const files = fs.existsSync(uploadDir) ? fs.readdirSync(uploadDir) : [];
+              const inputFile = files.find(f => f.startsWith(id) && f.match(/\.(mp3|wav|flac|m4a|ogg|aac)$/i));
+              if (!inputFile) { errors.push({ fileId: id, error: 'File not found' }); continue; }
+
+              const inputPath = path.join(uploadDir, inputFile);
+              const outputPath = path.join(mastersDir, `${id}_spotify_master.wav`);
+              if (!fs.existsSync(mastersDir)) fs.mkdirSync(mastersDir, { recursive: true });
+
+              let inputDuration = 0;
+              try { inputDuration = parseFloat(execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${inputPath}"`, { encoding: 'utf8' }).trim()) || 0; } catch (_) {}
+
+              await new AudioMasteringService(mastersDir).masterToSpotify(inputPath, outputPath);
+
+              // Upload to R2
+              const r2MasterKey = `projects/${projectId}/masters/${id}_spotify_master.wav`;
+              try { await storage.saveAudioFile(fs.readFileSync(outputPath), r2MasterKey); } catch (_) {}
+
+              if (saveToProject) {
+                const { MusicModel } = await import('../../database/models/music.model.js');
+                const { ProjectModel } = await import('../../database/models/project.model.js');
+                const version = await MusicModel.getNextVersion(projectId);
+                let title = inputFile;
+                try { title = JSON.parse(fs.readFileSync(path.join(uploadDir, `${id}.meta.json`), 'utf8')).originalName || inputFile; } catch (_) {}
+                const music = await MusicModel.create({ projectId, version, originalFilePath: r2MasterKey, processedFilePath: r2MasterKey, title, model: 'upload', durationSeconds: inputDuration });
+                await ProjectModel.incrementVersion(projectId, 'music');
+                results.push({ fileId: id, status: 'success', masteredPath: outputPath, musicId: music.id });
+              } else {
+                results.push({ fileId: id, status: 'success', masteredPath: outputPath });
+              }
             }
-
-            const outputPath = path.join(mastersDir, `${mId}_spotify_master.wav`);
-            const service = new AudioMasteringService(mastersDir);
-            await service.masterToSpotify(inputPath, outputPath);
-
-            if (tempInput) fs.rmSync(tempInput, { force: true });
-
-            // Upload mastered WAV to R2 so it survives container restarts and is
-            // accessible for saveToMusic + download even on cloud (Railway ephemeral disk).
-            const r2MasterKey = `projects/${pid}/masters/${mId}_spotify_master.wav`;
-            try {
-              const wavBuf = fs.readFileSync(outputPath);
-              await storage.saveAudioFile(wavBuf, r2MasterKey);
-            } catch (uploadErr) {
-              // Non-fatal: local file still exists for this request
-            }
-
-            results.push({ musicId: mId, status: 'success', masteredPath: outputPath, r2Key: r2MasterKey });
           } catch (err) {
-            errors.push({ musicId: mId, error: err.message });
+            errors.push({ id, error: err.message });
           }
         }
 
-        if (ids.length === 1 && results.length === 1 && errors.length === 0) {
-          return res.json({ success: true, masteredPath: results[0].masteredPath });
-        }
-        return res.json({ results, errors });
-      }
-
-      // Handle single ID or array - support both fileId and fileIds
-      const isSingle = !fileIds;
-      const ids = Array.isArray(fileIds) ? fileIds : (fileIds ? [fileIds] : (fileId ? [fileId] : []));
-
-      if (ids.length === 0) {
-        return res.status(400).json({ error: 'No fileIds provided' });
-      }
-
-      const uploadDir = storage.getUploadDir(projectId);
-      const mastersDir = storage.getMastersDir(projectId);
-      const results = [];
-      const errors = [];
-
-      for (const fileId of ids) {
-        try {
-          const files = fs.readdirSync(uploadDir);
-          const inputFile = files.find(f => f.startsWith(fileId) && f.match(/\.(mp3|wav|flac|m4a|ogg|aac)$/i));
-
-          if (!inputFile) {
-            errors.push({ fileId, error: 'File not found' });
-            continue;
-          }
-
-          const inputPath = path.join(uploadDir, inputFile);
-          const outputPath = path.join(mastersDir, `${fileId}_spotify_master.wav`);
-
-          let inputDuration = 0;
-          try {
-            const dur = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${inputPath}"`, { encoding: 'utf8' });
-            inputDuration = parseFloat(dur.trim()) || 0;
-          } catch (e) {}
-
-          const service = new AudioMasteringService(mastersDir);
-          await service.masterToSpotify(inputPath, outputPath);
-
-          if (saveToProject) {
-            const { MusicModel } = await import('../../database/models/music.model.js');
-            const { ProjectModel } = await import('../../database/models/project.model.js');
-            const version = await MusicModel.getNextVersion(projectId);
-            const music = await MusicModel.create({
-              projectId,
-              version,
-              originalFilePath: inputPath,
-              processedFilePath: outputPath,
-              title: (() => {
-              try {
-                const meta = JSON.parse(fs.readFileSync(path.join(uploadDir, `${fileId}.meta.json`), 'utf8'));
-                return meta.originalName || inputFile;
-              } catch { return inputFile; }
-            })(),
-              model: 'upload',
-              durationSeconds: inputDuration,
-            });
-            await ProjectModel.incrementVersion(projectId, 'music');
-            results.push({ fileId, status: 'success', masteredPath: outputPath, musicId: music.id, version });
-          } else {
-            results.push({ fileId, status: 'success', masteredPath: outputPath });
-          }
-        } catch (err) {
-          errors.push({ fileId, error: err.message });
-        }
-      }
-
-      // Backward compatible response for single fileId
-      if (isSingle && results.length === 1 && errors.length === 0) {
-        return res.json({
-          success: true,
-          masteredPath: results[0].masteredPath,
-          downloadUrl: `/api/mastering/${results[0].fileId}/download/${projectId}`,
+        setJobStatus(jobId, { status: errors.length === ids.length ? 'failed' : 'done', progress: 100, results, errors,
+          // Backward-compat fields for single-item callers
+          success: results.length > 0,
+          masteredPath: results[0]?.masteredPath,
+          r2Key: results[0]?.r2Key,
         });
-      }
-
-      res.json({ results, errors });
+      })().catch(err => setJobStatus(jobId, { status: 'failed', error: err.message }));
     } catch (error) {
       next(error);
     }

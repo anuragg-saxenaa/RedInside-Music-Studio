@@ -82,35 +82,51 @@ export default function AudioMasteringPanel({ projectId, allMusic }: AudioMaster
     setFiles(prev => prev.map(f => f.id === fileId ? { ...f, status: 'processing', progress: 5 } : f));
 
     const vuInterval = setInterval(() => {
-      setVuLevel(prev => {
-        const noise = Math.random() * 20;
-        return Math.min(85, prev + noise);
-      });
+      setVuLevel(prev => Math.min(85, prev + Math.random() * 20));
     }, 150);
 
     try {
       const body = file.musicId
         ? { musicId: file.musicId, projectId, preset: 'spotify' }
         : { fileId, projectId, preset: 'spotify', saveToProject: true };
+
+      // Process returns a jobId immediately (async — avoids 60s Railway timeout).
       const response = await fetch('/api/mastering/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Processing failed');
 
-      clearInterval(vuInterval);
-      setVuLevel(100);
-
-      if (response.ok) {
-        await response.json();
+      const jobId = data.jobId;
+      if (!jobId) {
+        // Legacy sync response (local dev without job system)
+        clearInterval(vuInterval); setVuLevel(100);
         setFiles(prev => prev.map(f => f.id === fileId ? { ...f, status: 'complete', progress: 100 } : f));
-      } else {
-        const err = await response.json();
-        throw new Error(err.error || 'Processing failed');
+        return;
       }
+
+      // Poll until done
+      let elapsed = 0;
+      const poll = setInterval(async () => {
+        elapsed += 2;
+        try {
+          const sr = await fetch(`/api/mastering/status/${jobId}`);
+          const sj = await sr.json();
+          const progress = sj.progress ?? Math.min(90, 5 + elapsed * 4);
+          setFiles(prev => prev.map(f => f.id === fileId ? { ...f, progress } : f));
+          if (sj.status === 'done') {
+            clearInterval(poll); clearInterval(vuInterval); setVuLevel(100);
+            setFiles(prev => prev.map(f => f.id === fileId ? { ...f, status: 'complete', progress: 100 } : f));
+          } else if (sj.status === 'failed') {
+            clearInterval(poll); clearInterval(vuInterval); setVuLevel(0);
+            setFiles(prev => prev.map(f => f.id === fileId ? { ...f, status: 'error', error: sj.error || 'Mastering failed', progress: 0 } : f));
+          }
+        } catch { /* ignore poll errors */ }
+      }, 2000);
     } catch (err: any) {
-      clearInterval(vuInterval);
-      setVuLevel(0);
+      clearInterval(vuInterval); setVuLevel(0);
       setFiles(prev => prev.map(f => f.id === fileId ? { ...f, status: 'error', error: err.message } : f));
     }
   };
