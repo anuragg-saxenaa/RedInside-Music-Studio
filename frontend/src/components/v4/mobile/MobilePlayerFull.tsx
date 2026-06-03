@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { PlayIcon, PauseIcon, PrevIcon, NextIcon, ShuffleIcon, LoopIcon } from '../shared/Icons';
@@ -6,6 +6,8 @@ import { tapLight, tapMedium, selectionChanged } from '../../../lib/haptics';
 import AddToPlaylistSheet from './AddToPlaylistSheet';
 import QueueSheet from './QueueSheet';
 import { useAuthFetch } from '../../../hooks/useAuthFetch';
+import SyncedLyricsView from './SyncedLyricsView';
+import { computeLyricTimings } from '../../../pwa/lyricTimings';
 
 function fmtTime(s: number) {
   if (!s || !isFinite(s)) return '0:00';
@@ -76,8 +78,14 @@ export default function MobilePlayerFull({ onClose }: Props) {
 
   const close = () => { tapLight(); onClose(); };
 
+  // Memoize lyric timings — recompute only when lyrics text or duration changes.
+  const lyricLines = useMemo(
+    () => (lyrics && playerDuration > 0 ? computeLyricTimings(lyrics, playerDuration) : []),
+    [lyrics, playerDuration],
+  );
+
   // ── Unified gesture (direct DOM transforms = no per-frame React render) ──
-  const g = useRef({ x0: 0, y0: 0, axis: '' as '' | 'x' | 'y', overArt: false, dx: 0, dy: 0 });
+  const g = useRef({ x0: 0, y0: 0, t0: 0, axis: '' as '' | 'x' | 'y', overArt: false, dx: 0, dy: 0 });
 
   const pointInArt = (x: number, y: number) => {
     const r = artRef.current?.getBoundingClientRect();
@@ -86,7 +94,7 @@ export default function MobilePlayerFull({ onClose }: Props) {
 
   const onTouchStart = (e: React.TouchEvent) => {
     const t = e.touches[0];
-    g.current = { x0: t.clientX, y0: t.clientY, axis: '', overArt: pointInArt(t.clientX, t.clientY), dx: 0, dy: 0 };
+    g.current = { x0: t.clientX, y0: t.clientY, t0: Date.now(), axis: '', overArt: pointInArt(t.clientX, t.clientY), dx: 0, dy: 0 };
     if (rootRef.current) rootRef.current.style.transition = 'none';
     if (artRef.current) artRef.current.style.transition = 'none';
   };
@@ -112,14 +120,17 @@ export default function MobilePlayerFull({ onClose }: Props) {
   };
 
   const onTouchEnd = () => {
-    const { axis, overArt, dx, dy } = g.current;
+    const { axis, overArt, dx, dy, t0 } = g.current;
     if (axis === 'x' && overArt) {
       if (artRef.current) {
         artRef.current.style.transition = 'transform 320ms cubic-bezier(0.22,1,0.36,1)';
         artRef.current.style.transform = `translateX(0) rotate(0deg) scale(${playerIsPlaying ? 1 : 0.86})`;
       }
-      if (dx <= -70) { tapMedium(); playNext(); }
-      else if (dx >= 70) { tapMedium(); playPrev(); }
+      // Skip if distance > 100px OR swipe velocity > 500px/s (production-standard threshold).
+      const elapsed = Math.max(1, Date.now() - t0);
+      const vx = Math.abs(dx) / elapsed * 1000;
+      if (dx < 0 && (Math.abs(dx) > 100 || vx > 500)) { tapMedium(); playNext(); }
+      else if (dx > 0 && (Math.abs(dx) > 100 || vx > 500)) { tapMedium(); playPrev(); }
     } else if (axis === 'y' && dy > 0) {
       if (dy > 110) { tapLight(); onClose(); return; }
       if (rootRef.current) {
@@ -204,15 +215,18 @@ export default function MobilePlayerFull({ onClose }: Props) {
 
         {/* Lyrics view (replaces artwork when toggled) */}
         {showLyrics ? (
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '8px 30px 20px', WebkitOverflowScrolling: 'touch' }}>
-            {lyricsLoading && <div style={{ color: 'rgba(255,255,255,0.4)', textAlign: 'center', paddingTop: 40, fontSize: 14 }}>Loading lyrics…</div>}
-            {!lyricsLoading && (!lyrics || !lyrics.trim()) && (
-              <div style={{ color: 'rgba(255,255,255,0.4)', textAlign: 'center', paddingTop: 40, fontSize: 14 }}>No lyrics for this track.</div>
-            )}
-            {!lyricsLoading && lyrics && lyrics.trim() && (
-              <div style={{ fontSize: 21, lineHeight: 1.65, fontWeight: 700, color: '#fff', letterSpacing: '-0.01em', whiteSpace: 'pre-wrap', paddingBottom: 20, animation: 'ris-art-in 400ms ease' }}>
-                {lyrics.trim()}
+          <div style={{ flex: 1, minHeight: 0 }}>
+            {lyricsLoading && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>
+                Loading lyrics…
               </div>
+            )}
+            {!lyricsLoading && (
+              <SyncedLyricsView
+                lines={lyricLines}
+                currentTime={playerCurrentTime}
+                onSeek={(t) => seekTo(t / (playerDuration || 1))}
+              />
             )}
           </div>
         ) : (

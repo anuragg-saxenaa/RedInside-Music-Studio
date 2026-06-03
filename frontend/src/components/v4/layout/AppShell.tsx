@@ -8,7 +8,7 @@ import MobilePlaylistView from '../mobile/MobilePlaylistView';
 import MobileHome from '../mobile/MobileHome';
 import PullToRefresh from '../mobile/PullToRefresh';
 import OfflineBanner from '../mobile/OfflineBanner';
-import { PlayIcon, PauseIcon } from '../shared/Icons';
+import { PlayIcon, PauseIcon, NextIcon } from '../shared/Icons';
 import { tapLight, tapMedium } from '../../../lib/haptics';
 
 interface AppShellProps {
@@ -22,7 +22,8 @@ interface AppShellProps {
 
 // Mobile mini player bar
 function MobileMiniPlayer({ onExpand }: { onExpand: () => void }) {
-  const { playerTrack, playerIsPlaying, playerLoading, playerProgress, togglePlay, playNext, playPrev } = useWorkspace();
+  const { playerTrack, playerIsPlaying, playerLoading, playerProgress, togglePlay, playNext, playPrev, isLiked, toggleLike } = useWorkspace();
+  const liked = playerTrack ? isLiked(playerTrack.id) : false;
   const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
   const artworkUrl = playerTrack?.artwork_url
     ? (playerTrack.artwork_url.startsWith('http') ? playerTrack.artwork_url : `${API_BASE}/api/projects/${playerTrack.project_id}/artwork/${playerTrack.id}`)
@@ -113,18 +114,33 @@ function MobileMiniPlayer({ onExpand }: { onExpand: () => void }) {
         </div>
       </div>
 
-      {/* Play/Pause button */}
+      {/* Heart */}
+      <button
+        onClick={e => { e.stopPropagation(); if (playerTrack) { tapMedium(); toggleLike(playerTrack); } }}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24"
+          fill={liked ? C.red : 'none'}
+          stroke={liked ? C.red : 'rgba(255,255,255,0.55)'} strokeWidth="2"
+          style={{ transition: 'transform 180ms cubic-bezier(0.34,1.56,0.64,1)', transform: liked ? 'scale(1.15)' : 'scale(1)' }}>
+          <path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.6l-1-1a5.5 5.5 0 00-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 000-7.8z"/>
+        </svg>
+      </button>
+      {/* Play/Pause */}
       <button
         onClick={e => { e.stopPropagation(); tapMedium(); togglePlay(); }}
-        style={{
-          background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0,
-          width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: C.text,
-        }}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.text }}
       >
         {playerLoading
           ? <span style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${C.red}55`, borderTopColor: C.red, display: 'inline-block', animation: 'ris-spin 0.7s linear infinite' }} />
           : playerIsPlaying ? <PauseIcon size={20} /> : <PlayIcon size={20} />}
+      </button>
+      {/* Next */}
+      <button
+        onClick={e => { e.stopPropagation(); tapLight(); playNext(); }}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.7)' }}
+      >
+        <NextIcon size={20} />
       </button>
       <style>{`@keyframes ris-spin{to{transform:rotate(360deg)}}`}</style>
     </div>

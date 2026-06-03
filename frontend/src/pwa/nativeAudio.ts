@@ -33,12 +33,20 @@ export function setRemoteHandlers(h: { next: Handler; prev: Handler; state: (isP
 // The currently-active shim receives time/ended events from the singleton player.
 let active: NativeAudioShim | null = null;
 
+// Callback invoked by WorkspaceContext so it can clear the loading spinner when
+// AVQueuePlayer signals it has actually started playing (loadingstart → reset).
+let _onLoadingStart: (() => void) | null = null;
+export function setLoadingStartHandler(fn: () => void) { _onLoadingStart = fn; }
+
 if (isNativeApp()) {
   AudioPlayer.addListener('timeupdate', (d) => active?._onTime(d.currentTime ?? 0, d.duration ?? 0));
   AudioPlayer.addListener('ended', () => active?._onEnded());
   AudioPlayer.addListener('statechange', (d) => { active?._onState(!!d.isPlaying); remote.state?.(!!d.isPlaying); });
   AudioPlayer.addListener('remoteNext', () => remote.next?.());
   AudioPlayer.addListener('remotePrev', () => remote.prev?.());
+  // loadingstart fires from Swift just before AVQueuePlayer begins loading — use it
+  // to reset the active shim so timeupdate knows to fire loadedmetadata again.
+  AudioPlayer.addListener('loadingstart', () => { if (active) { active._metaFired = false; active._ended = false; } _onLoadingStart?.(); });
 }
 
 // Minimal HTMLAudioElement-compatible shim backed by the native AVPlayer plugin.
@@ -51,9 +59,9 @@ export class NativeAudioShim {
   private _cur = 0;
   private _dur = 0;
   private _paused = true;
-  private _ended = false;
+  _ended = false;
   private _loaded = false;
-  private _metaFired = false;
+  _metaFired = false;
   private _l: Record<string, Handler[]> = { timeupdate: [], ended: [], loadedmetadata: [] };
 
   constructor(url: string, meta: AudioMeta = {}) { this._src = url; this._meta = meta; }

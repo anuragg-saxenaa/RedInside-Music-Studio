@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useRef, useCallback, useEffect, type ReactNode } from 'react';
 import { useSafeAuth } from '../lib/clerkSafe';
 import { setNowPlaying, setPlaybackState, setPosition, clearNowPlaying, bindMediaActions } from '../pwa/mediaSession';
-import { createAudio, setRemoteHandlers, isNativeApp, preloadNext } from '../pwa/nativeAudio';
+import { createAudio, setRemoteHandlers, isNativeApp, preloadNext, setLoadingStartHandler } from '../pwa/nativeAudio';
 import type { Project, MusicGeneration, LyricsGeneration, Playlist, V4Tab } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
@@ -410,7 +410,17 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setPlayerTrack(track);
     setSelectedTrack(track);
     setPlayerIsPlaying(true);
-    setPlayerLoading(true); // instant feedback until audio actually starts
+    // On native iOS with AVQueuePlayer + preload, audio starts in <100ms so the
+    // spinner is never visible. Show it only after a 400ms delay to avoid flash.
+    setPlayerLoading(false);
+    if (!isNativeApp()) {
+      setPlayerLoading(true);
+    } else {
+      const t = setTimeout(() => setPlayerLoading(true), 400);
+      // Cancel the timer as soon as timeupdate fires (audio has started).
+      const cancelTimer = () => { clearTimeout(t); };
+      audio.addEventListener('timeupdate', cancelTimer, { once: true } as EventListenerOptions);
+    }
     setPlayerProgress(0);
     setPlayerCurrentTime(0);
     setNowPlaying({ title: track.title || `Track v${track.version}`, artist: track.artist || '', artworkUrl: nowPlayingArt(track) });
@@ -558,6 +568,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         prev: () => playPrevRef.current(),
         state: (isPlaying: boolean) => setPlayerIsPlaying(isPlaying),
       });
+      // When AVQueuePlayer begins loading the next track, hide any stale spinner.
+      setLoadingStartHandler(() => setPlayerLoading(false));
     }
     return () => clearNowPlaying();
   }, []);
