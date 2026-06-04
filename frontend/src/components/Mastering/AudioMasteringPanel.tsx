@@ -14,14 +14,16 @@ interface FileInfo {
   filePath?: string;
   selected?: boolean;
   musicId?: string;
+  saved?: boolean;   // already saved to Music library (prevents duplicate saves)
 }
 
 interface AudioMasteringPanelProps {
   projectId: string;
   allMusic: any[];
+  onSaved?: () => void;
 }
 
-export default function AudioMasteringPanel({ projectId, allMusic }: AudioMasteringPanelProps) {
+export default function AudioMasteringPanel({ projectId, allMusic, onSaved }: AudioMasteringPanelProps) {
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [vuLevel, setVuLevel] = useState(0);
   const [editingFile, setEditingFile] = useState<FileInfo | null>(null);
@@ -118,7 +120,15 @@ export default function AudioMasteringPanel({ projectId, allMusic }: AudioMaster
           setFiles(prev => prev.map(f => f.id === fileId ? { ...f, progress } : f));
           if (sj.status === 'done') {
             clearInterval(poll); clearInterval(vuInterval); setVuLevel(100);
-            setFiles(prev => prev.map(f => f.id === fileId ? { ...f, status: 'complete', progress: 100 } : f));
+            // Atomically save THIS exact track to Music — no sticky-selection ambiguity.
+            try {
+              const saveRes = await fetch('/api/mastering/save-to-music', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projectId, fileIds: [fileId] }),
+              });
+              if (saveRes.ok) onSaved?.();
+            } catch { /* user can retry via Save button */ }
+            setFiles(prev => prev.map(f => f.id === fileId ? { ...f, status: 'complete', progress: 100, saved: true } : f));
           } else if (sj.status === 'failed') {
             clearInterval(poll); clearInterval(vuInterval); setVuLevel(0);
             setFiles(prev => prev.map(f => f.id === fileId ? { ...f, status: 'error', error: sj.error || 'Mastering failed', progress: 0 } : f));
@@ -171,27 +181,32 @@ export default function AudioMasteringPanel({ projectId, allMusic }: AudioMaster
     setLastSelectedIndex(null);
   };
 
-  const saveToMusic = async () => {
-    const selectedFiles = files.filter(f => f.selected && f.status === 'complete');
-    if (selectedFiles.length === 0) return;
+  // Save mastered tracks to the Music library. Saves exactly the tracks passed in
+  // (or, with no arg, every mastered-but-not-yet-saved track). Crucially this does
+  // NOT depend on the sticky `selected` flag — that caused the "wrong song saved"
+  // bug where an earlier-selected track got saved instead of the one just mastered.
+  const saveToMusic = async (explicitIds?: string[]) => {
+    const toSave = explicitIds
+      ? files.filter(f => explicitIds.includes(f.id) && f.status === 'complete')
+      : files.filter(f => f.status === 'complete' && !f.saved);
+    if (toSave.length === 0) { if (!explicitIds) alert('Nothing new to save — master a track first.'); return; }
 
+    const ids = toSave.map(f => f.id);
     try {
       const response = await fetch('/api/mastering/save-to-music', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId,
-          fileIds: selectedFiles.map(f => f.id)
-        })
+        body: JSON.stringify({ projectId, fileIds: ids }),
       });
-
       if (!response.ok) throw new Error('Save failed');
-
       const { saved } = await response.json();
-      alert(`Saved ${saved.length} mastered files to Music`);
+      // Mark these exact files as saved so they aren't re-saved (no duplicates).
+      setFiles(prev => prev.map(f => ids.includes(f.id) ? { ...f, saved: true } : f));
+      onSaved?.();
+      if (!explicitIds) alert(`Saved ${saved.length} mastered track${saved.length === 1 ? '' : 's'} to Music`);
     } catch (error) {
       console.error('Save to music failed:', error);
-      alert('Failed to save to Music');
+      if (!explicitIds) alert('Failed to save to Music');
     }
   };
 
@@ -230,7 +245,6 @@ export default function AudioMasteringPanel({ projectId, allMusic }: AudioMaster
 
   const selectedCount = files.filter(f => f.selected).length;
   const masteredCount = files.filter(f => f.status === 'complete').length;
-  const hasMasteredSelected = files.some(f => f.selected && f.status === 'complete');
 
   const getStatusTag = (status: FileInfo['status']) => {
     switch (status) {
@@ -638,8 +652,8 @@ export default function AudioMasteringPanel({ projectId, allMusic }: AudioMaster
           </button>
           <button
             className="btn btn-primary"
-            onClick={saveToMusic}
-            disabled={!hasMasteredSelected}
+            onClick={() => saveToMusic()}
+            disabled={!files.some(f => f.status === 'complete' && !f.saved)}
           >
             Save to Music
           </button>

@@ -30,7 +30,7 @@ function VideoSection({ children }: { children: React.ReactNode }) {
 }
 
 export default function ReleaseTab() {
-  const { activeProjectId, selectedTrack, tracks } = useWorkspace();
+  const { activeProjectId, selectedTrack, tracks, refreshTracks } = useWorkspace();
   const authFetch = useAuthFetch();
   const [hasLyrics, setHasLyrics] = useState(false);
 
@@ -59,7 +59,7 @@ export default function ReleaseTab() {
         <div style={{ color: C.textLabel, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.2px', marginBottom: '12px' }}>
           Mastering
         </div>
-        <AudioMasteringPanel projectId={activeProjectId} allMusic={tracks} />
+        <AudioMasteringPanel projectId={activeProjectId} allMusic={tracks} onSaved={refreshTracks} />
       </div>
     </div>
   );

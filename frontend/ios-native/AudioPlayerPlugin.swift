@@ -102,18 +102,16 @@ public class AudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
             }
             item.preferredForwardBufferDuration = 0  // let AVQueuePlayer self-manage
 
+            // SINGLE-item queue always. JS drives every advance (ended → playNext →
+            // loadTrack). We must NOT keep a second item queued — AVQueuePlayer would
+            // auto-advance to it at track-end AND JS would advance too, double-playing
+            // + leaking observers (the 20-min flicker/crash). removeAllItems() purges
+            // any leftover so nothing accumulates across tracks.
             if self.queue == nil {
                 self.queue = AVQueuePlayer(items: [item])
             } else {
                 self.queue!.removeAllItems()
                 self.queue!.insert(item, after: nil)
-            }
-
-            // If a different preload asset is queued, append it for gapless.
-            if let pUrl = self.preloadUrl, pUrl != urlStr, let pAsset = self.preloadAsset {
-                let preloadItem = AVPlayerItem(asset: pAsset)
-                preloadItem.preferredForwardBufferDuration = 0
-                self.queue!.insert(preloadItem, after: self.queue!.items().last)
             }
 
             self.preloadUrl = nil
@@ -132,18 +130,16 @@ public class AudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     // Prebuffer the next track's asset so the next loadTrack starts instantly.
+    // We only WARM the asset (metadata + first bytes) — we do NOT insert it into the
+    // live queue. Inserting would make AVQueuePlayer auto-advance at track-end and
+    // collide with the JS-driven advance. loadTrack rebuilds a fresh item from this
+    // warmed asset, which is fast and conflict-free.
     @objc func preload(_ call: CAPPluginCall) {
         guard let urlStr = call.getString("url"), let url = URL(string: urlStr) else { call.resolve(); return }
         DispatchQueue.main.async {
             if self.preloadUrl == urlStr { call.resolve(); return }
             let asset = AVURLAsset(url: url)
             asset.loadValuesAsynchronously(forKeys: ["playable"]) {}
-            let preloadItem = AVPlayerItem(asset: asset)
-            preloadItem.preferredForwardBufferDuration = 0
-            // Append to queue if a track is already playing for seamless gapless.
-            if let q = self.queue, !q.items().isEmpty {
-                q.insert(preloadItem, after: q.items().last)
-            }
             self.preloadUrl = urlStr
             self.preloadAsset = asset
             call.resolve()
