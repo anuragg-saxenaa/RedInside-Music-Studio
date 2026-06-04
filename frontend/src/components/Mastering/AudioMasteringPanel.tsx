@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import UploadZone from './UploadZone';
 import VUMeter from './VUMeter';
-import AudioEditorPanel from '../AudioEditor/AudioEditorPanel';
 
 interface FileInfo {
   id: string;
@@ -15,6 +14,7 @@ interface FileInfo {
   selected?: boolean;
   musicId?: string;
   saved?: boolean;   // already saved to Music library (prevents duplicate saves)
+  model?: string;    // source model — 'mastering' outputs are hidden from the list
 }
 
 interface AudioMasteringPanelProps {
@@ -26,8 +26,8 @@ interface AudioMasteringPanelProps {
 export default function AudioMasteringPanel({ projectId, allMusic, onSaved }: AudioMasteringPanelProps) {
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [vuLevel, setVuLevel] = useState(0);
-  const [editingFile, setEditingFile] = useState<FileInfo | null>(null);
-  const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null);
+  const [query, setQuery] = useState('');
+  const [showUpload, setShowUpload] = useState(false);
 
   // Load previously uploaded mastering files on mount
   useEffect(() => {
@@ -67,6 +67,7 @@ export default function AudioMasteringPanel({ projectId, allMusic, onSaved }: Au
           progress: 0,
           duration: m.duration_seconds,
           musicId: m.id,
+          model: m.model,
         }));
       const uploadedFiles = prev.filter(f => !f.musicId);
       return [...newTracks, ...uploadedFiles];
@@ -105,7 +106,7 @@ export default function AudioMasteringPanel({ projectId, allMusic, onSaved }: Au
       if (!jobId) {
         // Legacy sync response (local dev without job system)
         clearInterval(vuInterval); setVuLevel(100);
-        setFiles(prev => prev.map(f => f.id === fileId ? { ...f, status: 'complete', progress: 100 } : f));
+        setFiles(prev => prev.map(f => f.id === fileId ? { ...f, status: 'complete', progress: 100, saved: true } : f));
         return;
       }
 
@@ -141,547 +142,171 @@ export default function AudioMasteringPanel({ projectId, allMusic, onSaved }: Au
     }
   };
 
-  const masterSelected = async () => {
-    const selectedIdle = files.filter(f => f.selected && (f.status === 'idle' || f.status === 'error'));
-    for (const file of selectedIdle) {
-      await masterFile(file.id);
-    }
-  };
-
+  // Master every track that isn't already mastered/processing.
   const masterAll = async () => {
-    const idleFiles = files.filter(f => f.status === 'idle' || f.status === 'error');
-    for (const file of idleFiles) {
-      await masterFile(file.id);
-    }
-  };
-
-  const toggleSelection = (index: number, shiftKey: boolean = false) => {
-    setFiles(prev => {
-      const newFiles = [...prev];
-      if (shiftKey && lastSelectedIndex !== null) {
-        const start = Math.min(lastSelectedIndex, index);
-        const end = Math.max(lastSelectedIndex, index);
-        for (let i = start; i <= end; i++) {
-          newFiles[i] = { ...newFiles[i], selected: true };
-        }
-      } else {
-        newFiles[index] = { ...newFiles[index], selected: !newFiles[index].selected };
-      }
-      return newFiles;
-    });
-    setLastSelectedIndex(index);
-  };
-
-  const selectAll = () => {
-    setFiles(prev => prev.map(f => ({ ...f, selected: true })));
-  };
-
-  const clearSelection = () => {
-    setFiles(prev => prev.map(f => ({ ...f, selected: false })));
-    setLastSelectedIndex(null);
-  };
-
-  // Save mastered tracks to the Music library. Saves exactly the tracks passed in
-  // (or, with no arg, every mastered-but-not-yet-saved track). Crucially this does
-  // NOT depend on the sticky `selected` flag — that caused the "wrong song saved"
-  // bug where an earlier-selected track got saved instead of the one just mastered.
-  const saveToMusic = async (explicitIds?: string[]) => {
-    const toSave = explicitIds
-      ? files.filter(f => explicitIds.includes(f.id) && f.status === 'complete')
-      : files.filter(f => f.status === 'complete' && !f.saved);
-    if (toSave.length === 0) { if (!explicitIds) alert('Nothing new to save — master a track first.'); return; }
-
-    const ids = toSave.map(f => f.id);
-    try {
-      const response = await fetch('/api/mastering/save-to-music', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, fileIds: ids }),
-      });
-      if (!response.ok) throw new Error('Save failed');
-      const { saved } = await response.json();
-      // Mark these exact files as saved so they aren't re-saved (no duplicates).
-      setFiles(prev => prev.map(f => ids.includes(f.id) ? { ...f, saved: true } : f));
-      onSaved?.();
-      if (!explicitIds) alert(`Saved ${saved.length} mastered track${saved.length === 1 ? '' : 's'} to Music`);
-    } catch (error) {
-      console.error('Save to music failed:', error);
-      if (!explicitIds) alert('Failed to save to Music');
-    }
-  };
-
-  const downloadZip = async () => {
-    const selectedFiles = files.filter(f => f.selected);
-    if (selectedFiles.length === 0) return;
-
-    const fileIds = selectedFiles.map(f => f.id).join(',');
-    const url = `/api/mastering/zip?projectId=${projectId}&fileIds=${fileIds}`;
-
-    try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Download failed');
-
-      const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = `mastered-tracks-${Date.now()}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(downloadUrl);
-    } catch (error) {
-      console.error('ZIP download failed:', error);
-    }
-  };
-
-  const handleEditFile = (file: FileInfo) => {
-    setEditingFile(file);
+    const todo = files.filter(f => f.model !== 'mastering' && (f.status === 'idle' || f.status === 'error') && !f.saved);
+    for (const file of todo) await masterFile(file.id);
   };
 
   const removeFile = (fileId: string) => {
     setFiles(prev => prev.filter(f => f.id !== fileId));
   };
 
-  const selectedCount = files.filter(f => f.selected).length;
-  const masteredCount = files.filter(f => f.status === 'complete').length;
+  // Titles that already have a saved mastered version (from a prior session) —
+  // used to block duplicate mastering. A master is stored as "<title> (Mastered)".
+  const alreadyMasteredTitles = new Set(
+    (allMusic || [])
+      .filter((m: any) => m.model === 'mastering' && typeof m.title === 'string')
+      .map((m: any) => m.title.replace(/\s*\(Mastered\)\s*$/i, '').trim().toLowerCase())
+  );
+  const isAlreadyMastered = (f: FileInfo) =>
+    f.saved || f.status === 'complete' || alreadyMasteredTitles.has((f.filename || '').replace(/\s*\(Mastered\)\s*$/i, '').trim().toLowerCase());
 
-  const getStatusTag = (status: FileInfo['status']) => {
-    switch (status) {
-      case 'complete': return { label: 'Mastered', class: 'tag-complete' };
-      case 'processing': return { label: 'Mastering', class: 'tag-mastering' };
-      case 'error': return { label: 'Error', class: 'tag-error' };
-      default: return { label: 'Pending', class: 'tag-pending' };
-    }
-  };
+  // Masterable rows: hide mastered outputs (can't master a master) + apply search.
+  const q = query.trim().toLowerCase();
+  const masterableFiles = files
+    .filter(f => f.model !== 'mastering')
+    .filter(f => !q || (f.filename || '').toLowerCase().includes(q));
+  const masteredCount = files.filter(f => isAlreadyMastered(f) && f.model !== 'mastering').length;
+  const anyUnmastered = files.some(f => f.model !== 'mastering' && !isAlreadyMastered(f) && f.status !== 'processing');
 
   const formatDuration = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
+    const m = Math.floor((seconds || 0) / 60);
+    const s = Math.floor((seconds || 0) % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
-
-  // If editing a file, show AudioEditorPanel instead
-  if (editingFile) {
-    const audioUrl = editingFile.musicId
-      ? `/api/music/${editingFile.musicId}/file`
-      : `/api/mastering/${editingFile.id}/file/${projectId}`;
-    return (
-      <div style={{
-        background: 'linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 100%)',
-        borderRadius: '16px',
-        border: '1px solid #3a3a3a',
-        padding: '20px',
-      }}>
-        <div style={{ marginBottom: '16px' }}>
-          <button
-            onClick={() => setEditingFile(null)}
-            style={{
-              background: 'transparent',
-              border: '1px solid #444',
-              borderRadius: '6px',
-              padding: '8px 16px',
-              color: '#888',
-              fontSize: '12px',
-              cursor: 'pointer',
-            }}
-          >
-            Back to Mastering
-          </button>
-        </div>
-        <AudioEditorPanel
-          projectId={projectId}
-          audioUrl={audioUrl}
-          trackId={editingFile.id}
-          onExport={() => setEditingFile(null)}
-        />
-      </div>
-    );
-  }
 
   return (
     <>
       <style>{`
-        .mastering-panel {
-          background: linear-gradient(160deg, #0f0f1a 0%, #1a1a2e 40%, #0d0d18 100%);
-          border-radius: 24px;
-          border: 1px solid rgba(255,255,255,0.1);
-          overflow: hidden;
-          font-family: 'Outfit', sans-serif;
-        }
-        .mastering-panel .glass-toolbar {
-          padding: 16px 24px;
-          border-bottom: 1px solid rgba(255,255,255,0.08);
-          display: flex;
-          align-items: center;
-          background: rgba(255,255,255,0.03);
-        }
-        .mastering-panel .toolbar-title {
-          font-size: 12px;
-          color: rgba(255,255,255,0.6);
-          letter-spacing: 2px;
-          text-transform: uppercase;
-        }
-        .mastering-panel .toolbar-hint {
-          font-size: 11px;
-          color: rgba(255,255,255,0.3);
-          margin-left: auto;
-        }
-        .mastering-panel .file-list-container {
-          max-height: 400px;
-          overflow-y: auto;
-          padding: 12px 16px;
-        }
-        .mastering-panel .file-list-container::-webkit-scrollbar {
-          width: 8px;
-        }
-        .mastering-panel .file-list-container::-webkit-scrollbar-track {
-          background: rgba(255,255,255,0.05);
-          border-radius: 4px;
-        }
-        .mastering-panel .file-list-container::-webkit-scrollbar-thumb {
-          background: rgba(255,255,255,0.15);
-          border-radius: 4px;
-        }
-        .mastering-panel .glass-row {
-          background: rgba(255,255,255,0.04);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-          border: 1px solid rgba(255,255,255,0.06);
-          border-radius: 16px;
-          margin-bottom: 8px;
-          padding: 14px 18px;
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          cursor: pointer;
-          transition: all 300ms ease;
-        }
-        .mastering-panel .glass-row:hover {
-          background: rgba(255,255,255,0.08);
-          border-color: rgba(255,255,255,0.12);
-          transform: translateY(-1px);
-        }
-        .mastering-panel .glass-row.selected {
-          background: rgba(230,57,70,0.12);
-          border: 1px solid rgba(230,57,70,0.35);
-          box-shadow: 0 8px 32px rgba(230,57,70,0.1);
-        }
-        .mastering-panel .icon-circle {
-          width: 42px;
-          height: 42px;
-          border-radius: 50%;
-          background: rgba(255,255,255,0.08);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 14px;
-          color: rgba(255,255,255,0.5);
-          flex-shrink: 0;
-          transition: all 300ms;
-        }
-        .mastering-panel .glass-row.selected .icon-circle {
-          background: rgba(230,57,70,0.25);
-          color: #E63946;
-        }
-        .mastering-panel .file-info {
-          flex: 1;
-          min-width: 0;
-        }
-        .mastering-panel .file-name {
-          font-size: 14px;
-          color: rgba(255,255,255,0.85);
-          font-weight: 500;
-          margin-bottom: 4px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .mastering-panel .glass-row.selected .file-name {
-          color: #fff;
-        }
-        .mastering-panel .file-meta {
-          display: flex;
-          gap: 16px;
-          font-size: 11px;
-          color: rgba(255,255,255,0.35);
-        }
-        .mastering-panel .meta-val {
-          font-variant-numeric: tabular-nums;
-        }
-        .mastering-panel .tag {
-          font-size: 10px;
-          padding: 4px 10px;
-          border-radius: 20px;
-          backdrop-filter: blur(10px);
-        }
-        .mastering-panel .tag-complete {
-          background: rgba(0,255,136,0.12);
-          color: #00FF88;
-        }
-        .mastering-panel .tag-mastering {
-          background: rgba(255,180,0,0.12);
-          color: #FFB800;
-        }
-        .mastering-panel .tag-error {
-          background: rgba(230,57,70,0.12);
-          color: #E63946;
-        }
-        .mastering-panel .tag-pending {
-          background: rgba(255,255,255,0.06);
-          color: rgba(255,255,255,0.4);
-        }
-        .mastering-panel .waveform {
-          display: flex;
-          align-items: center;
-          gap: 2px;
-          width: 56px;
-          flex-shrink: 0;
-        }
-        .mastering-panel .wave-bar {
-          width: 3px;
-          background: rgba(255,255,255,0.15);
-          border-radius: 2px;
-        }
-        .mastering-panel .glass-row.selected .wave-bar {
-          background: rgba(230,57,70,0.3);
-        }
-        .mastering-panel .check-circle {
-          width: 24px;
-          height: 24px;
-          border-radius: 50%;
-          border: 2px solid rgba(255,255,255,0.15);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: transparent;
-          font-size: 11px;
-          flex-shrink: 0;
-          transition: all 200ms;
-        }
-        .mastering-panel .glass-row.selected .check-circle {
-          background: #E63946;
-          border-color: #E63946;
-          color: white;
-        }
-        .mastering-panel .action-bar {
-          padding: 18px 24px;
-          border-top: 1px solid rgba(255,255,255,0.06);
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          background: rgba(255,255,255,0.03);
-        }
-        .mastering-panel .btn {
-          padding: 12px 24px;
-          border-radius: 14px;
-          border: none;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 200ms;
-        }
-        .mastering-panel .btn-primary {
-          background: linear-gradient(135deg, #E63946, #B8232E);
-          color: white;
-          box-shadow: 0 6px 24px rgba(230,57,70,0.3);
-        }
-        .mastering-panel .btn-primary:hover {
-          box-shadow: 0 8px 32px rgba(230,57,70,0.4);
-          transform: translateY(-1px);
-        }
-        .mastering-panel .btn-primary:disabled {
-          opacity: 0.4;
-          transform: none;
-          box-shadow: none;
-          cursor: not-allowed;
-        }
-        .mastering-panel .btn-ghost {
-          background: rgba(255,255,255,0.06);
-          color: rgba(255,255,255,0.5);
-          border: 1px solid rgba(255,255,255,0.1);
-          backdrop-filter: blur(10px);
-        }
-        .mastering-panel .btn-ghost:hover {
-          background: rgba(255,255,255,0.1);
-          color: rgba(255,255,255,0.7);
-        }
-        .mastering-panel .spacer {
-          flex: 1;
-        }
-        .mastering-panel .stat {
-          font-size: 12px;
-          color: rgba(255,255,255,0.4);
-        }
-        .mastering-panel .stat strong {
-          color: #E63946;
-        }
-        .mastering-panel .upload-section {
-          padding: 16px 20px;
-          background: rgba(255,255,255,0.02);
-          border-bottom: 1px solid rgba(255,255,255,0.06);
-        }
-        .mastering-panel .upload-label {
-          font-size: 10px;
-          color: rgba(255,255,255,0.4);
-          letter-spacing: 2px;
-          text-transform: uppercase;
-          margin-bottom: 10px;
-        }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-        .mastering-panel .edit-btn {
-          width: 28px;
-          height: 28px;
-          border-radius: 50%;
-          border: 1px solid rgba(255,255,255,0.15);
-          background: rgba(255,255,255,0.05);
-          color: rgba(255,255,255,0.4);
-          font-size: 14px;
-          cursor: pointer;
-          display: none;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-          transition: all 200ms;
-        }
-        .mastering-panel .glass-row:hover .edit-btn {
-          display: flex;
-        }
-        .mastering-panel .edit-btn:hover {
-          background: rgba(230,57,70,0.2);
-          border-color: rgba(230,57,70,0.5);
-          color: #E63946;
-        }
-        .mastering-panel .btn-secondary {
-          background: rgba(255,255,255,0.08);
-          color: rgba(255,255,255,0.7);
-          border: 1px solid rgba(255,255,255,0.1);
-        }
-        .mastering-panel .btn-secondary:hover {
-          background: rgba(255,255,255,0.12);
-        }
-        .mastering-panel .btn-secondary:disabled {
-          opacity: 0.4;
-          cursor: not-allowed;
-        }
+        @keyframes ms-spin { to { transform: rotate(360deg); } }
+        @keyframes ms-rise { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+        .ms-row { animation: ms-rise 320ms cubic-bezier(0.22,1,0.36,1) backwards; }
+        .ms-master-btn:not(:disabled):active { transform: scale(0.94); }
+        .ms-list::-webkit-scrollbar { width: 7px; }
+        .ms-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+        .ms-list::-webkit-scrollbar-track { background: transparent; }
       `}</style>
 
-      <div className="mastering-panel">
-        {/* Toolbar Header */}
-        <div className="glass-toolbar">
-          <span className="toolbar-title">Track Library</span>
-          <span className="toolbar-hint">Click to select | Shift+Click for range</span>
-          <div style={{ marginLeft: 'auto' }}>
-            <VUMeter level={vuLevel} isActive={files.some(f => f.status === 'processing')} />
+      <div style={{
+        background: 'linear-gradient(165deg, rgba(30,10,16,0.6), rgba(12,5,9,0.6))',
+        border: '1px solid rgba(230,57,70,0.16)',
+        borderRadius: 18,
+        overflow: 'hidden',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        fontFamily: "'Outfit','DM Sans',sans-serif",
+      }}>
+        {/* Header */}
+        <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#E63946,#9e1b27)', boxShadow: '0 4px 16px rgba(230,57,70,0.35)' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" /></svg>
           </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', letterSpacing: '-0.01em' }}>Mastering</div>
+            <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.45)' }}>Spotify-loudness master · one tap per track</div>
+          </div>
+          <VUMeter level={vuLevel} isActive={files.some(f => f.status === 'processing')} />
         </div>
 
-        {/* Upload Section */}
-        <div className="upload-section">
-          <div className="upload-label">Audio Input</div>
-          <UploadZone projectId={projectId} onUploadComplete={handleUploadComplete} multiple={true} dataTestId="upload-zone" />
+        {/* Search + Master all */}
+        <div style={{ padding: '12px 16px', display: 'flex', gap: 8, alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 11, padding: '0 12px' }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" strokeLinecap="round" /></svg>
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search tracks…"
+              style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: '#fff', fontSize: 13.5, padding: '10px 0', fontFamily: 'inherit' }} />
+            {query && <button onClick={() => setQuery('')} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 15 }}>✕</button>}
+          </div>
+          {anyUnmastered && (
+            <button onClick={masterAll} style={{ flexShrink: 0, background: 'rgba(230,57,70,0.14)', border: '1px solid rgba(230,57,70,0.35)', color: '#ff6b76', borderRadius: 11, fontSize: 12.5, fontWeight: 700, padding: '10px 14px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              Master all
+            </button>
+          )}
         </div>
 
-        {/* File List */}
-        <div className="file-list-container">
-          {files.map((file, index) => {
-            const statusTag = getStatusTag(file.status);
-            const randomHeights = [10, 16, 12, 20, 14, 18, 10, 8];
+        {/* Track list */}
+        <div className="ms-list" style={{ maxHeight: 'min(56vh, 460px)', overflowY: 'auto', padding: '10px 12px' }}>
+          {masterableFiles.length === 0 && (
+            <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: 13, padding: '36px 0' }}>
+              {files.length === 0 ? 'No tracks yet. Generate or upload audio to master.' : 'No tracks match your search.'}
+            </div>
+          )}
+          {masterableFiles.map((file, i) => {
+            const processing = file.status === 'processing';
+            const errored = file.status === 'error';
+            const mastered = isAlreadyMastered(file);
+            const isUpload = !file.musicId;
             return (
-              <div
-                key={file.id}
-                className={`glass-row ${file.selected ? 'selected' : ''}`}
-                data-testid="file-item"
-                onClick={(e) => toggleSelection(index, e.shiftKey)}
-                onDoubleClick={() => handleEditFile(file)}
-              >
-                <div className="icon-circle">♪</div>
-                <div className="waveform">
-                  {randomHeights.map((h, i) => (
-                    <div key={i} className="wave-bar" style={{ height: `${h}px` }} />
-                  ))}
+              <div className="ms-row" key={file.id} data-testid="file-item" style={{
+                display: 'flex', alignItems: 'center', gap: 12, padding: '11px 12px', marginBottom: 7,
+                background: mastered ? 'rgba(0,210,106,0.06)' : 'rgba(255,255,255,0.035)',
+                border: `1px solid ${mastered ? 'rgba(0,210,106,0.18)' : 'rgba(255,255,255,0.07)'}`,
+                borderRadius: 13, animationDelay: `${Math.min(i, 10) * 22}ms`,
+                transition: 'background 200ms, border-color 200ms',
+              }}>
+                {/* Icon */}
+                <div style={{ width: 38, height: 38, borderRadius: 10, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: mastered ? 'rgba(0,210,106,0.14)' : 'rgba(255,255,255,0.06)' }}>
+                  {mastered
+                    ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00d26a" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                    : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="2"><path d="M9 18V5l11-2v13" strokeLinecap="round" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></svg>}
                 </div>
-                <div className="file-info">
-                  <div className="file-name">{file.filename}</div>
-                  <div className="file-meta">
-                    <span className="meta-val">{formatDuration(file.duration || 0)}</span>
-                    <span>320 kbps</span>
-                    <span>44.1 kHz</span>
+                {/* Info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.filename}</div>
+                  <div style={{ fontSize: 11, color: errored ? '#ff7a85' : 'rgba(255,255,255,0.4)', marginTop: 1, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {errored ? (file.error || 'Mastering failed — tap Retry') : `${formatDuration(file.duration || 0)}${mastered ? ' · Mastered' : ' · −14 LUFS · 24-bit'}`}
                   </div>
+                  {processing && (
+                    <div style={{ height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.1)', marginTop: 7, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${file.progress || 5}%`, background: 'linear-gradient(90deg,#E63946,#ff8a3c)', borderRadius: 2, transition: 'width 400ms ease' }} />
+                    </div>
+                  )}
                 </div>
-                <span className={`tag ${statusTag.class}`}>{statusTag.label}</span>
-                <div className="check-circle">{file.selected && '✓'}</div>
+                {/* Action */}
                 <button
-                  className="edit-btn"
-                  onClick={(e) => { e.stopPropagation(); handleEditFile(file); }}
-                  title="Edit file"
+                  className="ms-master-btn"
+                  data-testid="master-btn"
+                  onClick={() => { if (!processing && !mastered) masterFile(file.id); }}
+                  disabled={processing || mastered}
+                  style={{
+                    flexShrink: 0, minWidth: 92, height: 38, borderRadius: 11, cursor: (processing || mastered) ? 'default' : 'pointer',
+                    fontSize: 12.5, fontWeight: 700, letterSpacing: '0.01em', border: 'none',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    transition: 'transform 120ms, background 200ms',
+                    background: mastered ? 'rgba(0,210,106,0.14)' : errored ? 'rgba(230,57,70,0.18)' : 'linear-gradient(135deg,#E63946,#b8232e)',
+                    color: mastered ? '#00d26a' : '#fff',
+                    boxShadow: (processing || mastered || errored) ? 'none' : '0 4px 16px rgba(230,57,70,0.3)',
+                  }}
                 >
-                  ✎
+                  {processing
+                    ? <><span style={{ width: 13, height: 13, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', display: 'inline-block', animation: 'ms-spin 0.7s linear infinite' }} />{file.progress || 0}%</>
+                    : mastered ? 'Mastered ✓'
+                    : errored ? 'Retry'
+                    : 'Master'}
                 </button>
-                <button
-                  className="edit-btn"
-                  onClick={(e) => { e.stopPropagation(); removeFile(file.id); }}
-                  title="Remove file"
-                  style={{ marginLeft: 2 }}
-                >
-                  ✕
-                </button>
+                {/* Remove (uploaded files only) */}
+                {isUpload && !processing && (
+                  <button onClick={() => removeFile(file.id)} title="Remove" style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>✕</button>
+                )}
               </div>
             );
           })}
         </div>
 
-        {/* Action Bar */}
-        <div className="action-bar">
-          <button
-            className="btn btn-primary"
-            onClick={masterSelected}
-            disabled={!files.some(f => f.selected && (f.status === 'idle' || f.status === 'error'))}
-          >
-            Master Selected
+        {/* Footer: upload toggle + stats */}
+        <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button onClick={() => setShowUpload(v => !v)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, padding: 0 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+            Upload audio
           </button>
-          <button
-            className="btn btn-secondary"
-            onClick={masterAll}
-            disabled={files.length === 0 || files.every(f => f.status === 'processing' || f.status === 'complete')}
-          >
-            Master All
-          </button>
-          <button
-            className="btn btn-primary"
-            onClick={() => saveToMusic()}
-            disabled={!files.some(f => f.status === 'complete' && !f.saved)}
-          >
-            Save to Music
-          </button>
-          <button
-            className="btn btn-ghost"
-            onClick={downloadZip}
-            disabled={selectedCount === 0}
-          >
-            Download ZIP
-          </button>
-          <button
-            className="btn btn-ghost"
-            onClick={selectAll}
-            disabled={files.length === 0}
-          >
-            Select All
-          </button>
-          <div className="spacer" />
-          {masteredCount > 0 && (
-            <span className="stat"><strong>{masteredCount}</strong> mastered</span>
-          )}
-          {selectedCount > 0 && (
-            <span className="stat" style={{ marginLeft: 8 }}><strong>{selectedCount}</strong> selected</span>
-          )}
-          {selectedCount > 0 && (
-            <button className="btn btn-ghost" onClick={clearSelection}>Clear</button>
-          )}
+          <div style={{ flex: 1 }} />
+          {masteredCount > 0 && <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}><strong style={{ color: '#00d26a' }}>{masteredCount}</strong> mastered</span>}
         </div>
+        {showUpload && (
+          <div style={{ padding: '0 16px 16px' }}>
+            <UploadZone projectId={projectId} onUploadComplete={handleUploadComplete} multiple={true} dataTestId="upload-zone" />
+          </div>
+        )}
       </div>
     </>
   );
