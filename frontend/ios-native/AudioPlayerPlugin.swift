@@ -162,7 +162,9 @@ public class AudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     private func addObservers(for item: AVPlayerItem) {
-        let interval = CMTime(seconds: 0.5, preferredTimescale: 600)
+        // 1s tick (was 0.5s) — halves the JS-bridge + React churn over long sessions
+        // while staying smooth enough for the scrubber. Big win for 30-min+ playback.
+        let interval = CMTime(seconds: 1.0, preferredTimescale: 600)
         timeObserver = queue?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
             guard let self = self, let item = self.queue?.currentItem else { return }
             let cur = time.seconds

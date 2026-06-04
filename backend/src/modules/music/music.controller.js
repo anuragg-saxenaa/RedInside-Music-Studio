@@ -144,6 +144,9 @@ export const MusicController = {
           'Accept-Ranges': 'bytes',
           'Content-Length': chunkSize,
           'Content-Type': contentType,
+          // Audio for a given id is immutable (mastering/regenerate make a new id) →
+          // cache aggressively so re-plays + next-track prebuffer are instant, no buffering.
+          'Cache-Control': 'public, max-age=31536000, immutable',
         });
         res.status(206);
         res.end(buf.subarray(start, end + 1));
@@ -153,7 +156,7 @@ export const MusicController = {
           'Accept-Ranges': 'bytes',
           'Content-Disposition': `inline; filename="music-v${music.version}.${downloadExt}"`,
           'Content-Length': fileSize,
-          'Cache-Control': 'public, max-age=300',
+          'Cache-Control': 'public, max-age=31536000, immutable',
         });
         res.end(buf);
       }

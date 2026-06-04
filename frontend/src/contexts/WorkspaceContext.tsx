@@ -86,6 +86,15 @@ type UiState = { activeTab: V4Tab; activeProjectId: string | null; selectedTrack
 // Module-level — persists across provider remounts (e.g. navigating away then back to Studio)
 let persistentAudio: HTMLAudioElement | null = null;
 let persistentTrack: MusicGeneration | null = null;
+let lastPersistAt = 0; // throttle localStorage writes (synchronous = main-thread jank)
+// Throttled resume-point persist — writing every 0.5s timeupdate is synchronous
+// disk I/O that accumulates into jank over a long session. Persist at most every 5s.
+function persistResumePoint(track: MusicGeneration, currentTime: number) {
+  const now = Date.now();
+  if (now - lastPersistAt < 5000) return;
+  lastPersistAt = now;
+  try { localStorage.setItem('ris_player_track', JSON.stringify({ track, currentTime })); } catch (_) { /* quota */ }
+}
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { getToken } = useSafeAuth();
@@ -210,8 +219,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
               setPlayerCurrentTime(audio.currentTime);
               setPlayerDuration(audio.duration);
               setPosition(audio.duration, audio.currentTime);
-              // Persist currentTime
-              try { localStorage.setItem(PERSIST_KEY, JSON.stringify({ track, currentTime: audio.currentTime })); } catch (_) { /* quota */ }
+              persistResumePoint(track, audio.currentTime); // throttled
             }
           });
           audio.addEventListener('loadedmetadata', () => {
@@ -431,7 +439,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setPlayerCurrentTime(audio.currentTime);
         setPlayerDuration(audio.duration);
         setPosition(audio.duration, audio.currentTime); // lock-screen / Bluetooth scrubber
-        try { localStorage.setItem(PERSIST_KEY, JSON.stringify({ track, currentTime: audio.currentTime })); } catch (_) { /* quota */ }
+        persistResumePoint(track, audio.currentTime);   // throttled — not every 0.5s
       }
     };
     audio.addEventListener('timeupdate', updateTime);

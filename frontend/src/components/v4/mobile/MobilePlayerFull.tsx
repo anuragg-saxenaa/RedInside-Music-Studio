@@ -122,15 +122,40 @@ export default function MobilePlayerFull({ onClose }: Props) {
   const onTouchEnd = () => {
     const { axis, overArt, dx, dy, t0 } = g.current;
     if (axis === 'x' && overArt) {
-      if (artRef.current) {
-        artRef.current.style.transition = 'transform 320ms cubic-bezier(0.22,1,0.36,1)';
-        artRef.current.style.transform = `translateX(0) rotate(0deg) scale(${playerIsPlaying ? 1 : 0.86})`;
-      }
-      // Skip if distance > 100px OR swipe velocity > 500px/s (production-standard threshold).
       const elapsed = Math.max(1, Date.now() - t0);
       const vx = Math.abs(dx) / elapsed * 1000;
-      if (dx < 0 && (Math.abs(dx) > 100 || vx > 500)) { tapMedium(); playNext(); }
-      else if (dx > 0 && (Math.abs(dx) > 100 || vx > 500)) { tapMedium(); playPrev(); }
+      const commit = Math.abs(dx) > 100 || vx > 500;
+      const art = artRef.current;
+      const scaleNow = playerIsPlaying ? 1 : 0.86;
+
+      if (commit && art) {
+        // Card-swap like Apple Music: slide the current art fully off-screen in the
+        // swipe direction, change the track, then slide the new art in from the
+        // opposite side. No snap-back, no flicker.
+        const W = window.innerWidth;
+        const dir = dx < 0 ? -1 : 1; // -1 = next, +1 = prev
+        tapMedium();
+        art.style.transition = 'transform 200ms cubic-bezier(0.4,0,1,1), opacity 200ms';
+        art.style.transform = `translateX(${dir * W}px) rotate(${dir * 6}deg) scale(0.8)`;
+        art.style.opacity = '0';
+        window.setTimeout(() => {
+          if (dir < 0) playNext(); else playPrev();
+          // Place new art off the opposite edge instantly (no transition)…
+          art.style.transition = 'none';
+          art.style.transform = `translateX(${-dir * W}px) scale(0.8)`;
+          art.style.opacity = '0';
+          // …then on the next frame, glide it to centre.
+          requestAnimationFrame(() => requestAnimationFrame(() => {
+            art.style.transition = 'transform 300ms cubic-bezier(0.22,1,0.36,1), opacity 260ms';
+            art.style.transform = `translateX(0) rotate(0deg) scale(${scaleNow})`;
+            art.style.opacity = '1';
+          }));
+        }, 200);
+      } else if (art) {
+        // Not enough — spring back to centre.
+        art.style.transition = 'transform 320ms cubic-bezier(0.34,1.56,0.64,1)';
+        art.style.transform = `translateX(0) rotate(0deg) scale(${scaleNow})`;
+      }
     } else if (axis === 'y' && dy > 0) {
       if (dy > 110) { tapLight(); onClose(); return; }
       if (rootRef.current) {
