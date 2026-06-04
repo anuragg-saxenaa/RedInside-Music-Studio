@@ -117,7 +117,9 @@ export const MasteringController = {
 
         for (let i = 0; i < ids.length; i++) {
           const id = ids[i];
-          await setJobStatus(jobId, { progress: Math.round((i / total) * 80) });
+          const base = Math.round((i / total) * 100);
+          const step = (frac) => Math.min(99, base + Math.round((frac / total) * 100));
+          await setJobStatus(jobId, { progress: step(0.1) });
           try {
             if (isMusicId) {
               const { MusicModel } = await import('../../database/models/music.model.js');
@@ -133,6 +135,7 @@ export const MasteringController = {
               if (!fs.existsSync(mastersDir)) fs.mkdirSync(mastersDir, { recursive: true });
 
               // Resolve input: local disk first, then pull from R2.
+              await setJobStatus(jobId, { progress: step(0.2) });
               let inputPath, tempInput = null;
               const localPath = path.isAbsolute(r2Key) ? r2Key : path.join(storage.basePath, r2Key);
               if (fs.existsSync(localPath)) {
@@ -149,11 +152,13 @@ export const MasteringController = {
                 console.log(`[mastering] job ${jobId} R2 pull ok, wrote ${buf.length} bytes to ${tempInput}`);
               }
 
+              await setJobStatus(jobId, { progress: step(0.4) });
               console.log(`[mastering] job ${jobId} running ffmpeg on ${inputPath}`);
               const outputPath = path.join(mastersDir, `${id}_spotify_master.wav`);
               await new AudioMasteringService(mastersDir).masterToSpotify(inputPath, outputPath);
               console.log(`[mastering] job ${jobId} ffmpeg done → ${outputPath}`);
               if (tempInput) fs.rmSync(tempInput, { force: true });
+              await setJobStatus(jobId, { progress: step(0.8) });
 
               // Upload mastered WAV to R2 BEFORE marking done — the saved track points
               // to this R2 key and may be served from a different Railway instance, so

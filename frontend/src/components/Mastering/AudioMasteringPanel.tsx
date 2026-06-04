@@ -110,18 +110,23 @@ export default function AudioMasteringPanel({ projectId, allMusic, onSaved }: Au
         return;
       }
 
-      // Poll until done
-      let elapsed = 0;
+      // Poll until done. The button progress climbs smoothly on elapsed time so it
+      // never looks frozen (backend reports coarse 0→100); a hard timeout prevents
+      // an infinite spinner if the job ever stalls.
+      const startedAt = Date.now();
+      const TIMEOUT_MS = 150000; // 2.5 min safety
       const poll = setInterval(async () => {
-        elapsed += 2;
+        const elapsedS = (Date.now() - startedAt) / 1000;
+        // Smooth ease toward 95% over ~40s, then hold until done.
+        const smooth = Math.min(95, Math.round(8 + (1 - Math.exp(-elapsedS / 14)) * 87));
         try {
           const sr = await fetch(`/api/mastering/status/${jobId}`);
           const sj = await sr.json();
-          const progress = sj.progress ?? Math.min(90, 5 + elapsed * 4);
-          setFiles(prev => prev.map(f => f.id === fileId ? { ...f, progress } : f));
+          // Show the larger of smooth vs backend progress so the bar only moves forward.
+          const shown = Math.max(smooth, sj.progress || 0);
+          setFiles(prev => prev.map(f => f.id === fileId ? { ...f, progress: shown } : f));
           if (sj.status === 'done') {
             clearInterval(poll); clearInterval(vuInterval); setVuLevel(100);
-            // Atomically save THIS exact track to Music — no sticky-selection ambiguity.
             try {
               const saveRes = await fetch('/api/mastering/save-to-music', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -130,12 +135,21 @@ export default function AudioMasteringPanel({ projectId, allMusic, onSaved }: Au
               if (saveRes.ok) onSaved?.();
             } catch { /* user can retry via Save button */ }
             setFiles(prev => prev.map(f => f.id === fileId ? { ...f, status: 'complete', progress: 100, saved: true } : f));
-          } else if (sj.status === 'failed') {
+            return;
+          }
+          if (sj.status === 'failed') {
             clearInterval(poll); clearInterval(vuInterval); setVuLevel(0);
             setFiles(prev => prev.map(f => f.id === fileId ? { ...f, status: 'error', error: sj.error || 'Mastering failed', progress: 0 } : f));
+            return;
           }
-        } catch { /* ignore poll errors */ }
-      }, 2000);
+        } catch { /* transient poll error — keep going, smooth progress still moves */
+          setFiles(prev => prev.map(f => f.id === fileId ? { ...f, progress: smooth } : f));
+        }
+        if (Date.now() - startedAt > TIMEOUT_MS) {
+          clearInterval(poll); clearInterval(vuInterval); setVuLevel(0);
+          setFiles(prev => prev.map(f => f.id === fileId ? { ...f, status: 'error', error: 'Timed out — tap Retry', progress: 0 } : f));
+        }
+      }, 1500);
     } catch (err: any) {
       clearInterval(vuInterval); setVuLevel(0);
       setFiles(prev => prev.map(f => f.id === fileId ? { ...f, status: 'error', error: err.message } : f));
