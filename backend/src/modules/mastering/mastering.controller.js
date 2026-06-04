@@ -154,7 +154,7 @@ export const MasteringController = {
 
               await setJobStatus(jobId, { progress: step(0.4) });
               console.log(`[mastering] job ${jobId} running ffmpeg on ${inputPath}`);
-              const outputPath = path.join(mastersDir, `${id}_spotify_master.wav`);
+              const outputPath = path.join(mastersDir, `${id}_spotify_master.mp3`);
               await new AudioMasteringService(mastersDir).masterToSpotify(inputPath, outputPath);
               console.log(`[mastering] job ${jobId} ffmpeg done → ${outputPath}`);
               if (tempInput) fs.rmSync(tempInput, { force: true });
@@ -164,7 +164,7 @@ export const MasteringController = {
               // to this R2 key and may be served from a different Railway instance, so
               // the file must exist in R2 first (else playback gets no audio). The job
               // already returned a jobId, so there's no HTTP timeout to worry about.
-              const r2MasterKey = `projects/${pid}/masters/${id}_spotify_master.wav`;
+              const r2MasterKey = `projects/${pid}/masters/${id}_spotify_master.mp3`;
               try {
                 await storage.saveAudioFile(fs.readFileSync(outputPath), r2MasterKey);
                 console.log(`[mastering] job ${jobId} uploaded to R2`);
@@ -183,7 +183,7 @@ export const MasteringController = {
               if (!inputFile) { errors.push({ fileId: id, error: 'File not found' }); continue; }
 
               const inputPath = path.join(uploadDir, inputFile);
-              const outputPath = path.join(mastersDir, `${id}_spotify_master.wav`);
+              const outputPath = path.join(mastersDir, `${id}_spotify_master.mp3`);
               if (!fs.existsSync(mastersDir)) fs.mkdirSync(mastersDir, { recursive: true });
 
               let inputDuration = 0;
@@ -192,7 +192,7 @@ export const MasteringController = {
               await new AudioMasteringService(mastersDir).masterToSpotify(inputPath, outputPath);
 
               // Upload to R2 before continuing (served cross-instance).
-              const r2MasterKey = `projects/${projectId}/masters/${id}_spotify_master.wav`;
+              const r2MasterKey = `projects/${projectId}/masters/${id}_spotify_master.mp3`;
               await storage.saveAudioFile(fs.readFileSync(outputPath), r2MasterKey);
 
               if (saveToProject) {
@@ -232,7 +232,7 @@ export const MasteringController = {
     try {
       const { fileId, projectId } = req.params;
       const mastersDir = storage.getMastersDir(projectId);
-      const filePath = path.join(mastersDir, `${fileId}_spotify_master.wav`);
+      const filePath = path.join(mastersDir, `${fileId}_spotify_master.mp3`);
 
       if (!fs.existsSync(filePath)) {
         return res.status(404).json({ error: 'Mastered file not found' });
@@ -282,7 +282,7 @@ export const MasteringController = {
       for (const fileId of fileIds) {
         // Look up the mastering job result to get r2Key + original track duration.
         // This avoids downloading the 50MB WAV just to create a DB record.
-        const r2MasterKey = `projects/${projectId}/masters/${fileId}_spotify_master.wav`;
+        const r2MasterKey = `projects/${projectId}/masters/${fileId}_spotify_master.mp3`;
 
         // Get duration from the original music track if fileId is a musicId.
         let duration = 0;
@@ -385,7 +385,7 @@ export const MasteringController = {
 
       for (const fileId of ids) {
         const masterFiles = fs.readdirSync(mastersDir).filter(f => f.startsWith(fileId));
-        const masterFile = masterFiles.find(f => f.endsWith('_spotify_master.wav'));
+        const masterFile = masterFiles.find(f => f.endsWith('_spotify_master.mp3'));
 
         if (masterFile) {
           const filePath = path.join(mastersDir, masterFile);

@@ -7,12 +7,16 @@ export class AudioMasteringService {
     this.storageDir = storageDir;
   }
 
-  // Spotify loudness standard: I=-14:TP=-1:LRA=11
+  // Spotify loudness standard: I=-14:TP=-1:LRA=11. Output 320kbps MP3 — a mastered
+  // WAV is 50MB+ which stalls the R2 upload and is impractical to stream; 320k MP3
+  // is ~5MB, transparent quality, uploads in ~1s.
   async masterToSpotify(inputPath, outputPath) {
     return new Promise((resolve, reject) => {
       ffmpeg(inputPath)
         .audioFilters('loudnorm=I=-14:TP=-1:LRA=11')
-        .audioCodec('pcm_s16le') // WAV format
+        .audioCodec('libmp3lame')
+        .audioBitrate('320k')
+        .format('mp3')
         .output(outputPath)
         .on('end', () => resolve({ outputPath }))
         .on('error', reject)
