@@ -127,8 +127,9 @@ export const MusicController = {
       }
 
       const ext = path.extname(filePath).toLowerCase();
-      const contentType = ext === '.wav' ? 'audio/wav' : 'audio/mpeg';
-      const downloadExt = ext === '.wav' ? 'wav' : 'mp3';
+      const CT = { '.wav': 'audio/wav', '.flac': 'audio/flac', '.m4a': 'audio/mp4', '.mp4': 'audio/mp4', '.ogg': 'audio/ogg', '.aac': 'audio/aac' };
+      const contentType = CT[ext] || 'audio/mpeg';
+      const downloadExt = (ext || '.mp3').replace('.', '');
       const fileSize = buf.length;
       const rangeHeader = req.headers.range;
 

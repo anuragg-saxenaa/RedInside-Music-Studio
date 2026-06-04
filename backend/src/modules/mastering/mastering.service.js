@@ -7,16 +7,17 @@ export class AudioMasteringService {
     this.storageDir = storageDir;
   }
 
-  // Spotify loudness standard: I=-14:TP=-1:LRA=11. Output 320kbps MP3 — a mastered
-  // WAV is 50MB+ which stalls the R2 upload and is impractical to stream; 320k MP3
-  // is ~5MB, transparent quality, uploads in ~1s.
+  // Spotify loudness standard: I=-14:TP=-1:LRA=11. Output LOSSLESS FLAC — bit-for-bit
+  // identical quality to WAV (no second-generation lossy loss, which is the whole point
+  // of mastering) but ~50% the size, so the R2 upload doesn't stall the way a 50MB WAV
+  // did. FLAC plays natively on iOS 11+, macOS, and modern browsers.
   async masterToSpotify(inputPath, outputPath) {
     return new Promise((resolve, reject) => {
       ffmpeg(inputPath)
         .audioFilters('loudnorm=I=-14:TP=-1:LRA=11')
-        .audioCodec('libmp3lame')
-        .audioBitrate('320k')
-        .format('mp3')
+        .audioCodec('flac')
+        .audioChannels(2)
+        .format('flac')
         .output(outputPath)
         .on('end', () => resolve({ outputPath }))
         .on('error', reject)
