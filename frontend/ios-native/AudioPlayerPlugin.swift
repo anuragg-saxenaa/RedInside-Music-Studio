@@ -30,6 +30,11 @@ public class AudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
     private var meta: [String: String] = [:]
     private var preloadUrl: String?
     private var preloadAsset: AVURLAsset?
+    // Dedicated muted player that actually downloads/buffers the next track's bytes
+    // into the URL cache (audio is immutable-cacheable). It NEVER shares its item
+    // with the main queue (that caused the ownership crash) — loadTrack builds a
+    // fresh item from the same URL, which then loads from cache = instant skip.
+    private var warmPlayer: AVPlayer?
     // Whether playback was active when an interruption (call/Siri) began.
     private var wasPlayingBeforeInterruption = false
 
@@ -116,6 +121,9 @@ public class AudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
 
             self.preloadUrl = nil
             self.preloadAsset = nil
+            // Done with the warm prebuffer player — free it (cache is already seeded).
+            self.warmPlayer?.pause()
+            self.warmPlayer?.replaceCurrentItem(with: nil)
 
             self.queue!.automaticallyWaitsToMinimizeStalling = false
             self.queue!.volume = Float(call.getDouble("volume") ?? 1.0)
@@ -129,17 +137,27 @@ public class AudioPlayerPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    // Prebuffer the next track's asset so the next loadTrack starts instantly.
-    // We only WARM the asset (metadata + first bytes) — we do NOT insert it into the
-    // live queue. Inserting would make AVQueuePlayer auto-advance at track-end and
-    // collide with the JS-driven advance. loadTrack rebuilds a fresh item from this
-    // warmed asset, which is fast and conflict-free.
+    // Prebuffer the next track's audio BYTES (not just metadata) so a skip is instant.
+    // A muted, isolated AVPlayer downloads the file into the URL cache; the main
+    // loadTrack later builds a FRESH item from the same URL → served from cache →
+    // no buffering. The warm player's item is never shared with the queue (no crash).
     @objc func preload(_ call: CAPPluginCall) {
         guard let urlStr = call.getString("url"), let url = URL(string: urlStr) else { call.resolve(); return }
         DispatchQueue.main.async {
             if self.preloadUrl == urlStr { call.resolve(); return }
             let asset = AVURLAsset(url: url)
-            asset.loadValuesAsynchronously(forKeys: ["playable"]) {}
+            let item = AVPlayerItem(asset: asset)
+            item.preferredForwardBufferDuration = 12   // pull a good chunk ahead
+            if self.warmPlayer == nil { self.warmPlayer = AVPlayer() }
+            self.warmPlayer?.replaceCurrentItem(with: item)
+            self.warmPlayer?.isMuted = true
+            self.warmPlayer?.automaticallyWaitsToMinimizeStalling = true
+            self.warmPlayer?.play()  // muted playback forces real byte buffering into cache
+            // Stop the warm player after ~8s — enough to seed the cache without burning
+            // network/CPU the whole track.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak self] in
+                if self?.preloadUrl == urlStr { self?.warmPlayer?.pause() }
+            }
             self.preloadUrl = urlStr
             self.preloadAsset = asset
             call.resolve()

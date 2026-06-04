@@ -448,10 +448,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (isLoopingRef.current) { audio.currentTime = 0; audio.play().catch(() => {}); }
       else { setPlayerIsPlaying(false); playNextRef.current(); }
     });
-    // Prebuffer the next track so skip / auto-advance is instant (native).
+    // Prebuffer the adjacent tracks so skip (either direction) / auto-advance is
+    // instant — the warm player seeds the URL cache, the real skip plays from cache.
     const q = queueRef.current.length ? queueRef.current : tracksRef.current;
     const idx = q.findIndex(t => t.id === track.id);
     if (idx >= 0 && idx + 1 < q.length) preloadNext(`${API_BASE}/api/music/${q[idx + 1].id}/file`);
+    // Warm the previous track too (web: hidden <audio preload>; native handled by the
+    // warm player on demand). Cheap because responses are immutable-cached.
+    if (idx > 0 && !isNativeApp()) {
+      try { const a = new Audio(`${API_BASE}/api/music/${q[idx - 1].id}/file`); a.preload = 'auto'; a.volume = 0; } catch { /* ignore */ }
+    }
+    if (idx >= 0 && idx + 1 < q.length && !isNativeApp()) {
+      try { const a = new Audio(`${API_BASE}/api/music/${q[idx + 1].id}/file`); a.preload = 'auto'; a.volume = 0; } catch { /* ignore */ }
+    }
     // Recently played (most-recent first, de-duped, capped) for the Home screen.
     setRecentTracks(prev => {
       const next = [track, ...prev.filter(t => t.id !== track.id)].slice(0, 16);
