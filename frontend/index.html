@@ -12,10 +12,9 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-      body { background-color: #08020a; overscroll-behavior: none; }
-      html { height: 100%; }
-      body { height: 100%; }
-      #root { height: 100%; }
+      html, body { height: 100%; max-width: 100%; overflow-x: hidden; }
+      body { background-color: #08020a; overscroll-behavior: none; position: relative; }
+      #root { height: 100%; max-width: 100%; overflow-x: hidden; }
       /* Mobile: hide scrollbars, improve touch scrolling */
       @media (max-width: 768px) {
         ::-webkit-scrollbar { display: none; }
