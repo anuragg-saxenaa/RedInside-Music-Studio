@@ -30,13 +30,6 @@ interface YoutubeDownloaderProps {
 
 type DlState = 'idle' | 'running' | 'done' | 'error';
 
-const BARS: [string, string][] = [
-  ['ytBar1', '0.42s'],
-  ['ytBar2', '0.55s'],
-  ['ytBar3', '0.48s'],
-  ['ytBar4', '0.61s'],
-  ['ytBar5', '0.38s'],
-];
 
 const YT_ICON = (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
@@ -44,77 +37,34 @@ const YT_ICON = (
   </svg>
 );
 
-export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDownloaderProps) {
+export default function YoutubeDownloader(_props: YoutubeDownloaderProps) {
   useEffect(() => { injectStyles(); }, []);
   const { enqueueDownload } = useWorkspace();
 
   const [url, setUrl] = useState('');
-  const [dlState, setDlState] = useState<DlState>('idle');
-  const [progress, setProgress] = useState(0);
-  const [message, setMessage] = useState('');
-  const [downloadId, setDownloadId] = useState<string | null>(null);
-  const [result, setResult] = useState<{ musicId: string; title: string; duration?: number } | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [focused, setFocused] = useState(false);
-  const [stalledSec, setStalledSec] = useState(0);
+  const [queuedMsg, setQueuedMsg] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const stalledRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Poll the download job — a worker (desktop, residential IP) processes it.
-  useEffect(() => {
-    if (!downloadId) return;
-    let elapsed = 0;
-    const poll = setInterval(async () => {
-      elapsed += 2;
-      try {
-        const r = await fetch(`/api/youtube/jobs/${downloadId}`);
-        if (!r.ok) return;
-        const s = await r.json();
-        if (s.status === 'pending') setMessage('Queued — waiting for a download worker…');
-        else if (s.status === 'processing') { setProgress(Math.min(85, 20 + elapsed * 3)); setMessage('Downloading on worker…'); }
-        else if (s.status === 'done') {
-          clearInterval(poll);
-          if (stalledRef.current) { clearInterval(stalledRef.current); stalledRef.current = null; }
-          setProgress(100); setDlState('done');
-          setResult({ musicId: s.musicId, title: s.title || 'YouTube import' });
-          onDownloaded?.(s.musicId, s.title || '');
-        } else if (s.status === 'failed') {
-          clearInterval(poll);
-          if (stalledRef.current) { clearInterval(stalledRef.current); stalledRef.current = null; }
-          setDlState('error');
-          setError(s.error || 'Download failed');
-        }
-      } catch { /* ignore poll errors */ }
-    }, 2000);
-    return () => clearInterval(poll);
-  }, [downloadId, onDownloaded]);
+  const queuedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Download no longer uses a big local progress screen (the global activity pill +
+  // auto-refresh handle it). These stay at idle defaults so the search UI shows.
+  const dlState: DlState = 'idle';
 
   const isValidUrl = url.trim().length > 10 && (url.includes('youtube.com') || url.includes('youtu.be'));
 
+  // Download = enqueue + brief confirmation. The GLOBAL tracker (WorkspaceContext)
+  // shows live progress in the activity pill and auto-refreshes the library when done
+  // — so there's no stuck local "Capturing %" screen and no need to reopen the panel.
   const handleDownload = useCallback(async (targetUrl?: string, title?: string) => {
     const u = (targetUrl ?? url).trim();
     const valid = u.length > 10 && (u.includes('youtube.com') || u.includes('youtu.be'));
-    if (!valid || dlState === 'running') return;
+    if (!valid) return;
     if (targetUrl) setUrl(targetUrl);
-    setDlState('running');
-    setProgress(2);
-    setStalledSec(0);
-    setMessage('Queuing…');
-    setError(null);
-    setResult(null);
-    if (stalledRef.current) clearInterval(stalledRef.current);
-    stalledRef.current = setInterval(() => setStalledSec(s => s + 1), 1000);
-    try {
-      // Enqueue via the GLOBAL tracker so the download keeps going + refreshes the
-      // library even if this panel is closed (no more close/reopen to see it).
-      const jobId = await enqueueDownload(u, 'download', { title });
-      if (!jobId) throw new Error('Could not queue download');
-      setDownloadId(jobId);
-    } catch (e) {
-      setDlState('error');
-      setError((e as Error).message);
-    }
-  }, [url, projectId, dlState]);
+    const jobId = await enqueueDownload(u, 'download', { title });
+    setQueuedMsg(jobId ? `Added to download queue${title ? ` · ${title}` : ''} — it'll appear in your library shortly` : 'Could not queue — try again');
+    if (queuedTimer.current) clearTimeout(queuedTimer.current);
+    queuedTimer.current = setTimeout(() => setQueuedMsg(null), 5000);
+  }, [url, enqueueDownload]);
 
   // ── In-app YouTube search ──
   const [searchQ, setSearchQ] = useState('');
@@ -130,7 +80,7 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
     if (!q) { setSearchResults(null); return; }
     setShowSug(false);
     const seq = ++searchSeq.current;
-    setSearching(true); setError(null); setSearchResults([]);
+    setSearching(true); setSearchResults([]);
     try {
       const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(q)}`);
       const data = await res.json();
@@ -176,25 +126,13 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
     setTimeout(() => { clearInterval(clear); setStreamingId(prev => prev === ytUrl ? null : prev); }, 45000);
   }, [enqueueDownload]);
 
-  const reset = () => {
-    if (stalledRef.current) { clearInterval(stalledRef.current); stalledRef.current = null; }
-    setDlState('idle');
-    setUrl('');
-    setProgress(0);
-    setStalledSec(0);
-    setDownloadId(null);
-    setResult(null);
-    setError(null);
-    setTimeout(() => inputRef.current?.focus(), 50);
-  };
-
   const formatDuration = (s?: number) => {
     if (!s) return '';
     return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, '0')}`;
   };
 
-  const statusColor = dlState === 'running' ? '#FFB800' : dlState === 'done' ? '#00D26A' : dlState === 'error' ? '#E63946' : 'rgba(255,255,255,0.25)';
-  const statusLabel = dlState === 'running' ? 'CAPTURING' : dlState === 'done' ? 'CAPTURED' : dlState === 'error' ? 'FAILED' : 'READY';
+  const statusColor = 'rgba(255,255,255,0.25)';
+  const statusLabel = 'READY';
 
   return (
     <div style={{
@@ -246,7 +184,6 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
             width: 6, height: 6, borderRadius: '50%',
             background: statusColor,
             boxShadow: `0 0 7px ${statusColor}`,
-            animation: dlState === 'running' ? 'ytPulse 1s ease-in-out infinite' : 'none',
           }} />
           <span style={{ fontSize: 9, fontFamily: 'monospace', color: statusColor, letterSpacing: '0.1em' }}>
             {statusLabel}
@@ -403,192 +340,11 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
         </div>
       )}
 
-      {/* RUNNING STATE */}
-      {dlState === 'running' && (
-        <div style={{ animation: 'ytFadeUp 0.25s ease' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            {/* Animated equalizer bars */}
-            <div style={{
-              display: 'flex', alignItems: 'flex-end', gap: 3,
-              height: 28, flexShrink: 0, paddingBottom: 2,
-            }}>
-              {BARS.map(([name, dur], i) => (
-                <div key={i} style={{
-                  width: 5, borderRadius: '2px 2px 1px 1px',
-                  background: i < 2
-                    ? 'linear-gradient(0deg, #E63946, #ff6b6b)'
-                    : i < 4
-                    ? 'linear-gradient(0deg, #E63946, #FFB800)'
-                    : 'linear-gradient(0deg, #FFB800, #ffd666)',
-                  animation: `${name} ${dur} ease-in-out infinite`,
-                  transformOrigin: 'bottom',
-                } as React.CSSProperties} />
-              ))}
-            </div>
-
-            {/* Progress + message */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 7 }}>
-                <span style={{
-                  fontSize: 11, color: 'rgba(255,255,255,0.5)',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  marginRight: 10, letterSpacing: '0.04em',
-                }}>
-                  {message || 'Processing...'}
-                </span>
-                <span style={{
-                  fontSize: 20, fontWeight: 700, fontFamily: 'monospace',
-                  color: '#E63946', flexShrink: 0, lineHeight: 1,
-                  textShadow: '0 0 16px rgba(230,57,70,0.6)',
-                }}>
-                  {progress}%
-                </span>
-              </div>
-
-              {/* Progress bar */}
-              <div style={{
-                height: 5, borderRadius: 3,
-                background: 'rgba(255,255,255,0.06)',
-                position: 'relative', overflow: 'hidden',
-              }}>
-                <div style={{
-                  height: '100%',
-                  width: `${progress}%`,
-                  background: 'linear-gradient(90deg, #E63946 0%, #FFB800 100%)',
-                  borderRadius: 3,
-                  transition: 'width 0.5s cubic-bezier(0.4,0,0.2,1)',
-                  boxShadow: '0 0 10px rgba(230,57,70,0.55)',
-                }} />
-                {/* Scanline sweep */}
-                {progress > 5 && (
-                  <div style={{
-                    position: 'absolute', top: 0, bottom: 0, width: '35%',
-                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent)',
-                    animation: 'ytScan 1.6s linear infinite',
-                  }} />
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div style={{ marginTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{
-              fontSize: 9, color: 'rgba(255,255,255,0.18)',
-              fontFamily: 'monospace', letterSpacing: '0.07em',
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
-            }}>
-              ↳ {url}
-            </div>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.22)', fontFamily: 'monospace', flexShrink: 0, marginLeft: 8 }}>
-              {stalledSec > 0 ? `${stalledSec}s` : ''}
-              {stalledSec > 15 && <span style={{ color: 'rgba(255,184,0,0.6)', marginLeft: 6 }}>· takes 1–3 min for long videos</span>}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* DONE STATE */}
-      {dlState === 'done' && result && (
-        <div style={{ animation: 'ytFadeUp 0.35s ease' }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 14,
-            background: 'rgba(0,210,106,0.06)',
-            border: '1px solid rgba(0,210,106,0.18)',
-            borderRadius: 10, padding: '13px 16px',
-          }}>
-            {/* Check icon */}
-            <div style={{
-              width: 38, height: 38, borderRadius: 10, flexShrink: 0,
-              background: 'rgba(0,210,106,0.12)',
-              border: '1px solid rgba(0,210,106,0.25)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 18, color: '#00D26A',
-            }}>
-              ✓
-            </div>
-
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 10, color: '#00D26A', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 4 }}>
-                TRACK CAPTURED · SAVED TO MUSIC LIBRARY
-              </div>
-              <div style={{
-                fontSize: 14, color: '#fff', fontWeight: 600,
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                {result.title}
-              </div>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 3, fontFamily: 'monospace' }}>
-                {formatDuration(result.duration)}{result.duration ? ' · ' : ''}MP3 · best quality
-              </div>
-            </div>
-
-            {/* Decorative mini waveform */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0, opacity: 0.6 }}>
-              {[6, 12, 8, 18, 10, 14, 7, 16, 9, 11].map((h, i) => (
-                <div key={i} style={{
-                  width: 3, height: h, borderRadius: 1.5,
-                  background: i % 3 === 0 ? '#00D26A' : i % 3 === 1 ? 'rgba(0,210,106,0.6)' : 'rgba(0,210,106,0.3)',
-                }} />
-              ))}
-            </div>
-          </div>
-
-          <div style={{ marginTop: 10 }}>
-            <button onClick={reset} style={{
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 8, color: 'rgba(255,255,255,0.45)',
-              fontSize: 11, padding: '7px 16px', cursor: 'pointer',
-              letterSpacing: '0.06em', transition: 'all 0.15s',
-            } as React.CSSProperties}>
-              ↳ Import Another Track
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ERROR STATE */}
-      {dlState === 'error' && (
-        <div style={{ animation: 'ytShake 0.4s ease, ytFadeUp 0.25s ease' }}>
-          <div style={{
-            display: 'flex', alignItems: 'flex-start', gap: 12,
-            background: 'rgba(230,57,70,0.07)',
-            border: '1px solid rgba(230,57,70,0.22)',
-            borderRadius: 10, padding: '12px 16px',
-          }}>
-            <div style={{ fontSize: 14, color: '#E63946', flexShrink: 0, fontWeight: 700, paddingTop: 1 }}>
-              ✕
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 10, color: '#E63946', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 5 }}>
-                CAPTURE FAILED
-              </div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>
-                {error}
-              </div>
-            </div>
-          </div>
-
-          <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-            <button onClick={() => { setDlState('idle'); setError(null); }} style={{
-              background: 'linear-gradient(135deg, #E63946, #b22032)',
-              border: 'none', borderRadius: 8, color: '#fff',
-              fontWeight: 700, fontSize: 10, letterSpacing: '0.1em',
-              padding: '8px 18px', cursor: 'pointer',
-              boxShadow: '0 0 12px rgba(230,57,70,0.3)',
-            } as React.CSSProperties}>
-              ↺ RETRY
-            </button>
-            <button onClick={reset} style={{
-              background: 'transparent',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 8, color: 'rgba(255,255,255,0.35)',
-              fontSize: 10, padding: '8px 16px', cursor: 'pointer',
-              letterSpacing: '0.05em',
-            } as React.CSSProperties}>
-              Cancel
-            </button>
-          </div>
+      {/* Queued confirmation — the global activity pill shows live progress + refreshes */}
+      {queuedMsg && (
+        <div style={{ marginTop: 10, padding: '10px 14px', borderRadius: 10, background: 'rgba(0,210,106,0.08)', border: '1px solid rgba(0,210,106,0.25)', display: 'flex', alignItems: 'center', gap: 8, animation: 'ytFadeUp 0.25s ease' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00d26a" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          <span style={{ fontSize: 12, color: '#cfeede', fontWeight: 500 }}>{queuedMsg}</span>
         </div>
       )}
     </div>
