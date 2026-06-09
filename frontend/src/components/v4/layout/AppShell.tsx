@@ -184,19 +184,17 @@ export default function AppShell({ titlebar, sidebar, centre, rightPanel, player
   return (
     <div style={{
       background: C.bgApp,
-      // 100dvh can flicker on iOS Safari as the URL bar shows/hides.
-      // -webkit-fill-available is the stable native Capacitor full-screen size.
-      height: '100dvh',
-      maxHeight: '-webkit-fill-available',
+      // position:fixed + inset:0 fills the viewport EXACTLY. Don't also set height/
+      // maxHeight — 100dvh vs -webkit-fill-available conflict shrank the container,
+      // leaving gaps at top + bottom with the nav floating mid-screen.
+      position: 'fixed',
+      inset: 0,
       overflow: 'hidden',
       display: 'flex',
       flexDirection: 'column',
       fontFamily: "'Outfit', 'DM Sans', -apple-system, sans-serif",
       color: C.text,
       touchAction: 'manipulation',
-      // Prevent rubber-band scroll on the root — each scroll area handles itself.
-      position: 'fixed',
-      inset: 0,
     }}>
       {mockBanner}
 
