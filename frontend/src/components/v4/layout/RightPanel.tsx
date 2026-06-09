@@ -146,7 +146,7 @@ const sectionLabel: React.CSSProperties = {
 };
 
 export default function RightPanel() {
-  const { selectedTrack, setSelectedTrack, playTrack, setActiveTab, playerCurrentTime, activeProjectId, playlists, refreshPlaylists, refreshTracks } = useWorkspace();
+  const { selectedTrack, setSelectedTrack, playTrack, setActiveTab, playerCurrentTime, activeProjectId, playlists, refreshPlaylists, refreshTracks, enqueueDownload } = useWorkspace();
   const authFetch = useAuthFetch();
   const [notes, setNotes] = useState<MusicNote[]>([]);
   const [newNoteText, setNewNoteText] = useState('');
@@ -362,6 +362,29 @@ export default function RightPanel() {
       {/* Quick actions */}
       <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}` }}>
         <div style={sectionLabel}>Quick Actions</div>
+        {/* A streamed YouTube preview is ephemeral — it can't be mastered/exported/
+            crafted until saved. Offer "Add to Library" which downloads it; once saved
+            it becomes a real track with full actions. */}
+        {(selectedTrack.id?.startsWith('stream-')) ? (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            {[
+              { label: '▶ Play', action: () => playTrack(selectedTrack), testId: 'action-play', danger: false },
+              { label: '⬇ Add to Library', action: async () => {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const src = (selectedTrack as any).source_url as string | undefined;
+                  if (src) { await enqueueDownload(src, 'download', { title: selectedTrack.title }); }
+                }, testId: 'action-save' },
+            ].map(({ label, action, testId }) => (
+              <button key={testId} onClick={action} data-testid={testId}
+                style={{ background: testId === 'action-save' ? 'rgba(230,57,70,0.12)' : 'rgba(255,255,255,0.05)', border: `1px solid ${testId === 'action-save' ? 'rgba(230,57,70,0.35)' : C.border}`, borderRadius: '8px', color: testId === 'action-save' ? C.red : 'rgba(255,255,255,0.7)', padding: '9px 8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', gridColumn: testId === 'action-save' ? 'span 1' : 'span 1' }}>
+                {label}
+              </button>
+            ))}
+            <div style={{ gridColumn: '1 / -1', fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 4 }}>
+              Streaming preview · Add to Library to master, export or craft.
+            </div>
+          </div>
+        ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
           {[
             { label: '▶ Play',    action: () => playTrack(selectedTrack), testId: 'action-play',   danger: false },
@@ -391,6 +414,7 @@ export default function RightPanel() {
             >{label}</button>
           ))}
         </div>
+        )}
       </div>
 
       {/* Share */}

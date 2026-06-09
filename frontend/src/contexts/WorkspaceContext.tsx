@@ -21,6 +21,7 @@ export interface DownloadJob {
   status: 'pending' | 'processing' | 'done' | 'failed';
   title?: string;
   thumbnail?: string;
+  sourceUrl?: string;   // original YouTube URL — lets a stream become a library track
   error?: string;
 }
 
@@ -414,7 +415,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       const r = await authFetch('/api/youtube/jobs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const d = await r.json();
       if (!r.ok || !d.jobId) return null;
-      setDownloadJobs(prev => [...prev, { id: d.jobId, jobType, status: 'pending', title: meta?.title, thumbnail: meta?.thumbnail }]);
+      setDownloadJobs(prev => [...prev, { id: d.jobId, jobType, status: 'pending', title: meta?.title, thumbnail: meta?.thumbnail, sourceUrl: url }]);
       return d.jobId;
     } catch { return null; }
   }, [activeProjectId, authFetch]);
@@ -423,7 +424,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   // Keeps running regardless of which screen is open, so downloads appear instantly.
   const refreshTracksRef = useRef(refreshTracks);
   useEffect(() => { refreshTracksRef.current = refreshTracks; }, [refreshTracks]);
-  const playStreamRef = useRef<((u: string, m: { title: string; artist?: string; artworkUrl?: string | null }) => void) | null>(null);
+  const playStreamRef = useRef<((u: string, m: { title: string; artist?: string; artworkUrl?: string | null; sourceUrl?: string }) => void) | null>(null);
   useEffect(() => {
     const active = downloadJobs.filter(j => j.status !== 'done' && j.status !== 'failed');
     if (active.length === 0) return;
@@ -435,7 +436,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           const s = await r.json();
           if (s.status === 'done') {
             if (job.jobType === 'stream' && s.streamUrl) {
-              playStreamRef.current?.(s.streamUrl, { title: s.title || job.title || 'YouTube', artworkUrl: job.thumbnail || null });
+              playStreamRef.current?.(s.streamUrl, { title: s.title || job.title || 'YouTube', artworkUrl: job.thumbnail || null, sourceUrl: job.sourceUrl });
             } else {
               refreshTracksRef.current();
             }
@@ -535,10 +536,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [playerVolume]);
 
   // Play a transient stream URL (YouTube preview) — bypasses the library.
-  // The track is ephemeral: no musicId, no project attachment, just plays.
-  const playStreamUrl = useCallback((streamUrl: string, meta: { title: string; artist?: string; artworkUrl?: string | null }) => {
+  // The track is ephemeral: no musicId, just plays. We stash the source YouTube URL
+  // so the UI can offer "Add to Library" (then it can be mastered/exported/crafted).
+  const playStreamUrl = useCallback((streamUrl: string, meta: { title: string; artist?: string; artworkUrl?: string | null; sourceUrl?: string }) => {
     if (persistentAudio) { persistentAudio.pause(); persistentAudio.src = ''; }
-    const fakeTrack = { id: `stream-${Date.now()}`, title: meta.title, artist: meta.artist || '', version: 1, project_id: '' } as unknown as MusicGeneration;
+    const fakeTrack = { id: `stream-${Date.now()}`, title: meta.title, artist: meta.artist || '', version: 1, project_id: '', source_url: meta.sourceUrl } as unknown as MusicGeneration;
     const audio = createAudio(streamUrl, { title: meta.title, artist: meta.artist, artworkUrl: meta.artworkUrl });
     audio.volume = playerVolume;
     persistentAudio = audio; audioRef.current = audio; persistentTrack = fakeTrack;
