@@ -256,11 +256,11 @@ export default function MobilePlayerFull({ onClose }: Props) {
           </div>
         ) : (
         /* Artwork */
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 28px', minHeight: 0 }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px 28px', minHeight: 0 }}>
           <div
             ref={artRef}
             style={{
-              width: 'min(78vw, 360px)', aspectRatio: '1 / 1', maxHeight: '100%',
+              width: 'min(72vw, 320px)', aspectRatio: '1 / 1', maxHeight: '100%',
               borderRadius: '18px', overflow: 'hidden', flexShrink: 0,
               background: `linear-gradient(135deg, ${C.redDark}, #080108)`,
               boxShadow: playerIsPlaying
@@ -318,7 +318,7 @@ export default function MobilePlayerFull({ onClose }: Props) {
         </div>
 
         {/* Scrubber */}
-        <div style={{ flexShrink: 0, padding: '20px 28px 4px' }}>
+        <div style={{ flexShrink: 0, padding: '10px 28px 2px' }}>
           <div
             ref={barRef}
             style={{ position: 'relative', height: '28px', display: 'flex', alignItems: 'center', cursor: 'pointer', touchAction: 'none' }}
@@ -334,9 +334,10 @@ export default function MobilePlayerFull({ onClose }: Props) {
             </div>
             <div style={{
               position: 'absolute', top: '50%', left: `${displayFraction * 100}%`,
-              transform: `translateX(-50%) translateY(-50%) scale(${dragProgress !== null ? 1 : 0})`,
+              // Always visible (Apple-style), grows on drag.
+              transform: `translateX(-50%) translateY(-50%) scale(${dragProgress !== null ? 1.35 : 1})`,
               width: '15px', height: '15px', background: '#fff', borderRadius: '50%',
-              boxShadow: `0 0 10px ${C.red}aa`, transition: 'transform 140ms',
+              boxShadow: `0 1px 6px rgba(0,0,0,0.5), 0 0 10px ${C.red}aa`, transition: 'transform 140ms',
             }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'rgba(255,255,255,0.45)', marginTop: '6px', fontVariantNumeric: 'tabular-nums' }}>
@@ -346,7 +347,7 @@ export default function MobilePlayerFull({ onClose }: Props) {
         </div>
 
         {/* Transport */}
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 28px 16px' }}>
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 28px 8px' }}>
           <button onClick={() => { selectionChanged(); toggleShuffle(); }} style={{ ...iconBtn, color: isShuffled ? C.red : 'rgba(255,255,255,0.55)' }}>
             <ShuffleIcon size={22} />
           </button>
