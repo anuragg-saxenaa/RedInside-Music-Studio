@@ -15,6 +15,15 @@ function prefixApiUrls(track: MusicGeneration): MusicGeneration {
   return { ...track, artwork_url: fix(track.artwork_url) };
 }
 
+export interface DownloadJob {
+  id: string;
+  jobType: 'download' | 'stream';
+  status: 'pending' | 'processing' | 'done' | 'failed';
+  title?: string;
+  thumbnail?: string;
+  error?: string;
+}
+
 interface WorkspaceContextType {
   projects: Project[];
   activeProjectId: string | null;
@@ -43,6 +52,12 @@ interface WorkspaceContextType {
   recentTracks: MusicGeneration[];
   mobilePlaylistId: string | null;
   setMobilePlaylistId: (id: string | null) => void;
+
+  // Global YouTube download/stream jobs — tracked app-wide so they keep polling and
+  // auto-refresh the library even if the import panel is closed (downloads reflect
+  // immediately, no close/reopen). Stream jobs auto-play when ready.
+  downloadJobs: DownloadJob[];
+  enqueueDownload: (url: string, jobType: 'download' | 'stream', meta?: { title?: string; thumbnail?: string }) => Promise<string | null>;
 
   selectedLyrics: LyricsGeneration | null;
   setSelectedLyrics: (l: LyricsGeneration | null) => void;
@@ -134,6 +149,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [mobilePlaylistId, setMobilePlaylistId] = useState<string | null>(null);
   const sleepRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [sleepMinutes, setSleepMinutes] = useState<number | null>(null);
+  const [downloadJobs, setDownloadJobs] = useState<DownloadJob[]>([]);
   const RECENT_KEY = 'ris_recent_tracks';
   const [recentTracks, setRecentTracks] = useState<MusicGeneration[]>(() => {
     try { const s = localStorage.getItem(RECENT_KEY); return s ? JSON.parse(s) : []; } catch { return []; }
@@ -389,6 +405,55 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       .catch(() => {});
   }, [activeProjectId, selectedTrack, playerTrack, authFetch]);
 
+  // ── Global YouTube download/stream jobs ──
+  // Enqueue a job and track it app-wide. Survives the import panel closing.
+  const enqueueDownload = useCallback(async (url: string, jobType: 'download' | 'stream', meta?: { title?: string; thumbnail?: string }): Promise<string | null> => {
+    try {
+      const body: Record<string, unknown> = { url, jobType };
+      if (jobType === 'download') body.projectId = activeProjectId;
+      const r = await authFetch('/api/youtube/jobs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const d = await r.json();
+      if (!r.ok || !d.jobId) return null;
+      setDownloadJobs(prev => [...prev, { id: d.jobId, jobType, status: 'pending', title: meta?.title, thumbnail: meta?.thumbnail }]);
+      return d.jobId;
+    } catch { return null; }
+  }, [activeProjectId, authFetch]);
+
+  // Poll active jobs every 2s. On done: stream → play; download → refresh library.
+  // Keeps running regardless of which screen is open, so downloads appear instantly.
+  const refreshTracksRef = useRef(refreshTracks);
+  useEffect(() => { refreshTracksRef.current = refreshTracks; }, [refreshTracks]);
+  const playStreamRef = useRef<((u: string, m: { title: string; artist?: string; artworkUrl?: string | null }) => void) | null>(null);
+  useEffect(() => {
+    const active = downloadJobs.filter(j => j.status !== 'done' && j.status !== 'failed');
+    if (active.length === 0) return;
+    const iv = setInterval(async () => {
+      for (const job of active) {
+        try {
+          const r = await authFetch(`/api/youtube/jobs/${job.id}`);
+          if (!r.ok) continue;
+          const s = await r.json();
+          if (s.status === 'done') {
+            if (job.jobType === 'stream' && s.streamUrl) {
+              playStreamRef.current?.(s.streamUrl, { title: s.title || job.title || 'YouTube', artworkUrl: job.thumbnail || null });
+            } else {
+              refreshTracksRef.current();
+            }
+            setDownloadJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: 'done', title: s.title || j.title } : j));
+            // Drop completed jobs after a moment so the UI can show a brief "done".
+            setTimeout(() => setDownloadJobs(prev => prev.filter(j => j.id !== job.id)), 4000);
+          } else if (s.status === 'failed') {
+            setDownloadJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: 'failed', error: s.error } : j));
+            setTimeout(() => setDownloadJobs(prev => prev.filter(j => j.id !== job.id)), 6000);
+          } else {
+            setDownloadJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: s.status } : j));
+          }
+        } catch { /* keep polling */ }
+      }
+    }, 2000);
+    return () => clearInterval(iv);
+  }, [downloadJobs, authFetch]);
+
   const activeProject = projects.find(p => p.id === activeProjectId) ?? null;
 
   const playTrack = useCallback((track: MusicGeneration, preserveQueue = false) => {
@@ -494,6 +559,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     audio.addEventListener('loadedmetadata', () => { if (isFinite(audio.duration)) setPlayerDuration(audio.duration); });
     audio.addEventListener('ended', () => { setPlayerIsPlaying(false); setPlaybackState('paused'); });
   }, [playerVolume]);
+
+  // Let the global download-job poller trigger stream playback.
+  useEffect(() => { playStreamRef.current = playStreamUrl; }, [playStreamUrl]);
 
   const togglePlay = useCallback(() => {
     if (!persistentAudio) return;
@@ -619,6 +687,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       tracks, tracksLoading, selectedTrack, setSelectedTrack: setSelectedTrackWrapped, refreshTracks,
       likedIds, isLiked, toggleLike, addTrackToPlaylist, removeTrackFromPlaylist, createPlaylistNamed,
       playQueue, queue, addToQueue, playTrackNext, sleepMinutes, setSleepTimer, recentTracks, mobilePlaylistId, setMobilePlaylistId,
+      downloadJobs, enqueueDownload,
       selectedLyrics, setSelectedLyrics,
       activeTab: activeTab, setActiveTab: setActiveTabWrapped,
       playlists, refreshPlaylists,

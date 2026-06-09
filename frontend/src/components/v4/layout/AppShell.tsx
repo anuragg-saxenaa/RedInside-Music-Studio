@@ -20,6 +20,34 @@ interface AppShellProps {
   mockBanner?: ReactNode;
 }
 
+// Background download / stream activity pill — so it's always clear something is
+// happening (no more "is it playing or not?"). Sits just above the mini player.
+function DownloadToast() {
+  const { downloadJobs } = useWorkspace();
+  if (!downloadJobs.length) return null;
+  const job = downloadJobs[downloadJobs.length - 1];
+  const active = job.status === 'pending' || job.status === 'processing';
+  const label =
+    job.status === 'failed' ? (job.jobType === 'stream' ? 'Stream failed' : 'Download failed')
+    : job.status === 'done' ? (job.jobType === 'stream' ? 'Now playing' : 'Added to library')
+    : job.jobType === 'stream' ? 'Preparing stream…' : `Downloading${job.title ? ` · ${job.title}` : ''}…`;
+  const color = job.status === 'failed' ? '#ff6b76' : job.status === 'done' ? '#00d26a' : C.red;
+  return (
+    <div style={{
+      margin: '0 8px 8px', padding: '10px 14px', borderRadius: 12,
+      background: 'rgba(20,8,12,0.7)', backdropFilter: 'blur(28px)', WebkitBackdropFilter: 'blur(28px)',
+      border: `1px solid ${color}44`, display: 'flex', alignItems: 'center', gap: 10,
+      flexShrink: 0, animation: 'ris-spin 0s', boxShadow: '0 6px 24px rgba(0,0,0,0.4)',
+    }}>
+      {active
+        ? <span style={{ width: 15, height: 15, borderRadius: '50%', border: `2px solid ${color}55`, borderTopColor: color, display: 'inline-block', animation: 'ris-spin 0.7s linear infinite', flexShrink: 0 }} />
+        : <span style={{ color, fontSize: 15, flexShrink: 0 }}>{job.status === 'done' ? '✓' : '✕'}</span>}
+      <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+      <style>{`@keyframes ris-spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+}
+
 // Mobile mini player bar
 function MobileMiniPlayer({ onExpand }: { onExpand: () => void }) {
   const { playerTrack, playerIsPlaying, playerLoading, playerProgress, togglePlay, playNext, playPrev, isLiked, toggleLike } = useWorkspace();
@@ -237,6 +265,9 @@ export default function AppShell({ titlebar, sidebar, centre, rightPanel, player
           </div>
         )}
       </div>
+
+      {/* Background download/stream activity indicator */}
+      <DownloadToast />
 
       {/* Mini Player */}
       {playerTrack && (

@@ -46,7 +46,7 @@ const YT_ICON = (
 
 export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDownloaderProps) {
   useEffect(() => { injectStyles(); }, []);
-  const { playStreamUrl } = useWorkspace();
+  const { enqueueDownload } = useWorkspace();
 
   const [url, setUrl] = useState('');
   const [dlState, setDlState] = useState<DlState>('idle');
@@ -91,7 +91,7 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
 
   const isValidUrl = url.trim().length > 10 && (url.includes('youtube.com') || url.includes('youtu.be'));
 
-  const handleDownload = useCallback(async (targetUrl?: string) => {
+  const handleDownload = useCallback(async (targetUrl?: string, title?: string) => {
     const u = (targetUrl ?? url).trim();
     const valid = u.length > 10 && (u.includes('youtube.com') || u.includes('youtu.be'));
     if (!valid || dlState === 'running') return;
@@ -99,22 +99,17 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
     setDlState('running');
     setProgress(2);
     setStalledSec(0);
-    setMessage('Connecting...');
+    setMessage('Queuing…');
     setError(null);
     setResult(null);
     if (stalledRef.current) clearInterval(stalledRef.current);
     stalledRef.current = setInterval(() => setStalledSec(s => s + 1), 1000);
-    setMessage('Queuing…');
     try {
-      // Enqueue a job — a worker (desktop, residential IP) downloads + syncs it.
-      const res = await fetch('/api/youtube/jobs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: u, projectId }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Request failed');
-      setDownloadId(data.jobId);
+      // Enqueue via the GLOBAL tracker so the download keeps going + refreshes the
+      // library even if this panel is closed (no more close/reopen to see it).
+      const jobId = await enqueueDownload(u, 'download', { title });
+      if (!jobId) throw new Error('Could not queue download');
+      setDownloadId(jobId);
     } catch (e) {
       setDlState('error');
       setError((e as Error).message);
@@ -162,35 +157,24 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
   const pickSuggestion = (s: string) => { setSearchQ(s); setSuggestions([]); setShowSug(false); runSearch(s); };
 
   // ── Stream (play without saving) ──
-  const [streamingId, setStreamingId] = useState<string | null>(null); // which result is streaming
+  const [streamingId, setStreamingId] = useState<string | null>(null); // which result is preparing
 
   const handleStream = useCallback(async (ytUrl: string, title: string, thumbnail?: string) => {
     setStreamingId(ytUrl);
-    try {
-      const res = await fetch('/api/youtube/jobs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: ytUrl, jobType: 'stream' }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed');
-      const jobId = data.jobId;
-      // Poll for stream URL (fast — worker just runs yt-dlp --get-url)
-      for (let i = 0; i < 30; i++) {
-        await new Promise(r => setTimeout(r, 2000));
+    // Enqueue a stream job via the global tracker — the WorkspaceContext poller
+    // auto-plays it the moment the stream URL is ready, even if this panel closes.
+    const jobId = await enqueueDownload(ytUrl, 'stream', { title, thumbnail });
+    // Clear the per-row spinner once the job is no longer pending/processing.
+    if (!jobId) { setStreamingId(null); return; }
+    const clear = setInterval(async () => {
+      try {
         const sr = await fetch(`/api/youtube/jobs/${jobId}`);
         const sj = await sr.json();
-        if (sj.status === 'done' && sj.streamUrl) {
-          playStreamUrl(sj.streamUrl, { title: sj.title || title, artworkUrl: thumbnail || null });
-              setStreamingId(null); return;
-        }
-        if (sj.status === 'failed') throw new Error(sj.error || 'Stream failed');
-      }
-      throw new Error('Timed out');
-    } catch (e) {
-      setStreamingId(null);
-    }
-  }, [playStreamUrl]);
+        if (sj.status === 'done' || sj.status === 'failed') { clearInterval(clear); setStreamingId(null); }
+      } catch { /* ignore */ }
+    }, 1500);
+    setTimeout(() => { clearInterval(clear); setStreamingId(prev => prev === ytUrl ? null : prev); }, 45000);
+  }, [enqueueDownload]);
 
   const reset = () => {
     if (stalledRef.current) { clearInterval(stalledRef.current); stalledRef.current = null; }
@@ -341,7 +325,7 @@ export default function YoutubeDownloader({ projectId, onDownloaded }: YoutubeDo
                       <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.channel}{r.duration ? ` · ${formatDuration(r.duration)}` : ''}</div>
                     </div>
                     {/* Download — save to library */}
-                    <button onClick={() => handleDownload(r.url)} disabled={dlState !== 'idle'} title="Save to library" style={{ flexShrink: 0, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(230,57,70,0.12)', border: '1px solid rgba(230,57,70,0.3)', color: '#E63946', borderRadius: 8, cursor: dlState !== 'idle' ? 'default' : 'pointer' }}>
+                    <button onClick={() => handleDownload(r.url, r.title)} disabled={dlState !== 'idle'} title="Save to library" style={{ flexShrink: 0, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(230,57,70,0.12)', border: '1px solid rgba(230,57,70,0.3)', color: '#E63946', borderRadius: 8, cursor: dlState !== 'idle' ? 'default' : 'pointer' }}>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v13M5 16l7 7 7-7"/><path d="M3 21h18"/></svg>
                     </button>
                   </div>
