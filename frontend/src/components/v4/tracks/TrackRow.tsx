@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { confirmAction } from '../../../lib/confirmAction';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { useAuthFetch } from '../../../hooks/useAuthFetch';
@@ -69,7 +70,7 @@ export default function TrackRow({ track, onDoubleClick, onEdit, isEditOpen }: T
   }, [menuOpen]);
 
   const deleteTrack = async () => {
-    if (!confirm(`Delete "${track.title || `Track v${track.version}`}"? This cannot be undone.`)) return;
+    if (!(await confirmAction(`Delete "${track.title || `Track v${track.version}`}"? This cannot be undone.`))) return;
     await authFetch(`/api/music/${track.id}`, { method: 'DELETE' });
     if (selectedTrack?.id === track.id) setSelectedTrack(null);
     refreshTracks();

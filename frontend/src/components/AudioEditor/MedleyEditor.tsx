@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { confirmAction } from '../../lib/confirmAction';
 import TimelineView from './TimelineView';
 import GridView from './GridView';
 
@@ -140,8 +141,8 @@ export default function MedleyEditor({
     }
   }, [tracks, projectId, medleyId]);
 
-  const handleClearAll = useCallback(() => {
-    if (confirm('Are you sure you want to remove all tracks?')) {
+  const handleClearAll = useCallback(async () => {
+    if (await confirmAction('Remove all tracks?', 'Remove')) {
       setTracks([]);
       setSelectedTrackId(null);
     }

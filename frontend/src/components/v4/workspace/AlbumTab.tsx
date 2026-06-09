@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { confirmAction } from '../../../lib/confirmAction';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { useAuthFetch } from '../../../hooks/useAuthFetch';
@@ -93,7 +94,7 @@ export default function AlbumTab() {
 
   const deleteAlbum = async () => {
     if (!selectedAlbumId || !activeProjectId) return;
-    if (!confirm(`Delete album "${selectedAlbum?.title}"? This cannot be undone.`)) return;
+    if (!(await confirmAction(`Delete album "${selectedAlbum?.title}"? This cannot be undone.`))) return;
     await authFetch(`/api/projects/${activeProjectId}/albums/${selectedAlbumId}`, { method: 'DELETE' });
     setAlbums(prev => prev.filter(a => a.id !== selectedAlbumId));
     setSelectedAlbumId(null);

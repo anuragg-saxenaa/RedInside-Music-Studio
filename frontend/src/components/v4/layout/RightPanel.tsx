@@ -3,6 +3,7 @@ import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { useAuthFetch } from '../../../hooks/useAuthFetch';
 import type { MusicNote, MusicTags, MusicGeneration } from '../../../types';
+import { confirmAction } from '../../../lib/confirmAction';
 
 function ArtworkBox({ track, activeProjectId, onUploaded }: {
   track: MusicGeneration;
@@ -241,7 +242,7 @@ export default function RightPanel() {
 
   const deleteTrack = async () => {
     if (!selectedTrack) return;
-    if (!confirm(`Delete "${selectedTrack.title || `Track v${selectedTrack.version}`}"? This cannot be undone.`)) return;
+    if (!(await confirmAction(`Delete "${selectedTrack.title || `Track v${selectedTrack.version}`}"? This cannot be undone.`))) return;
     await authFetch(`/api/music/${selectedTrack.id}`, { method: 'DELETE' });
     setSelectedTrack(null);
     refreshTracks();

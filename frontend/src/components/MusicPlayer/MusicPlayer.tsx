@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { confirmAction } from '../../lib/confirmAction';
 import type { LyricsGeneration, MusicGeneration } from '../../types';
 import { registerAudioStop, stopAllRegisteredAudio } from '../../utils/audioControl';
 import { useWebSocket } from '../../hooks/useWebSocket';
@@ -731,7 +732,7 @@ export default function MusicPlayer({ projectId, selectedLyrics, onMusicGenerate
   };
 
   const handleDeleteMusic = async (musicId: string) => {
-    if (!confirm('Are you sure you want to delete this song?')) return;
+    if (!(await confirmAction('Delete this song? This cannot be undone.'))) return;
     try {
       const res = await fetch(`/api/music/${musicId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Delete failed');
