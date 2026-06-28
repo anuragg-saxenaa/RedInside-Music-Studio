@@ -119,14 +119,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const authFetch = useCallback(async (url: string, options: RequestInit = {}) => {
     const token = await getToken();
     const fullUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
-    // Desktop (Tauri) standalone build authenticates with a baked shared secret
-    // instead of interactive login (Google OAuth is blocked in embedded webviews).
-    const desktopToken = import.meta.env.VITE_DESKTOP_TOKEN;
+    // Every platform (web, iOS, macOS) authenticates with a real Clerk JWT — the
+    // X-Desktop-Token bypass is removed; login is identical across all platforms.
     return fetch(fullUrl, {
       ...options,
       headers: {
         ...(options.headers || {}),
-        ...(desktopToken ? { 'X-Desktop-Token': desktopToken } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });
