@@ -1,7 +1,43 @@
-import { SignIn, SignUp } from '@clerk/clerk-react';
+import { SignIn, SignUp, useSignIn } from '@clerk/clerk-react';
 import { useState } from 'react';
 
 type Mode = 'signin' | 'signup';
+
+// Custom "Continue with Google" button. Uses authenticateWithRedirect — a FULL-PAGE
+// redirect to Google and back, NOT a popup. Popups get blocked by browsers (esp.
+// mobile Safari) which is the "blocked popup" the user hit. Redirect never blocks.
+function GoogleButton() {
+  const { isLoaded, signIn } = useSignIn();
+  const [busy, setBusy] = useState(false);
+  const go = async () => {
+    if (!isLoaded || !signIn || busy) return;
+    setBusy(true);
+    try {
+      await signIn.authenticateWithRedirect({
+        strategy: 'oauth_google',
+        redirectUrl: `${window.location.origin}/sso-callback`,
+        redirectUrlComplete: `${window.location.origin}/`,
+      });
+    } catch {
+      setBusy(false); // stays on page; user can use email/code below
+    }
+  };
+  return (
+    <button onClick={go} disabled={!isLoaded || busy}
+      style={{
+        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+        padding: '13px 16px', borderRadius: 12, cursor: busy ? 'default' : 'pointer',
+        background: '#fff', border: 'none', color: '#1f1f1f', fontWeight: 600, fontSize: 14,
+        fontFamily: "'Outfit', sans-serif", boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+        opacity: !isLoaded ? 0.6 : 1, transition: 'transform 120ms',
+      }}>
+      {busy
+        ? <span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(0,0,0,0.25)', borderTopColor: '#1f1f1f', display: 'inline-block', animation: 'ris-glow 0.7s linear infinite' }} />
+        : <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>}
+      Continue with Google
+    </button>
+  );
+}
 
 export default function Login() {
   const [mode, setMode] = useState<Mode>('signin');
@@ -47,7 +83,17 @@ export default function Login() {
         </button>
       </div>
 
-      {/* Clerk component */}
+      {/* Custom Google button — redirect flow (no popup, never blocked) */}
+      <div style={{ ...styles.card, marginBottom: 14 }}>
+        <GoogleButton />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '16px 2px 2px' }}>
+          <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.08)' }} />
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.08em' }}>OR EMAIL</span>
+          <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.08)' }} />
+        </div>
+      </div>
+
+      {/* Clerk component (email/code; prebuilt social buttons hidden — see appearance) */}
       <div style={styles.card}>
         {mode === 'signin' ? (
           <SignIn
@@ -67,20 +113,15 @@ export default function Login() {
                 card: { background: 'transparent', border: 'none', boxShadow: 'none', padding: '0', width: '100%' },
                 header: { display: 'none' },
                 logoBox: { display: 'none' },
-                socialButtonsBlockButton: {
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: '12px',
-                  color: '#ffffff',
-                  fontFamily: "'Outfit', sans-serif",
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  transition: 'all 150ms ease',
-                },
-                socialButtonsBlockButtonText: { color: '#ffffff', fontFamily: "'Outfit', sans-serif" },
+                // Prebuilt social buttons hidden — we use a custom Google button
+                // above that does a redirect (no popup, never blocked).
+                socialButtons: { display: 'none' },
+                socialButtonsBlockButton: { display: 'none' },
+                socialButtonsBlockButtonText: { display: 'none' },
                 socialButtonsBlockIcon: { display: 'none' },
-                dividerLine: { background: 'rgba(255,255,255,0.05)' },
-                dividerText: { color: 'rgba(255,255,255,0.18)', fontFamily: "'Outfit', sans-serif", fontSize: '12px' },
+                dividerRow: { display: 'none' },
+                dividerLine: { display: 'none' },
+                dividerText: { display: 'none' },
                 formButtonPrimary: {
                   background: '#E63946',
                   borderRadius: '12px',
@@ -128,20 +169,15 @@ export default function Login() {
                 card: { background: 'transparent', border: 'none', boxShadow: 'none', padding: '0', width: '100%' },
                 header: { display: 'none' },
                 logoBox: { display: 'none' },
-                socialButtonsBlockButton: {
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: '12px',
-                  color: '#ffffff',
-                  fontFamily: "'Outfit', sans-serif",
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  transition: 'all 150ms ease',
-                },
-                socialButtonsBlockButtonText: { color: '#ffffff', fontFamily: "'Outfit', sans-serif" },
+                // Prebuilt social buttons hidden — we use a custom Google button
+                // above that does a redirect (no popup, never blocked).
+                socialButtons: { display: 'none' },
+                socialButtonsBlockButton: { display: 'none' },
+                socialButtonsBlockButtonText: { display: 'none' },
                 socialButtonsBlockIcon: { display: 'none' },
-                dividerLine: { background: 'rgba(255,255,255,0.05)' },
-                dividerText: { color: 'rgba(255,255,255,0.18)', fontFamily: "'Outfit', sans-serif", fontSize: '12px' },
+                dividerRow: { display: 'none' },
+                dividerLine: { display: 'none' },
+                dividerText: { display: 'none' },
                 formButtonPrimary: {
                   background: '#E63946',
                   borderRadius: '12px',

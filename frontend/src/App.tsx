@@ -7,6 +7,7 @@ import Settings from './pages/Settings';
 import StudioV4 from './pages/StudioV4';
 import ShareView from './pages/ShareView';
 import Login from './pages/Login';
+import SsoCallback from './pages/SsoCallback';
 import type { Project, LyricsGeneration, MusicGeneration } from './types';
 import { SharedAudioProvider } from './contexts/SharedAudioContext';
 
@@ -64,6 +65,12 @@ function App() {
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
+
+  // Google OAuth redirect lands here (full-page, no popup). Render the Clerk
+  // callback handler which completes sign-in then sends the user to '/'.
+  if (CLERK_ON && window.location.pathname === '/sso-callback') {
+    return <SsoCallback />;
+  }
 
   // No Clerk configured → skip auth entirely (local dev / E2E)
   if (CLERK_ON) {
