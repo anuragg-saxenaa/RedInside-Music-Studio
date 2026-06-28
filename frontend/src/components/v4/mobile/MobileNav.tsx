@@ -1,4 +1,5 @@
 import { C } from '../shared/colors';
+import { useSafeAuth, useSafeUser, useSafeClerk } from '../../../lib/clerkSafe';
 import { selectionChanged } from '../../../lib/haptics';
 
 export type MobileSection = 'library' | 'sounds' | 'studio' | 'details' | 'more';
@@ -31,9 +32,16 @@ const TABS: { id: MobileSection; label: string }[] = [
 ];
 
 export default function MobileNav({ active, onChange, hasTrack }: Props) {
+  const { isSignedIn } = useSafeAuth();
+  const { user } = useSafeUser();
+  const { signOut } = useSafeClerk();
+
+  const showSignOut = isSignedIn;
+
   return (
     <div style={{
       display: 'flex',
+      alignItems: 'center',
       background: 'rgba(8,2,6,0.6)',
       backdropFilter: 'blur(36px) saturate(1.8)',
       WebkitBackdropFilter: 'blur(36px) saturate(1.8)',
@@ -42,35 +50,69 @@ export default function MobileNav({ active, onChange, hasTrack }: Props) {
       paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       flexShrink: 0,
     }}>
-      {TABS.map(tab => {
-        const isActive = active === tab.id;
-        const dim = tab.id === 'details' && !hasTrack;
-        return (
-          <button
-            key={tab.id}
-            onClick={() => { if (!dim) { selectionChanged(); onChange(tab.id); } }}
-            style={{
-              flex: 1, background: 'none', border: 'none', cursor: dim ? 'default' : 'pointer',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              padding: '9px 4px 7px', gap: '4px', minHeight: '56px',
-              opacity: dim ? 0.3 : 1, position: 'relative',
-            }}
-          >
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 46, height: 30, borderRadius: 10,
-              background: isActive ? 'rgba(230,57,70,0.16)' : 'transparent',
-              boxShadow: isActive ? `inset 0 0 0 1px rgba(230,57,70,0.3)` : 'none',
-              transition: 'background 200ms, box-shadow 200ms',
-            }}>
-              <Icon id={tab.id} active={isActive} />
-            </div>
-            <span style={{ fontSize: '10px', color: isActive ? C.red : 'rgba(255,255,255,0.42)', letterSpacing: '0.01em', fontWeight: isActive ? 600 : 500 }}>
-              {tab.label}
-            </span>
-          </button>
-        );
-      })}
+      <div style={{ display: 'flex', flex: 1 }}>
+        {TABS.map(tab => {
+          const isActive = active === tab.id;
+          const dim = tab.id === 'details' && !hasTrack;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => { if (!dim) { selectionChanged(); onChange(tab.id); } }}
+              style={{
+                flex: 1, background: 'none', border: 'none', cursor: dim ? 'default' : 'pointer',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                padding: '9px 4px 7px', gap: '4px', minHeight: '56px',
+                opacity: dim ? 0.3 : 1, position: 'relative',
+              }}
+            >
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 46, height: 30, borderRadius: 10,
+                background: isActive ? 'rgba(230,57,70,0.16)' : 'transparent',
+                boxShadow: isActive ? `inset 0 0 0 1px rgba(230,57,70,0.3)` : 'none',
+                transition: 'background 200ms, box-shadow 200ms',
+              }}>
+                <Icon id={tab.id} active={isActive} />
+              </div>
+              <span style={{ fontSize: '10px', color: isActive ? C.red : 'rgba(255,255,255,0.42)', letterSpacing: '0.01em', fontWeight: isActive ? 600 : 500 }}>
+                {tab.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {/* Sign-out button — always visible while signed in. One tap to log out. */}
+      {showSignOut && (
+        <button
+          onClick={() => {
+            selectionChanged();
+            // signOut() returns a Promise but Clerk's redirect kicks in immediately
+            // on the real instance. We force-reload as a safety net.
+            signOut(() => {
+              try { window.location.hash = '#/login'; } catch { /* ignore */ }
+              try { window.location.reload(); } catch { /* ignore */ }
+            });
+            // Fallback in case signOut is the inert stub (e.g. local dev without key).
+            setTimeout(() => {
+              try { window.location.hash = '#/login'; } catch { /* ignore */ }
+            }, 250);
+          }}
+          title={user?.primaryEmailAddress?.emailAddress ? `Sign out ${user.primaryEmailAddress.emailAddress}` : 'Sign out'}
+          style={{
+            flexShrink: 0, width: 56, minHeight: 56, background: 'none', border: 'none',
+            cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center',
+            justifyContent: 'center', gap: 4, padding: '8px 4px', opacity: 0.7,
+          }}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            {/* right-arrow-into-door icon */}
+            <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4" />
+            <path d="M10 17l5-5-5-5" />
+            <path d="M15 12H3" />
+          </svg>
+          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>Out</span>
+        </button>
+      )}
     </div>
   );
 }

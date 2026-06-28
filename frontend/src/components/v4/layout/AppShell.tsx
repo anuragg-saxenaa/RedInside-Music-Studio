@@ -2,6 +2,7 @@ import { type ReactNode, useState, useRef } from 'react';
 import { C } from '../shared/colors';
 import { useMobile } from '../../../hooks/useMobile';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
+import { useSafeUser, useSafeClerk } from '../../../lib/clerkSafe';
 import MobileNav, { type MobileSection } from '../mobile/MobileNav';
 import MobilePlayerFull from '../mobile/MobilePlayerFull';
 import MobilePlaylistView from '../mobile/MobilePlaylistView';
@@ -175,6 +176,70 @@ function MobileMiniPlayer({ onExpand }: { onExpand: () => void }) {
   );
 }
 
+// More page — quick links + always-visible sign-out.
+function MorePanel() {
+  const { user, isSignedIn } = useSafeUser();
+  const { signOut } = useSafeClerk();
+  const email = user?.primaryEmailAddress?.emailAddress;
+  return (
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden auto', padding: '24px 20px' }}>
+      <div style={{ fontSize: '20px', fontWeight: 700, color: C.text, marginBottom: '20px' }}>More</div>
+
+      {isSignedIn && email && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, borderRadius: 12, marginBottom: 16 }}>
+          <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#E63946,#7e1620)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14 }}>
+            {email.slice(0, 1).toUpperCase()}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ color: C.text, fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</div>
+            <div style={{ color: C.textDim, fontSize: 11 }}>Signed in</div>
+          </div>
+        </div>
+      )}
+
+      {[
+        { label: 'History',     href: '#/history',  icon: 'M12 8v4l3 2M21 12a9 9 0 11-9-9' },
+        { label: 'Viral Toolkit', href: '#/viral',    icon: 'M13 2L4 14h7l-1 8 9-12h-7l1-8z' },
+        { label: 'Settings',    href: '#/settings', icon: 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z' },
+      ].map(item => (
+        <a key={item.href} href={item.href} style={{
+          display: 'flex', alignItems: 'center', gap: 14, padding: '14px 4px', borderBottom: `1px solid ${C.border}`,
+          color: C.text, textDecoration: 'none', fontSize: '16px',
+        }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d={item.icon} />
+          </svg>
+          {item.label}
+        </a>
+      ))}
+
+      {isSignedIn && (
+        <button
+          onClick={() => {
+            signOut(() => {
+              try { window.location.hash = '#/login'; } catch { /* ignore */ }
+              try { window.location.reload(); } catch { /* ignore */ }
+            });
+            setTimeout(() => { try { window.location.hash = '#/login'; } catch { /* ignore */ } }, 250);
+          }}
+          style={{
+            marginTop: 28, width: '100%', padding: '14px 16px', borderRadius: 12, border: '1px solid rgba(230,57,70,0.35)',
+            background: 'rgba(230,57,70,0.08)', color: '#E63946', fontSize: 15, fontWeight: 600, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4" />
+            <path d="M10 17l5-5-5-5" />
+            <path d="M15 12H3" />
+          </svg>
+          Sign out
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function AppShell({ titlebar, sidebar, centre, rightPanel, playerBar, mockBanner }: AppShellProps) {
   const isMobile = useMobile();
   const { playerTrack, setActiveTab, refreshProjects, refreshTracks, mobilePlaylistId, setMobilePlaylistId } = useWorkspace();
@@ -249,21 +314,7 @@ export default function AppShell({ titlebar, sidebar, centre, rightPanel, player
         </div>
 
         {/* More panel */}
-        {mobileSection === 'more' && (
-          <div style={{ position: 'absolute', inset: 0, overflow: 'hidden auto', padding: '24px 20px' }}>
-            <div style={{ fontSize: '20px', fontWeight: 700, color: C.text, marginBottom: '24px' }}>More</div>
-            {[
-              { label: '⏱  History', href: '#/history' },
-              { label: '⚡  Viral Toolkit', href: '#/viral' },
-              { label: '⚙  Settings', href: '#/settings' },
-            ].map(item => (
-              <a key={item.href} href={item.href} style={{
-                display: 'block', padding: '16px 0', borderBottom: `1px solid ${C.border}`,
-                color: C.text, textDecoration: 'none', fontSize: '16px',
-              }}>{item.label}</a>
-            ))}
-          </div>
-        )}
+        {mobileSection === 'more' && <MorePanel />}
       </div>
 
       {/* Background download/stream activity indicator */}
