@@ -12,10 +12,13 @@ export function useAuthFetch() {
   return useCallback(async (url: string, options: RequestInit = {}): Promise<Response> => {
     const token = await getToken();
     const fullUrl = (url.startsWith('/api/') && API_BASE) ? `${API_BASE}${url}` : url;
+    // Native (Tauri/Capacitor) uses the baked studio token; web uses the Clerk JWT.
+    const desktopToken = import.meta.env.VITE_DESKTOP_TOKEN;
     return fetch(fullUrl, {
       ...options,
       headers: {
         ...(options.headers || {}),
+        ...(desktopToken ? { 'X-Desktop-Token': desktopToken } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });

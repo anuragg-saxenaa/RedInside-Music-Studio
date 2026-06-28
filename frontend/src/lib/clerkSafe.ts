@@ -4,7 +4,16 @@
 // constant — the hook branch is stable across the app's lifetime (hook-safe).
 import { useAuth, useUser, useClerk } from '@clerk/clerk-react';
 
-export const CLERK_ON = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+// Native builds (Tauri desktop / Capacitor iOS) run in a webview whose origin is
+// tauri://localhost or capacitor:// — NOT http/https. Clerk's OAuth redirect flow
+// rejects those schemes ("Invalid URL scheme"), so interactive Google login can't
+// run inside an embedded native webview. Native therefore uses the baked studio
+// token (auto-auth) and does NOT mount Clerk. Web (no VITE_NATIVE/VITE_TAURI) gets
+// the full Clerk Google + email login.
+export const IS_NATIVE = !!(import.meta.env.VITE_NATIVE || import.meta.env.VITE_TAURI);
+
+// Clerk is active only on the web build — has a key AND is not a native build.
+export const CLERK_ON = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY && !IS_NATIVE;
 
 export function useSafeAuth() {
   if (CLERK_ON) {

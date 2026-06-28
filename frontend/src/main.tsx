@@ -14,9 +14,13 @@ if (import.meta.env.VITE_API_BASE_URL) {
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     if (typeof input === 'string' && input.startsWith('/api')) {
       input = import.meta.env.VITE_API_BASE_URL + input;
-      // iOS + macOS + web all use the same Google/email login via Clerk. The
-      // X-Desktop-Token bypass is removed — every platform sends a real Clerk
-      // JWT below, so login is identical everywhere.
+      // Native (Tauri/Capacitor) authenticates with the baked studio token —
+      // Clerk's redirect OAuth can't run in a native webview (non-http origin).
+      // Web sends a real Clerk JWT below.
+      const desktopToken = import.meta.env.VITE_DESKTOP_TOKEN;
+      if (desktopToken) {
+        init = { ...(init || {}), headers: { 'X-Desktop-Token': desktopToken, ...(init?.headers || {}) } };
+      }
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const token = await (window as any).Clerk?.session?.getToken?.();
@@ -52,10 +56,11 @@ if (import.meta.env.VITE_API_BASE_URL) {
   if (document.body) startObs(); else document.addEventListener('DOMContentLoaded', startObs);
 }
 
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ?? '';
+// Native builds (Tauri/Capacitor) must NOT mount Clerk — its OAuth can't run in a
+// non-http webview origin. They auto-auth with the baked token. Web mounts Clerk.
+const IS_NATIVE = !!(import.meta.env.VITE_NATIVE || import.meta.env.VITE_TAURI);
+const PUBLISHABLE_KEY = (!IS_NATIVE && import.meta.env.VITE_CLERK_PUBLISHABLE_KEY) || '';
 
-// Only mount ClerkProvider when a key is configured. Without it (local dev / E2E),
-// render the app directly — useSafeAuth/useSafeUser/useSafeClerk return inert stubs.
 const tree = (
   <ErrorBoundary>
     <SharedAudioProvider>

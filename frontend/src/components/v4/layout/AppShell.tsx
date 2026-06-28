@@ -2,7 +2,7 @@ import { type ReactNode, useState, useRef } from 'react';
 import { C } from '../shared/colors';
 import { useMobile } from '../../../hooks/useMobile';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
-import { useSafeUser, useSafeClerk } from '../../../lib/clerkSafe';
+import { useSafeUser, useSafeClerk, CLERK_ON } from '../../../lib/clerkSafe';
 import MobileNav, { type MobileSection } from '../mobile/MobileNav';
 import MobilePlayerFull from '../mobile/MobilePlayerFull';
 import MobilePlaylistView from '../mobile/MobilePlaylistView';
@@ -178,9 +178,11 @@ function MobileMiniPlayer({ onExpand }: { onExpand: () => void }) {
 
 // More page — quick links + always-visible sign-out.
 function MorePanel() {
-  const { user, isSignedIn } = useSafeUser();
+  const { user, isSignedIn: rawSignedIn } = useSafeUser();
   const { signOut } = useSafeClerk();
   const email = user?.primaryEmailAddress?.emailAddress;
+  // Sign-out only on web (real Clerk session). Native uses the studio token.
+  const isSignedIn = CLERK_ON && rawSignedIn;
   return (
     <div style={{ position: 'absolute', inset: 0, overflow: 'hidden auto', padding: '24px 20px' }}>
       <div style={{ fontSize: '20px', fontWeight: 700, color: C.text, marginBottom: '20px' }}>More</div>

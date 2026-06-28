@@ -119,12 +119,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const authFetch = useCallback(async (url: string, options: RequestInit = {}) => {
     const token = await getToken();
     const fullUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
-    // Every platform (web, iOS, macOS) authenticates with a real Clerk JWT — the
-    // X-Desktop-Token bypass is removed; login is identical across all platforms.
+    // Native (Tauri/Capacitor) uses the baked studio token (Clerk OAuth can't run in
+    // a native webview); web uses the Clerk JWT.
+    const desktopToken = import.meta.env.VITE_DESKTOP_TOKEN;
     return fetch(fullUrl, {
       ...options,
       headers: {
         ...(options.headers || {}),
+        ...(desktopToken ? { 'X-Desktop-Token': desktopToken } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });

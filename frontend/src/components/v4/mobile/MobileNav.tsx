@@ -1,5 +1,5 @@
 import { C } from '../shared/colors';
-import { useSafeAuth, useSafeUser, useSafeClerk } from '../../../lib/clerkSafe';
+import { useSafeAuth, useSafeUser, useSafeClerk, CLERK_ON } from '../../../lib/clerkSafe';
 import { selectionChanged } from '../../../lib/haptics';
 
 export type MobileSection = 'library' | 'sounds' | 'studio' | 'details' | 'more';
@@ -36,7 +36,9 @@ export default function MobileNav({ active, onChange, hasTrack }: Props) {
   const { user } = useSafeUser();
   const { signOut } = useSafeClerk();
 
-  const showSignOut = isSignedIn;
+  // Sign-out only where real auth exists (web). Native uses the studio token —
+  // there's no session to end, so the button would be a no-op.
+  const showSignOut = CLERK_ON && isSignedIn;
 
   return (
     <div style={{
