@@ -58,6 +58,20 @@ describe('Mastering API - Multi-file Upload', () => {
     });
   });
 
+  // /api/mastering/process is async (returns 202 { jobId }) to dodge Railway's
+  // 60s timeout. Poll the status endpoint until the job settles, then return the
+  // final result payload ({ status, results, errors, masteredPath, ... }).
+  async function pollJob(jobId, timeoutMs = 30000) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const r = await fetch(`http://localhost:3000/api/mastering/status/${jobId}`);
+      const d = await r.json();
+      if (d.status === 'done' || d.status === 'failed') return d;
+      await new Promise(res => setTimeout(res, 300));
+    }
+    throw new Error(`mastering job ${jobId} timed out`);
+  }
+
   function makeRequest(options, body) {
     return new Promise((resolve, reject) => {
       const req = http.request(options, (res) => {
@@ -119,14 +133,16 @@ describe('Mastering API - Multi-file Upload', () => {
     assert.strictEqual(uploadRes.status, 200);
     const { files: [{ id: fileId }] } = uploadRes.data;
 
-    // Process it
+    // Process it (async job → poll to completion)
     const processRes = await fetch('http://localhost:3000/api/mastering/process', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fileId, projectId, preset: 'spotify', saveToProject: false })
     });
-    const processData = await processRes.json();
-    assert.strictEqual(processRes.status, 200);
+    assert.strictEqual(processRes.status, 202);
+    const { jobId } = await processRes.json();
+    const processData = await pollJob(jobId);
+    assert.strictEqual(processData.status, 'done');
     assert.ok(processData.masteredPath);
 
     // List files
@@ -161,8 +177,10 @@ describe('Mastering API - Multi-file Upload', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fileIds, projectId, preset: 'spotify', saveToProject: false })
     });
+    assert.strictEqual(processRes.status, 202);
+    const { jobId } = await processRes.json();
 
-    const { results, errors } = await processRes.json();
+    const { results, errors } = await pollJob(jobId);
     assert.strictEqual(results.length, 2);
     assert.strictEqual(errors.length, 0);
     assert.ok(results[0].masteredPath);
@@ -193,7 +211,19 @@ describe('Mastering API - Multi-file Upload', () => {
   });
 
   it('saves mastered files to music history', async () => {
-    const projectId = 'test-save-music-' + Date.now();
+    // save-to-music creates a music row with an FK to projects, so use a real
+    // project (seeded via the test endpoint), not a bare id string.
+    const seedRes = await fetch('http://localhost:3000/api/test/seed-project', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'MasterSaveTest' })
+    });
+    const { project } = await seedRes.json();
+    const projectId = project.id;
+
+    // Baseline music count (seed adds one track).
+    const before = await (await fetch(`http://localhost:3000/api/projects/${projectId}/music`)).json();
+    const beforeCount = before.length;
 
     // Upload and process
     const fileData = fs.readFileSync(FIXTURE);
@@ -205,11 +235,13 @@ describe('Mastering API - Multi-file Upload', () => {
     assert.strictEqual(uploadRes.status, 200);
     const { files: [{ id: fileId }] } = uploadRes.data;
 
-    await fetch('http://localhost:3000/api/mastering/process', {
+    const procRes = await fetch('http://localhost:3000/api/mastering/process', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fileIds: [fileId], projectId, preset: 'spotify', saveToProject: false })
     });
+    const { jobId } = await procRes.json();
+    await pollJob(jobId); // mastered file must exist before save-to-music
 
     // Save to Music
     const saveRes = await fetch('http://localhost:3000/api/mastering/save-to-music', {
@@ -223,10 +255,13 @@ describe('Mastering API - Multi-file Upload', () => {
     assert.ok(saved[0].musicId);
     assert.ok(saved[0].version);
 
-    // Verify music exists via API
-    const musicRes = await fetch(`http://localhost:3000/api/projects/${projectId}/music`);
-    const musicList = await musicRes.json();
-    assert.strictEqual(musicList.length, 1);
+    // The mastered track was added to the project's music list.
+    const after = await (await fetch(`http://localhost:3000/api/projects/${projectId}/music`)).json();
+    assert.strictEqual(after.length, beforeCount + 1);
+    assert.ok(after.some(m => m.id === saved[0].musicId));
+
+    // Cleanup the seeded project.
+    await fetch(`http://localhost:3000/api/projects/${projectId}`, { method: 'DELETE' });
   });
 
   it('GET /api/mastering/:fileId/file/:projectId serves original audio bytes', async () => {
@@ -266,11 +301,13 @@ describe('Mastering API - Multi-file Upload', () => {
     const { files } = uploadRes.data;
     const fileIds = files.map(f => f.id);
 
-    await fetch('http://localhost:3000/api/mastering/process', {
+    const procRes = await fetch('http://localhost:3000/api/mastering/process', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fileIds, projectId, preset: 'spotify', saveToProject: false })
     });
+    const { jobId } = await procRes.json();
+    await pollJob(jobId); // mastered files must exist before zipping
 
     // Download ZIP
     const zipRes = await fetch(`http://localhost:3000/api/mastering/zip?projectId=${projectId}&fileIds=${fileIds.join(',')}`);
