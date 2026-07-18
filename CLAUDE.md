@@ -384,18 +384,23 @@ Three jobs, all must stay green: **Lint & Type Check**, **Backend Tests**, **Fro
 
 ## Deployment Architecture (Production)
 
+**2026-07-18 MIGRATION: Railway trial expired (service removed + bucket frozen) → backend moved to Render free tier; file storage moved to the user's Google Drive.** The Railway URLs/bucket below are DEAD — kept only for history. The old Railway bucket still holds 18 unrecoverable AI-generated tracks (rescuable only by reactivating Railway with a paid plan).
+
 ### URLs
-- **Frontend (Vercel):** `https://frontend-orpin-two-47.vercel.app`
-- **Backend (Railway):** `https://redinside-music-studio-production.up.railway.app`
+- **Frontend (Vercel):** `https://redinsidems-ui.vercel.app` (old `frontend-orpin-two-47` URL 307s here)
+- **Backend (Render, free tier):** `https://redinside-backend.onrender.com` — service `redinside-backend` (`srv-d9dtarbrjlhs73baujv0`), deployed via `render.yaml` blueprint (Docker, rootDir `backend`). Free tier = ephemeral disk + sleeps after 15 min idle (~50s cold start).
 - **Database:** Turso cloud — `libsql://redinside-music-studi-redinside.aws-us-east-1.turso.io`
-- **File Storage:** Railway S3 bucket — `redinside-storage-iec2vak` at `https://t3.storageapi.dev`
+- **File Storage:** user's Google Drive, folder `RedInside-Music-Studio` (flat files, path keys joined with `__`, scope `drive.file`). Refresh token in Turso `settings` (`gdrive_refresh_token`); OAuth app is Published (no 7-day expiry).
+- ~~Backend (Railway)~~ `https://redinside-music-studio-production.up.railway.app` — DEAD
+- ~~File Storage (Railway S3)~~ `redinside-storage-iec2vak` — FROZEN (AccessDenied)
 
 ### Sync Architecture
 Local dev and cloud production share the SAME data:
-- **DB:** Both local and Railway connect to Turso cloud DB
-- **Files:** shared Railway S3 (R2-compatible) bucket — `redinside-storage-iec2vak`. Local uses `STORAGE_DRIVER=local`; Railway uses `r2`. Both have R2 creds in env.
+- **DB:** Both local and Render connect to Turso cloud DB
+- **Files:** Render uses `STORAGE_DRIVER=local` (ephemeral) + fire-and-forget Google Drive sync on every save (`storage.util.js _syncToGDrive`); reads fall back local → R2 (dead, errors swallowed) → Drive (`readBufferAnywhere`)
 - **Auth:** Cloud enforces Clerk JWT; local uses `DEV_USER_ID=dev-user` fallback (no login needed)
 - **user_id:** All projects use `dev-user` as owner (single-user studio, no per-user filtering)
+- **YouTube import worker:** `backend/youtube-worker.mjs` runs on the user's Mac (LaunchAgent `com.redinside.ytworker`, KeepAlive, log `/tmp/ris-ytworker.log`) — cloud IPs are blocked by YouTube, so downloads/streams only process while the Mac is on. `GET /api/youtube/worker-status` reports importer online/offline; the Downloader panel shows a live status dot.
 
 ### Storage Sync (BULLETPROOF — audio + artwork)
 The key pattern that makes files play/show on BOTH local and cloud regardless of where created:
@@ -423,18 +428,16 @@ Redis/BullMQ is optional. When no Redis, `music.controller.js` processes generat
 - **Mobile:** responsive layout via `useMobile()` — see Mobile/Responsive section above.
 - **Flex gotcha:** scrollable card lists MUST set `flexShrink: 0` on each card, else many items squish into thin unreadable stripes.
 
-### Railway Deployment
-- **Auto-deploy:** Every `git push origin main` triggers Railway rebuild via GitHub webhook
-- **Force deploy (no login needed):** `bash scripts/railway-deploy.sh`
-- **Permanent token:** `ba3a01ed-9279-4925-b3dc-5444c2eaee12` (stored in `config/.env` as `RAILWAY_TOKEN`)
-- **Build time:** ~4 min (includes yt-dlp install via pip)
-- **Service ID:** `ac1d7490-87f1-40ad-b51c-2c38fa0ff608`
-- **Project ID:** `e4ebb35d-aaa2-4449-9090-650e61a3659c`
+### Render Deployment (replaces Railway)
+- **Auto-deploy:** every `git push origin main` triggers a Render rebuild (`render.yaml` blueprint, `autoDeploy: true`)
+- **Build time:** ~5-8 min (Docker: yt-dlp + ffmpeg via backend/Dockerfile)
+- **Env vars:** set via dashboard or Render API (user's API key, never committed). 19 prod vars = same set Railway had, with `STORAGE_DRIVER=local` and `GOOGLE_REDIRECT_URI=https://redinside-backend.onrender.com/api/gdrive/callback`
+- ~~Railway~~ (dead): project `e4ebb35d-aaa2-4449-9090-650e61a3659c`, service `ac1d7490-87f1-40ad-b51c-2c38fa0ff608`, token in `config/.env` — still useful read-only (`railway variables --service RedInside-Music-Studio --kv`) and for a paid-plan rescue of the frozen bucket
 
 ### Vercel Deployment
 - **Auto-deploy:** NOT connected to GitHub — must run `npx vercel --prod --yes` from `frontend/` directory
-- **Env vars set:** `VITE_API_BASE_URL`, `VITE_CLERK_PUBLISHABLE_KEY`
-- **fetch interceptor** in `frontend/src/main.tsx` rewrites all `/api/` calls to Railway URL + adds Clerk JWT
+- **Env vars set:** `VITE_API_BASE_URL` (= Render URL), `VITE_CLERK_PUBLISHABLE_KEY`
+- **fetch interceptor** in `frontend/src/main.tsx` rewrites all `/api/` calls to the backend URL + adds Clerk JWT
 
 ### Frontend Cloud Routing (Critical)
 `frontend/src/main.tsx` patches `window.fetch` to:
