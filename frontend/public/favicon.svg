@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="bg" cx="35%" cy="30%" r="80%">
+      <stop offset="0%" stop-color="#1b0508"/>
+      <stop offset="65%" stop-color="#080103"/>
+    </radialGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ff6b76"/>
+      <stop offset="55%" stop-color="#E63946"/>
+      <stop offset="100%" stop-color="#8f1220"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="0" stdDeviation="1.6" flood-color="#E63946" flood-opacity="0.9"/>
+    </filter>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <g filter="url(#glow)">
+    <rect x="12" y="24" width="6" height="16" rx="3" fill="url(#bar)"/>
+    <rect x="21" y="14" width="6" height="36" rx="3" fill="url(#bar)"/>
+    <rect x="30" y="20" width="6" height="24" rx="3" fill="url(#bar)"/>
+    <rect x="39" y="11" width="6" height="42" rx="3" fill="url(#bar)"/>
+    <rect x="48" y="26" width="6" height="12" rx="3" fill="url(#bar)"/>
+  </g>
+</svg>
