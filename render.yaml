@@ -1,0 +1,12 @@
+# Render blueprint — free-tier backend deploy.
+# Env vars are NOT listed here (secrets): after the service is created,
+# open Environment tab → "Add from .env" → paste contents of render-env.txt.
+services:
+  - type: web
+    name: redinside-backend
+    runtime: docker
+    plan: free
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
