@@ -69,14 +69,14 @@ export default function MobileNav({ active, onChange, hasTrack }: Props) {
             >
               <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                width: 46, height: 30, borderRadius: 10,
-                background: isActive ? 'rgba(230,57,70,0.16)' : 'transparent',
-                boxShadow: isActive ? `inset 0 0 0 1px rgba(230,57,70,0.3)` : 'none',
-                transition: 'background 200ms, box-shadow 200ms',
+                width: 46, height: 28,
+                transform: isActive ? 'scale(1.12) translateY(-1px)' : 'scale(1)',
+                transition: 'transform 260ms cubic-bezier(0.34,1.56,0.64,1)',
+                filter: isActive ? 'drop-shadow(0 0 8px rgba(230,57,70,0.55))' : 'none',
               }}>
                 <Icon id={tab.id} active={isActive} />
               </div>
-              <span style={{ fontSize: '10px', color: isActive ? C.red : 'rgba(255,255,255,0.42)', letterSpacing: '0.01em', fontWeight: isActive ? 600 : 500 }}>
+              <span style={{ fontSize: '10px', color: isActive ? C.red : 'rgba(255,255,255,0.42)', letterSpacing: '0.02em', fontWeight: isActive ? 700 : 500, transition: 'color 200ms' }}>
                 {tab.label}
               </span>
             </button>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useMobile } from './hooks/useMobile';
 import { useSafeAuth, CLERK_ON } from './lib/clerkSafe';
 import { rememberSignedIn, wasSignedIn, isOnline } from './pwa/offlineAuth';
 import History from './pages/History';
@@ -16,6 +17,7 @@ export type { Project, LyricsGeneration, MusicGeneration };
 
 function App() {
   const { isSignedIn, isLoaded } = useSafeAuth();
+  const isMobile = useMobile();
 
   // Reactive connectivity so the offline bypass recomputes if the device drops mid-load.
   const [online, setOnline] = useState(isOnline());
@@ -100,6 +102,35 @@ function App() {
     return (
       <SharedAudioProvider>
         <StudioV4 />
+      </SharedAudioProvider>
+    );
+  }
+
+  // Legacy pages on MOBILE — full-bleed page with a safe-area-aware header and
+  // a big obvious back button. (The desktop header hid under the notch and its
+  // tiny nav links left users stranded with no visible way back.)
+  if (isMobile) {
+    const title = currentView === 'history' ? 'History' : currentView === 'viral' ? 'Viral Toolkit' : 'Settings';
+    return (
+      <SharedAudioProvider>
+        <div style={{ backgroundColor: '#0A0A0A', minHeight: '100dvh', fontFamily: 'DM Sans, sans-serif' }}>
+          <header style={{
+            position: 'sticky', top: 0, zIndex: 100,
+            paddingTop: 'env(safe-area-inset-top, 0px)',
+            background: 'rgba(10,10,10,0.85)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+            borderBottom: '1px solid rgba(255,255,255,0.07)',
+            display: 'flex', alignItems: 'center',
+          }}>
+            <a href="#/" style={{ display: 'flex', alignItems: 'center', gap: 2, color: '#E63946', textDecoration: 'none', fontSize: 17, fontWeight: 500, padding: '12px 12px 12px 8px' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+              Studio
+            </a>
+            <span style={{ flex: 1, textAlign: 'center', color: '#fff', fontSize: 16, fontWeight: 700, marginRight: 92 }}>{title}</span>
+          </header>
+          <main style={{ padding: '20px 16px calc(env(safe-area-inset-bottom, 0px) + 32px)' }}>
+            {currentView === 'history' ? <History /> : currentView === 'viral' ? <ViralToolkit /> : <Settings />}
+          </main>
+        </div>
       </SharedAudioProvider>
     );
   }

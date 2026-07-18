@@ -3,6 +3,9 @@ import { C } from '../shared/colors';
 import { useMobile } from '../../../hooks/useMobile';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { useSafeUser, useSafeClerk, CLERK_ON } from '../../../lib/clerkSafe';
+import History from '../../../pages/History';
+import ViralToolkit from '../../../pages/ViralToolkit';
+import Settings from '../../../pages/Settings';
 import MobileNav, { type MobileSection } from '../mobile/MobileNav';
 import MobilePlayerFull from '../mobile/MobilePlayerFull';
 import MobilePlaylistView from '../mobile/MobilePlaylistView';
@@ -176,44 +179,83 @@ function MobileMiniPlayer({ onExpand }: { onExpand: () => void }) {
   );
 }
 
-// More page — quick links + always-visible sign-out.
+// More tab — Apple-Settings-style stack. Sub-pages (History / Viral / Settings)
+// slide in IN PLACE with a large back button — the bottom nav and mini player
+// stay visible, so there is always an obvious way back (no hash navigation, no
+// full-page takeover, no getting stuck).
+type MoreSub = 'history' | 'viral' | 'settings';
+const MORE_ITEMS: { id: MoreSub; label: string; hint: string; tint: string; icon: string }[] = [
+  { id: 'history',  label: 'History',       hint: 'Past generations',        tint: '#5ac8fa', icon: 'M12 8v4l3 2M21 12a9 9 0 11-9-9' },
+  { id: 'viral',    label: 'Viral Toolkit', hint: 'Social content tools',    tint: '#ffd60a', icon: 'M13 2L4 14h7l-1 8 9-12h-7l1-8z' },
+  { id: 'settings', label: 'Settings',      hint: 'API keys & preferences',  tint: '#98989f', icon: 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z' },
+];
+
 function MorePanel() {
   const { user, isSignedIn: rawSignedIn } = useSafeUser();
   const { signOut } = useSafeClerk();
   const email = user?.primaryEmailAddress?.emailAddress;
   // Sign-out only on web (real Clerk session). Native uses the studio token.
   const isSignedIn = CLERK_ON && rawSignedIn;
+  const [sub, setSub] = useState<MoreSub | null>(null);
+  const subItem = MORE_ITEMS.find(i => i.id === sub);
+
+  /* ── Sub-page: slide-in panel with a big, always-visible back button ── */
+  if (sub && subItem) {
+    return (
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', background: C.bgApp, animation: 'risSlideIn 280ms cubic-bezier(0.32,0.72,0,1)' }}>
+        <style>{`@keyframes risSlideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
+        {/* Nav header — iOS large-title pattern */}
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '10px 8px 8px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(8,2,6,0.72)', backdropFilter: 'blur(28px)', WebkitBackdropFilter: 'blur(28px)' }}>
+          <button onClick={() => { tapLight(); setSub(null); }} style={{ display: 'flex', alignItems: 'center', gap: 2, background: 'none', border: 'none', color: C.red, fontSize: 17, fontWeight: 500, cursor: 'pointer', padding: '8px 10px 8px 6px', fontFamily: 'inherit' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+            More
+          </button>
+          <span style={{ flex: 1, textAlign: 'center', fontSize: 16, fontWeight: 700, color: '#fff', marginRight: 86 }}>{subItem.label}</span>
+        </div>
+        {/* Page content — same components as the desktop routes, untouched */}
+        <div style={{ flex: 1, overflow: 'hidden auto', WebkitOverflowScrolling: 'touch' as never, padding: '16px 14px 28px' }}>
+          {sub === 'history' ? <History /> : sub === 'viral' ? <ViralToolkit /> : <Settings />}
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Root: profile card + grouped links (Spotify/Apple settings look) ── */
   return (
-    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden auto', padding: '24px 20px' }}>
-      <div style={{ fontSize: '20px', fontWeight: 700, color: C.text, marginBottom: '20px' }}>More</div>
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden auto', WebkitOverflowScrolling: 'touch' as never, padding: '20px 16px 28px' }}>
+      <div style={{ fontSize: 30, fontWeight: 800, color: C.text, letterSpacing: '-0.02em', margin: '2px 4px 18px' }}>More</div>
 
       {isSignedIn && email && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, borderRadius: 12, marginBottom: 16 }}>
-          <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#E63946,#7e1620)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '14px 16px', background: 'rgba(255,255,255,0.055)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, marginBottom: 14 }}>
+          <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg,#E63946,#7e1620)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 17, boxShadow: '0 4px 14px rgba(230,57,70,0.35)' }}>
             {email.slice(0, 1).toUpperCase()}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ color: C.text, fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</div>
-            <div style={{ color: C.textDim, fontSize: 11 }}>Signed in</div>
+            <div style={{ color: C.text, fontSize: 15, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</div>
+            <div style={{ color: C.textDim, fontSize: 12, marginTop: 1 }}>Signed in</div>
           </div>
         </div>
       )}
 
-      {[
-        { label: 'History',     href: '#/history',  icon: 'M12 8v4l3 2M21 12a9 9 0 11-9-9' },
-        { label: 'Viral Toolkit', href: '#/viral',    icon: 'M13 2L4 14h7l-1 8 9-12h-7l1-8z' },
-        { label: 'Settings',    href: '#/settings', icon: 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z' },
-      ].map(item => (
-        <a key={item.href} href={item.href} style={{
-          display: 'flex', alignItems: 'center', gap: 14, padding: '14px 4px', borderBottom: `1px solid ${C.border}`,
-          color: C.text, textDecoration: 'none', fontSize: '16px',
-        }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d={item.icon} />
-          </svg>
-          {item.label}
-        </a>
-      ))}
+      {/* Grouped card list */}
+      <div style={{ background: 'rgba(255,255,255,0.055)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, overflow: 'hidden' }}>
+        {MORE_ITEMS.map((item, i) => (
+          <button key={item.id} onClick={() => { tapLight(); setSub(item.id); }} style={{
+            display: 'flex', alignItems: 'center', gap: 13, width: '100%', textAlign: 'left',
+            padding: '13px 14px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+            borderBottom: i < MORE_ITEMS.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+          }}>
+            <span style={{ width: 34, height: 34, borderRadius: 9, flexShrink: 0, background: `${item.tint}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={item.tint} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d={item.icon} /></svg>
+            </span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', color: '#fff', fontSize: 16, fontWeight: 600 }}>{item.label}</span>
+              <span style={{ display: 'block', color: 'rgba(255,255,255,0.38)', fontSize: 12, marginTop: 1 }}>{item.hint}</span>
+            </span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.28)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+        ))}
+      </div>
 
       {isSignedIn && (
         <button
@@ -225,9 +267,9 @@ function MorePanel() {
             setTimeout(() => { try { window.location.hash = '#/login'; } catch { /* ignore */ } }, 250);
           }}
           style={{
-            marginTop: 28, width: '100%', padding: '14px 16px', borderRadius: 12, border: '1px solid rgba(230,57,70,0.35)',
-            background: 'rgba(230,57,70,0.08)', color: '#E63946', fontSize: 15, fontWeight: 600, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            marginTop: 18, width: '100%', padding: '15px 16px', borderRadius: 16, border: '1px solid rgba(230,57,70,0.3)',
+            background: 'rgba(230,57,70,0.08)', color: '#E63946', fontSize: 16, fontWeight: 600, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'inherit',
           }}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -238,6 +280,10 @@ function MorePanel() {
           Sign out
         </button>
       )}
+
+      <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.22)', fontSize: 11, marginTop: 22, letterSpacing: '0.04em' }}>
+        RedInside Music Studio
+      </div>
     </div>
   );
 }
