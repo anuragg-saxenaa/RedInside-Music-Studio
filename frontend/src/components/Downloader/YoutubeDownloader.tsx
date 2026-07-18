@@ -44,8 +44,26 @@ export default function YoutubeDownloader(_props: YoutubeDownloaderProps) {
   const [url, setUrl] = useState('');
   const [focused, setFocused] = useState(false);
   const [queuedMsg, setQueuedMsg] = useState<string | null>(null);
+  const [queuedUrls, setQueuedUrls] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
   const queuedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Live importer status — the worker on the Mac polls the queue every ~4s;
+  // when it goes silent the UI must say so instead of silently queueing jobs.
+  const [workerOnline, setWorkerOnline] = useState<boolean | null>(null);
+  useEffect(() => {
+    let stop = false;
+    const check = async () => {
+      try {
+        const r = await fetch('/api/youtube/worker-status');
+        const d = await r.json();
+        if (!stop) setWorkerOnline(!!d.online);
+      } catch { if (!stop) setWorkerOnline(null); }
+    };
+    check();
+    const t = setInterval(check, 15000);
+    return () => { stop = true; clearInterval(t); };
+  }, []);
   // Download no longer uses a big local progress screen (the global activity pill +
   // auto-refresh handle it). These stay at idle defaults so the search UI shows.
   const dlState: DlState = 'idle';
@@ -61,10 +79,17 @@ export default function YoutubeDownloader(_props: YoutubeDownloaderProps) {
     if (!valid) return;
     if (targetUrl) setUrl(targetUrl);
     const jobId = await enqueueDownload(u, 'download', { title });
-    setQueuedMsg(jobId ? `Added to download queue${title ? ` · ${title}` : ''} — it'll appear in your library shortly` : 'Could not queue — try again');
+    if (jobId) {
+      setQueuedUrls(prev => new Set(prev).add(u));
+      setQueuedMsg(workerOnline === false
+        ? `Queued${title ? ` · ${title}` : ''} — importer is offline, it'll download when your Mac is back on`
+        : `Added to download queue${title ? ` · ${title}` : ''} — it'll appear in your library shortly`);
+    } else {
+      setQueuedMsg('Could not queue — try again');
+    }
     if (queuedTimer.current) clearTimeout(queuedTimer.current);
-    queuedTimer.current = setTimeout(() => setQueuedMsg(null), 5000);
-  }, [url, enqueueDownload]);
+    queuedTimer.current = setTimeout(() => setQueuedMsg(null), 6000);
+  }, [url, enqueueDownload, workerOnline]);
 
   // ── In-app YouTube search ──
   const [searchQ, setSearchQ] = useState('');
@@ -131,8 +156,8 @@ export default function YoutubeDownloader(_props: YoutubeDownloaderProps) {
     return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, '0')}`;
   };
 
-  const statusColor = 'rgba(255,255,255,0.25)';
-  const statusLabel = 'READY';
+  const statusColor = workerOnline === true ? '#00d26a' : workerOnline === false ? '#E63946' : 'rgba(255,255,255,0.25)';
+  const statusLabel = workerOnline === true ? 'IMPORTER ONLINE' : workerOnline === false ? 'IMPORTER OFFLINE' : 'CHECKING…';
 
   return (
     <div style={{
@@ -190,6 +215,16 @@ export default function YoutubeDownloader(_props: YoutubeDownloaderProps) {
           </span>
         </div>
       </div>
+
+      {/* Importer offline — downloads/streams will wait until the Mac worker runs */}
+      {workerOnline === false && (
+        <div style={{ marginBottom: 12, padding: '9px 13px', borderRadius: 10, background: 'rgba(230,57,70,0.07)', border: '1px solid rgba(230,57,70,0.3)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#E63946', boxShadow: '0 0 8px rgba(230,57,70,0.7)', animation: 'ytPulse 1.4s ease infinite', flexShrink: 0 }} />
+          <span style={{ fontSize: 11.5, color: 'rgba(255,220,222,0.9)' }}>
+            Importer offline — search works, but downloads &amp; streaming wait until your Mac importer is running.
+          </span>
+        </div>
+      )}
 
       {/* IDLE STATE */}
       {dlState === 'idle' && (
@@ -261,10 +296,16 @@ export default function YoutubeDownloader(_props: YoutubeDownloaderProps) {
                       <div style={{ fontSize: 12.5, color: '#fff', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</div>
                       <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.channel}{r.duration ? ` · ${formatDuration(r.duration)}` : ''}</div>
                     </div>
-                    {/* Download — save to library */}
-                    <button onClick={() => handleDownload(r.url, r.title)} disabled={dlState !== 'idle'} title="Save to library" style={{ flexShrink: 0, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(230,57,70,0.12)', border: '1px solid rgba(230,57,70,0.3)', color: '#E63946', borderRadius: 8, cursor: dlState !== 'idle' ? 'default' : 'pointer' }}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v13M5 16l7 7 7-7"/><path d="M3 21h18"/></svg>
-                    </button>
+                    {/* Download — save to library. Turns green ✓ once queued. */}
+                    {queuedUrls.has(r.url) ? (
+                      <div title="In download queue" style={{ flexShrink: 0, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,210,106,0.12)', border: '1px solid rgba(0,210,106,0.35)', color: '#00d26a', borderRadius: 8 }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                      </div>
+                    ) : (
+                      <button onClick={() => handleDownload(r.url, r.title)} disabled={dlState !== 'idle'} title="Save to library" style={{ flexShrink: 0, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(230,57,70,0.12)', border: '1px solid rgba(230,57,70,0.3)', color: '#E63946', borderRadius: 8, cursor: dlState !== 'idle' ? 'default' : 'pointer' }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v13M5 16l7 7 7-7"/><path d="M3 21h18"/></svg>
+                      </button>
+                    )}
                   </div>
                 );
               })}

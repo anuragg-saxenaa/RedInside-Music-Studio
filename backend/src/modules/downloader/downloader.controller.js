@@ -9,6 +9,10 @@ import { broadcast } from '../../utils/ws.server.js';
 
 const ALLOWED_HOSTS = ['youtube.com', 'youtu.be', 'www.youtube.com', 'music.youtube.com', 'm.youtube.com'];
 
+// Last time the residential-IP worker polled /jobs/next — lets the UI show
+// importer online/offline instead of silently queueing jobs nobody will run.
+let lastWorkerPoll = 0;
+
 // In-memory download status (polling fallback when WebSocket events don't reach client)
 const downloadStatus = new Map();
 function setStatus(id, data) {
@@ -73,9 +77,17 @@ export const DownloaderController = {
     } catch (e) { res.status(500).json({ error: e.message }); }
   },
 
+  // GET /api/youtube/worker-status — is the Mac importer polling the queue?
+  workerStatus(req, res) {
+    const ageMs = lastWorkerPoll ? Date.now() - lastWorkerPoll : null;
+    // Worker polls every ~4s; 20s of silence = offline.
+    res.json({ online: ageMs !== null && ageMs < 20000, lastSeenMsAgo: ageMs });
+  },
+
   // GET /api/youtube/jobs/next — worker claims the oldest pending job
   async nextJob(req, res) {
     try {
+      lastWorkerPoll = Date.now();
       const { default: db } = await import('../../database/connection.js');
       const r = await db.execute({ sql: "SELECT * FROM download_jobs WHERE status = 'pending' ORDER BY created_at ASC LIMIT 1" });
       const job = r.rows?.[0];
