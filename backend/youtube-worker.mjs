@@ -15,7 +15,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
-const API_BASE = process.env.API_BASE || 'https://redinside-music-studio-production.up.railway.app';
+const API_BASE = process.env.API_BASE || 'https://redinside-backend.onrender.com';
 const TOKEN = process.env.DESKTOP_TOKEN || '5aae34f9855442a8a3e3fce79c820d15918666fbf471dfff';
 const POLL_MS = Number(process.env.POLL_MS || 4000);
 const HDR = { 'X-Desktop-Token': TOKEN, 'Content-Type': 'application/json' };
