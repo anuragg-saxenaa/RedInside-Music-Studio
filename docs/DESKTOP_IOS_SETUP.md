@@ -39,7 +39,7 @@ npm run tauri:dev      # live desktop dev window
 npm run tauri:build    # → src-tauri/target/release/bundle/dmg/*.dmg
 ```
 
-The app loads the bundled `dist` (offline-capable via the PWA service worker) and uses `VITE_API_BASE_URL` to reach the Railway backend. Media keys / Now Playing work via the Media Session integration (sub-project E).
+The app loads the bundled `dist` (offline-capable via the PWA service worker) and uses `VITE_API_BASE_URL` to reach the production backend (Render). Media keys / Now Playing work via the Media Session integration (sub-project E).
 
 **Distribution:** an unsigned `.app` runs locally (right-click → Open). For Gatekeeper-clean distribution, sign + notarize with an **Apple Developer ID** (`tauri.conf.json` → `bundle.macOS.signingIdentity`).
 
@@ -70,5 +70,5 @@ The web build is the source of truth (already E2E-tested). Background audio + lo
 
 ## Notes
 - `ios/`, `android/`, `src-tauri/target/`, `src-tauri/gen/` are gitignored (regenerated locally).
-- Set `VITE_API_BASE_URL` (build env) to the Railway backend so native apps reach the same data.
+- Set `VITE_API_BASE_URL` (build env) to the production backend (`https://redinside-backend.onrender.com`) so native apps reach the same data.
 - CI does **not** build native targets (needs Rust/Xcode); the web app + its tests remain the gating pipeline.

@@ -34,6 +34,21 @@ Self-hosted desi hip-hop music creation platform using MiniMax AI APIs. Full pro
 
 ---
 
+## Live Deployment ($0/month stack)
+
+| Piece | Where |
+|-------|-------|
+| Web app | https://redinsidems-ui.vercel.app (Vercel) — installable PWA |
+| Backend API | https://redinside-backend.onrender.com (Render free tier, Docker via `render.yaml`; sleeps after 15 min idle, ~50s cold start) |
+| Database | Turso cloud (libSQL) — shared by local dev and production |
+| Audio/artwork files | Owner's Google Drive (`drive.file` scope) — synced on save, read-anywhere fallback on serve |
+| YouTube import worker | `backend/youtube-worker.mjs` on a residential-IP machine (LaunchAgent); cloud IPs are blocked by YouTube |
+| macOS / iOS apps | Tauri / Capacitor builds of the same frontend with the backend URL baked in |
+
+Push to `main` auto-deploys the backend (Render); the frontend deploys via `npx vercel --prod --yes` from `frontend/`.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
