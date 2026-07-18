@@ -35,7 +35,22 @@
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Boot splash — visible instantly (before JS loads / auth resolves /
+           cold-start wake). React replaces this on mount. -->
+      <div style="position:fixed;inset:0;background:#050103;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;font-family:-apple-system,'Outfit','DM Sans',sans-serif">
+        <div style="width:104px;height:104px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#1b0508,#080103 65%);box-shadow:0 0 60px rgba(230,57,70,.25),inset 0 1px 0 rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;gap:7px">
+          <span style="width:9px;border-radius:5px;height:26px;background:linear-gradient(180deg,#ff6b76,#E63946 55%,#8f1220);box-shadow:0 0 14px rgba(230,57,70,.85);animation:rds-eq 1.15s ease-in-out 0s infinite"></span>
+          <span style="width:9px;border-radius:5px;height:46px;background:linear-gradient(180deg,#ff6b76,#E63946 55%,#8f1220);box-shadow:0 0 14px rgba(230,57,70,.85);animation:rds-eq 1.15s ease-in-out .18s infinite"></span>
+          <span style="width:9px;border-radius:5px;height:34px;background:linear-gradient(180deg,#ff6b76,#E63946 55%,#8f1220);box-shadow:0 0 14px rgba(230,57,70,.85);animation:rds-eq 1.15s ease-in-out .36s infinite"></span>
+          <span style="width:9px;border-radius:5px;height:52px;background:linear-gradient(180deg,#ff6b76,#E63946 55%,#8f1220);box-shadow:0 0 14px rgba(230,57,70,.85);animation:rds-eq 1.15s ease-in-out .09s infinite"></span>
+          <span style="width:9px;border-radius:5px;height:22px;background:linear-gradient(180deg,#ff6b76,#E63946 55%,#8f1220);box-shadow:0 0 14px rgba(230,57,70,.85);animation:rds-eq 1.15s ease-in-out .27s infinite"></span>
+        </div>
+        <div style="font-size:20px;font-weight:800;letter-spacing:-.02em;color:#fff">RedInside <span style="color:#E63946">Music Studio</span></div>
+        <div style="font-size:12px;color:rgba(255,255,255,.35)">Warming up the studio…</div>
+      </div>
+      <style>@keyframes rds-eq{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.45)}}</style>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

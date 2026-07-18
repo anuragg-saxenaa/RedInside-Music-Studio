@@ -101,6 +101,34 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// Branded landing page — anyone hitting the API host directly sees the studio
+// logo + a link to the app instead of a bare {"error":"Not found"}.
+app.get('/', (req, res) => {
+  res.type('html').send(`<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RedInside Music Studio — API</title>
+<style>
+  html,body{margin:0;height:100%;background:#050103;color:#fff;font-family:-apple-system,'Outfit','DM Sans',sans-serif;display:flex;align-items:center;justify-content:center}
+  .wrap{text-align:center;padding:24px}
+  .disc{width:110px;height:110px;margin:0 auto 22px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#1b0508,#080103 65%);box-shadow:0 0 60px rgba(230,57,70,.25),inset 0 1px 0 rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;gap:7px}
+  .bar{width:9px;border-radius:5px;background:linear-gradient(180deg,#ff6b76,#E63946 55%,#8f1220);box-shadow:0 0 14px rgba(230,57,70,.85);animation:eq 1.15s ease-in-out infinite}
+  .bar:nth-child(1){height:26px;animation-delay:0s}.bar:nth-child(2){height:46px;animation-delay:.18s}.bar:nth-child(3){height:34px;animation-delay:.36s}.bar:nth-child(4){height:52px;animation-delay:.09s}.bar:nth-child(5){height:22px;animation-delay:.27s}
+  @keyframes eq{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.45)}}
+  h1{font-size:22px;font-weight:800;letter-spacing:-.02em;margin:0}
+  h1 span{color:#E63946}
+  p{color:rgba(255,255,255,.45);font-size:13px;margin:10px 0 22px}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#00d26a;box-shadow:0 0 8px #00d26a;margin-right:7px;vertical-align:1px}
+  a{display:inline-block;background:linear-gradient(135deg,#E63946,#b22032);color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 26px;border-radius:12px;box-shadow:0 6px 24px rgba(230,57,70,.35)}
+</style></head><body>
+<div class="wrap">
+  <div class="disc"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></div>
+  <h1>RedInside <span>Music Studio</span></h1>
+  <p><span class="dot"></span>API server running</p>
+  <a href="https://redinsidems-ui.vercel.app">Open the Studio</a>
+</div>
+</body></html>`);
+});
+
 // Project routes
 const projectRoutes = [
   { method: 'post', path: '/api/projects', handler: ProjectsController.create },

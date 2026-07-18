@@ -15,6 +15,27 @@ import { SharedAudioProvider } from './contexts/SharedAudioContext';
 // Re-export for backwards compatibility
 export type { Project, LyricsGeneration, MusicGeneration };
 
+// Branded boot splash — mirrors the pre-hydration splash in index.html so the
+// logo stays on screen (instead of a blank page) while auth/data resolve.
+function BootSplash() {
+  const bar = (h: number, d: number): React.CSSProperties => ({
+    width: 9, borderRadius: 5, height: h,
+    background: 'linear-gradient(180deg,#ff6b76,#E63946 55%,#8f1220)',
+    boxShadow: '0 0 14px rgba(230,57,70,.85)',
+    animation: `rds-eq 1.15s ease-in-out ${d}s infinite`,
+  });
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: '#050103', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 22, fontFamily: "-apple-system,'Outfit','DM Sans',sans-serif" }}>
+      <div style={{ width: 104, height: 104, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%,#1b0508,#080103 65%)', boxShadow: '0 0 60px rgba(230,57,70,.25),inset 0 1px 0 rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+        <span style={bar(26, 0)} /><span style={bar(46, 0.18)} /><span style={bar(34, 0.36)} /><span style={bar(52, 0.09)} /><span style={bar(22, 0.27)} />
+      </div>
+      <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em', color: '#fff' }}>RedInside <span style={{ color: '#E63946' }}>Music Studio</span></div>
+      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>Warming up the studio…</div>
+      <style>{`@keyframes rds-eq{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.45)}}`}</style>
+    </div>
+  );
+}
+
 function App() {
   const { isSignedIn, isLoaded } = useSafeAuth();
   const isMobile = useMobile();
@@ -80,7 +101,7 @@ function App() {
     // to the app so downloaded tracks remain playable without a network round-trip.
     const offlineBypass = !online && wasSignedIn();
 
-    if (!isLoaded && !offlineBypass) return null;
+    if (!isLoaded && !offlineBypass) return <BootSplash />;
 
     if (!offlineBypass && !isSignedIn && currentView !== 'share' && currentView !== 'login') {
       return <Login />;
