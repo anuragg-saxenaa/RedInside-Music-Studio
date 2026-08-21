@@ -31,7 +31,6 @@ Self-hosted desi hip-hop music creation platform using MiniMax AI APIs. Full pro
 - **Structured logging** with Winston
 - **Settings** persistence (API key, default models, auto-mastering toggle)
 - **Test mode banner** — yellow warning bar when backend is running against mock API
-
 ---
 
 ## Live Deployment ($0/month stack)
