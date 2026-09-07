@@ -18,9 +18,8 @@ import cors from 'cors';
 import config from './config/env.config.js';
 import logger from './utils/logger.js';
 import errorMiddleware from './api/middleware/error.middleware.js';
-// Note: @clerk/express is not used — this app uses DEV_USER_ID for all auth.
-// Clerk is only used on the frontend (Vercel deployment) for interactive login.
-// The backend is a single-user studio and always runs as 'dev-user'.
+// Auth: single-user studio, all requests run as 'dev-user' (DEV_USER_ID env var).
+// DESKTOP_TOKEN allows the Tauri desktop app to authenticate.
 import { LyricsRoutes } from './api/routes/lyrics.routes.js';
 import { MusicRoutes } from './api/routes/music.routes.js';
 import { JobsRoutes } from './api/routes/jobs.routes.js';
