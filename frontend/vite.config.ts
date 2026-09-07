@@ -29,6 +29,14 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api/],
         runtimeCaching: [
           {
+            urlPattern: ({ url }) => /\/api\/projects\/[^/]+\/artwork/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'ris-artwork-v1',
+              expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 30 }, // 30 days
+            },
+          },
+          {
             // Audio bytes — served offline; download path also uses cache 'ris-audio-v1'
             urlPattern: ({ url }) => /\/api\/music\/[^/]+\/file$/.test(url.pathname),
             handler: 'CacheFirst',

@@ -12,7 +12,7 @@
     "format": "echo 'Formatting not configured yet'",
     "test:unit": "vitest run",
     "tauri:dev": "tauri dev",
-    "tauri:build": "VITE_TAURI=true vite build && tauri build",
+    "tauri:build": "VITE_TAURI=true VITE_DESKTOP_TOKEN=\"${VITE_DESKTOP_TOKEN:-}\" VITE_DESKTOP_USER_EMAIL=\"${VITE_DESKTOP_USER_EMAIL:-}\" VITE_DESKTOP_USER_NAME=\"${VITE_DESKTOP_USER_NAME:-}\" vite build && tauri build",
     "ios:add": "cap add ios",
     "ios:sync": "npm run build && cap sync ios",
     "ios:open": "cap open ios"
