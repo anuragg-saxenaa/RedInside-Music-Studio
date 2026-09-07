@@ -48,11 +48,17 @@ if (!process.env.CLERK_SECRET_KEY && process.env.NODE_ENV === 'production') {
   throw new Error('CLERK_SECRET_KEY env var is required in production');
 }
 
-// Enable Clerk auth only in production (skip in local dev and test)
-// Support both CLERK_PUBLISHABLE_KEY and NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+// Enable Clerk auth only when a genuinely valid Clerk key is configured.
+// Skip entirely if keys are missing, placeholder, or NODE_ENV != production.
 const clerkPublishableKey = process.env.CLERK_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+const clerkSecretKey = process.env.CLERK_SECRET_KEY || '';
 const isProduction = process.env.NODE_ENV === 'production';
-const hasRealClerkKey = isProduction && clerkPublishableKey && clerkPublishableKey.startsWith('pk_') && !clerkPublishableKey.includes('placeholder');
+// Must have real-looking pk_ and sk_ keys (not placeholder, not empty)
+const hasRealClerkKey = isProduction
+  && clerkPublishableKey?.startsWith('pk_')
+  && !clerkPublishableKey?.includes('placeholder')
+  && clerkSecretKey?.startsWith('sk_')
+  && !clerkSecretKey?.includes('placeholder');
 
 if (hasRealClerkKey) {
   app.use(clerkMiddleware());
