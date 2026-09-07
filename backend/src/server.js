@@ -240,6 +240,16 @@ TestRoutes.forEach(route => {
 // Error handling middleware
 app.use(errorMiddleware);
 
+// Debug endpoint — show env vars (remove in production)
+app.get('/api/debug/env', (req, res) => {
+  res.json({
+    NODE_ENV: process.env.NODE_ENV,
+    CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY ? '[SET]' : '[MISSING]',
+    hasRealClerkKey,
+    serverTime: new Date().toISOString(),
+  });
+});
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
