@@ -18,7 +18,9 @@ import cors from 'cors';
 import config from './config/env.config.js';
 import logger from './utils/logger.js';
 import errorMiddleware from './api/middleware/error.middleware.js';
-import { clerkMiddleware, requireAuth } from '@clerk/express';
+// Note: @clerk/express is not used — this app uses DEV_USER_ID for all auth.
+// Clerk is only used on the frontend (Vercel deployment) for interactive login.
+// The backend is a single-user studio and always runs as 'dev-user'.
 import { LyricsRoutes } from './api/routes/lyrics.routes.js';
 import { MusicRoutes } from './api/routes/music.routes.js';
 import { JobsRoutes } from './api/routes/jobs.routes.js';
@@ -48,45 +50,18 @@ if (!process.env.CLERK_SECRET_KEY && process.env.NODE_ENV === 'production') {
   throw new Error('CLERK_SECRET_KEY env var is required in production');
 }
 
-// Enable Clerk auth only when genuinely valid production Clerk keys are configured.
-// Test keys (pk_test_ / sk_test_) do NOT work server-side — skip middleware.
-const clerkPublishableKey = process.env.CLERK_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-const clerkSecretKey = process.env.CLERK_SECRET_KEY || '';
-// Require: production env + real-looking pk_/sk_ keys + NOT test keys + NOT placeholder
-const hasRealClerkKey = process.env.NODE_ENV === 'production'
-  && clerkPublishableKey?.startsWith('pk_live_')
-  && clerkSecretKey?.startsWith('sk_live_')
-  && !clerkPublishableKey?.includes('placeholder')
-  && !clerkSecretKey?.includes('placeholder');
-
-if (hasRealClerkKey) {
-  app.use(clerkMiddleware());
-
-  const DESKTOP_TOKEN = process.env.DESKTOP_ACCESS_TOKEN || '';
-  app.use('/api', (req, res, next) => {
-    if (req.path.startsWith('/share/')) return next();
-    if (req.path === '/test/seed-project' || req.path.startsWith('/test/')) return next();
-    // Audio file streaming — loaded by <audio> element which can't send JWT
-    if (req.path.match(/\/music\/[^/]+\/(file|download)$/)) return next();
-    // GET artwork (per-song + album) — loaded by <img> element which can't send JWT
-    if (req.method === 'GET' && req.path.includes('/artwork')) return next();
-    // Google Drive OAuth redirect lands here from Google with no JWT
-    if (req.path === '/gdrive/callback') return next();
-    // Desktop app (Tauri) — authenticates with a baked shared secret instead of
-    // interactive login (Google OAuth is blocked in embedded webviews).
-    if (DESKTOP_TOKEN && req.headers['x-desktop-token'] === DESKTOP_TOKEN) {
-      req.auth = { userId: 'dev-user' };
-      return next();
-    }
-    return requireAuth()(req, res, next);
-  });
-} else {
-  // Local dev / test — inject a stable dev user so routes that read req.auth.userId work
-  app.use((req, res, next) => {
-    req.auth = { userId: process.env.DEV_USER_ID || 'dev-user' };
-    next();
-  });
-}
+// All requests run as 'dev-user' — single-user studio, no per-user auth needed.
+// DESKTOP_TOKEN allows the Tauri desktop app to authenticate.
+const DESKTOP_TOKEN = process.env.DESKTOP_ACCESS_TOKEN || '';
+app.use((req, res, next) => {
+  if (DESKTOP_TOKEN && req.headers['x-desktop-token'] === DESKTOP_TOKEN) {
+    req.auth = { userId: 'dev-user' };
+    return next();
+  }
+  // Single-user studio: all requests run as dev-user
+  req.auth = { userId: process.env.DEV_USER_ID || 'dev-user' };
+  next();
+});
 
 // Request logging
 app.use((req, res, next) => {
