@@ -341,7 +341,8 @@ The DAW is fully responsive — desktop shows the 3-column layout, mobile (≤76
 ## YouTube Import (yt-dlp)
 
 - `backend/src/modules/downloader/downloader.service.js` — yt-dlp wrapper. Uses `--extractor-args youtube:player-client=tv_embedded,android,ios,mweb,web` to bypass server-IP auth blocks on Railway. Age-restricted/premium videos still need cookies.
-- `backend/Dockerfile` installs `yt-dlp` via `pip3 install --break-system-packages` + `ffmpeg` via apk
+- `backend/Dockerfile` installs `yt-dlp` via GitHub release binary (not pip — pip version often broken with YouTube 403s).
+- **yt-dlp version critical:** pip-installed yt-dlp (2026.03) broke on YouTube direct downloads (403). Must use 2026.08+ (GitHub binary). On Mac: `curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos -o /opt/homebrew/bin/yt-dlp && chmod +x /opt/homebrew/bin/yt-dlp`
 - **Status polling fallback** (`download.controller.js`): in-memory `downloadStatus` Map + `GET /api/downloader/status/:downloadId`. Frontend (`YoutubeDownloader.tsx`) polls every 2s AND listens to WebSocket — polling ensures progress/completion works even when WS events don't reach the browser on cloud.
 - Downloaded MP3 → temp dir → uploaded to R2 + saved to local disk → R2 key stored in DB (plays on both local and cloud)
 
