@@ -41,7 +41,6 @@ function ytDownload(url, id) {
       if (code !== 0) return reject(new Error(err.slice(-300) || `yt-dlp exit ${code}`));
       try {
         const info = JSON.parse(out.trim().split('\n').filter(Boolean).pop());
-        // find the produced file
         const dir = os.tmpdir();
         const file = fs.readdirSync(dir).map(f => path.join(dir, f)).find(f => path.basename(f).startsWith(`ris-${id}.`));
         if (!file) return reject(new Error('output file not found'));

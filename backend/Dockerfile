@@ -4,8 +4,9 @@ FROM node:20-alpine
 # bgutil-ytdlp-pot-provider (pip) = the yt-dlp plugin that talks to the dedicated
 # PO-token provider service (running separately on Railway at :4416).
 RUN corepack enable && corepack prepare pnpm@9 --activate && \
-    apk add --no-cache python3 make g++ ffmpeg py3-pip deno && \
-    pip3 install --no-cache-dir --break-system-packages --upgrade yt-dlp bgutil-ytdlp-pot-provider
+    apk add --no-cache python3 make g++ ffmpeg curl && \
+    curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos -o /usr/local/bin/yt-dlp && \
+    chmod +x /usr/local/bin/yt-dlp
 
 WORKDIR /app
 
