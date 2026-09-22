@@ -8,6 +8,7 @@ import QueueSheet from './QueueSheet';
 import { useAuthFetch } from '../../../hooks/useAuthFetch';
 import SyncedLyricsView from './SyncedLyricsView';
 import { computeLyricTimings } from '../../../pwa/lyricTimings';
+import { useAudioEngine } from '../../../hooks/useAudioEngine';
 
 function fmtTime(s: number) {
   if (!s || !isFinite(s)) return '0:00';
@@ -28,6 +29,8 @@ export default function MobilePlayerFull({ onClose }: Props) {
     isLiked, toggleLike, sleepMinutes, setSleepTimer,
   } = useWorkspace();
   const [showSleep, setShowSleep] = useState(false);
+  const [showEq, setShowEq] = useState(false);
+  const { eqState, setBand, toggleEq } = useAudioEngine();
 
   const liked = playerTrack ? isLiked(playerTrack.id) : false;
   const [showAddSheet, setShowAddSheet] = useState(false);
@@ -292,8 +295,13 @@ export default function MobilePlayerFull({ onClose }: Props) {
             <div style={{ fontSize: '24px', fontWeight: 700, color: '#fff', letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {title}
             </div>
-            <div style={{ fontSize: '15px', color: C.red, fontWeight: 500, marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {artist}
+            <div style={{ fontSize: '15px', color: C.red, fontWeight: 500, marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>{artist}</span>
+              {playerTrack?.is_instrumental && (
+                <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', color: '#60a5fa', background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)', padding: '1px 6px', borderRadius: 5 }}>
+                  INSTRUMENTAL
+                </span>
+              )}
             </div>
           </div>
           <button
@@ -387,6 +395,17 @@ export default function MobilePlayerFull({ onClose }: Props) {
             style={{ flex: 1, accentColor: C.red, height: '4px' }}
           />
           <svg width="18" height="18" viewBox="0 0 24 24" fill="rgba(255,255,255,0.4)"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 00-2.5-4v8a4.5 4.5 0 002.5-4zM14 3.2v2.1a7 7 0 010 13.4v2.1a9 9 0 000-17.6z"/></svg>
+          {/* EQ toggle */}
+          <button onClick={() => { tapLight(); setShowEq(v => !v); }} aria-label="Equalizer"
+            style={{ ...iconBtn, width: 34, height: 34, minWidth: 34, minHeight: 34, color: showEq || eqState.enabled ? C.red : 'rgba(255,255,255,0.4)' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/>
+              <line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/>
+              <line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/>
+              <line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/>
+              <line x1="17" y1="16" x2="23" y2="16"/>
+            </svg>
+          </button>
           {/* Sleep timer */}
           <button onClick={() => { tapLight(); setShowSleep(v => !v); }} aria-label="Sleep timer"
             style={{ ...iconBtn, width: 34, height: 34, minWidth: 34, minHeight: 34, color: sleepMinutes ? C.red : 'rgba(255,255,255,0.4)' }}>
@@ -408,6 +427,45 @@ export default function MobilePlayerFull({ onClose }: Props) {
               style={{ padding: '7px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.1)' }}>
               Off
             </button>
+          </div>
+        )}
+
+        {/* Equalizer panel */}
+        {showEq && (
+          <div style={{ flexShrink: 0, padding: '4px 20px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Equalizer</span>
+              <button
+                onClick={() => { tapLight(); toggleEq(); }}
+                style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 6, cursor: 'pointer',
+                  background: eqState.enabled ? C.red : 'rgba(255,255,255,0.1)', color: '#fff', border: 'none' }}>
+                {eqState.enabled ? 'ON' : 'OFF'}
+              </button>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 72, padding: '0 4px' }}>
+              {eqState.bands.map((gain, i) => (
+                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', gap: 4 }}>
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                    <div
+                      onClick={() => { tapLight(); setBand(i, gain > 0 ? 0 : 6); }}
+                      style={{
+                        width: '100%', maxWidth: 28, borderRadius: 4, cursor: 'pointer',
+                        height: `${Math.abs(gain) / 12 * 32}px`,
+                        minHeight: 4,
+                        background: gain === 0 ? 'rgba(255,255,255,0.2)' : gain > 0 ? C.red : 'rgba(80,80,200,0.9)',
+                        transition: 'height 120ms, background 120ms',
+                      }}
+                    />
+                  </div>
+                  <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)', fontVariantNumeric: 'tabular-nums' }}>
+                    {gain > 0 ? `+${gain}` : gain}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, color: 'rgba(255,255,255,0.3)', padding: '0 4px', marginTop: -2 }}>
+              {['80','250','500','1k','2.5k','5k','8k','16k'].map(f => <span key={f}>{f}</span>)}
+            </div>
           </div>
         )}
       </div>

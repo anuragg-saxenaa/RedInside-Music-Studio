@@ -225,6 +225,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           const audio = createAudio(`${API_BASE}/api/music/${track.id}/file`, { title: track.title || `Track v${track.version}`, artist: track.artist || '', artworkUrl: nowPlayingArt(track) });
           persistentAudio = audio;
           audioRef.current = audio;
+          (window as unknown as { _risAudio?: HTMLAudioElement })._risAudio = audio;
           audio.volume = playerVolume;
           setPlayerTrack(track);
           setPlayerIsPlaying(false);
@@ -478,6 +479,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     audio.volume = playerVolume;
     persistentAudio = audio;
     audioRef.current = audio;
+    (window as unknown as { _risAudio?: HTMLAudioElement })._risAudio = audio;
     persistentTrack = track;
     try { localStorage.setItem(PERSIST_KEY, JSON.stringify({ track, currentTime: 0 })); } catch (_) { /* quota */ }
     audio.play().catch(() => {});
@@ -543,7 +545,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const fakeTrack = { id: `stream-${Date.now()}`, title: meta.title, artist: meta.artist || '', version: 1, project_id: '', source_url: meta.sourceUrl } as unknown as MusicGeneration;
     const audio = createAudio(streamUrl, { title: meta.title, artist: meta.artist, artworkUrl: meta.artworkUrl });
     audio.volume = playerVolume;
-    persistentAudio = audio; audioRef.current = audio; persistentTrack = fakeTrack;
+    persistentAudio = audio; audioRef.current = audio; (window as unknown as { _risAudio?: HTMLAudioElement })._risAudio = audio; persistentTrack = fakeTrack;
     audio.play().catch(() => {});
     setPlayerTrack(fakeTrack); setSelectedTrack(fakeTrack);
     setPlayerIsPlaying(true); setPlayerLoading(true);

@@ -5,6 +5,7 @@ import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { useAuthFetch } from '../../../hooks/useAuthFetch';
 import DownloadButton from '../downloads/DownloadButton';
 import { tapLight } from '../../../lib/haptics';
+import { isDownloaded } from '../../../pwa/downloads';
 import type { MusicGeneration } from '../../../types';
 
 interface TrackRowProps {
@@ -53,6 +54,11 @@ export default function TrackRow({ track, onDoubleClick, onEdit, isEditOpen }: T
   const isMastered = !!track.processed_file_path;
   const [bpm, setBpm] = useState<number | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [offline, setOffline] = useState(false);
+
+  useEffect(() => {
+    isDownloaded(track.id).then(d => setOffline(d)).catch(() => setOffline(false));
+  }, [track.id]);
 
   useEffect(() => {
     authFetch(`/api/music/${track.id}/tags`)
@@ -149,6 +155,9 @@ export default function TrackRow({ track, onDoubleClick, onEdit, isEditOpen }: T
               : <Badge label="AI" color={C.red} />}
             {isMastered && <Badge label="MASTERED" color={C.gold} />}
             {track.is_instrumental && <Badge label="INSTRUMENTAL" color="#60a5fa" />}
+            {offline && <Badge label="OFFLINE" color="#34c759" icon={
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M21 3H3a2 2 0 00-2 2v14a2 2 0 002 2h18a2 2 0 002-2V5a2 2 0 00-2-2zm-9 12a4 4 0 110-8 4 4 0 010 8z"/></svg>
+            } />}
             {bpm && <Badge label={`${bpm} BPM`} color="rgba(255,255,255,0.5)" />}
           </div>
         </div>

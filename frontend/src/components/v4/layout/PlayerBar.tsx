@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { C } from '../shared/colors';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { useAuthFetch } from '../../../hooks/useAuthFetch';
+import { useAudioEngine } from '../../../hooks/useAudioEngine';
 import { PlayIcon, PauseIcon, PrevIcon, NextIcon, ShuffleIcon, LoopIcon, VolumeIcon, MuteIcon, QueueIcon } from '../shared/Icons';
 
 function fmtTime(s: number) {
@@ -40,6 +41,8 @@ export default function PlayerBar() {
   const progressBarRef = useRef<HTMLDivElement>(null);
   const preMuteVolume = useRef(0.8);
   const [showQueue, setShowQueue] = useState(false);
+  const [showEq, setShowEq] = useState(false);
+  const { eqState, setBand, toggleEq } = useAudioEngine();
 
   const startEditTitle = () => {
     if (!playerTrack) return;
@@ -264,8 +267,13 @@ export default function PlayerBar() {
                   </div>
                 </div>
               )}
-              <div style={{ color: 'rgba(255,255,255,0.38)', fontSize: '11px', marginTop: '3px', fontVariantNumeric: 'tabular-nums' }}>
+              <div style={{ color: 'rgba(255,255,255,0.38)', fontSize: '11px', marginTop: '3px', fontVariantNumeric: 'tabular-nums', display: 'flex', alignItems: 'center', gap: 6 }}>
                 {fmtTime(playerCurrentTime)} · {fmtTime(playerDuration)}
+                {playerTrack?.is_instrumental && (
+                  <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', color: '#60a5fa', background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)', padding: '1px 5px', borderRadius: 4 }}>
+                    INSTRUMENTAL
+                  </span>
+                )}
               </div>
             </>
           ) : (
@@ -426,7 +434,59 @@ export default function PlayerBar() {
             </div>
           )}
         </div>
+
+        {/* EQ button */}
+        <button
+          onClick={() => setShowEq(v => !v)}
+          title="Equalizer"
+          style={{ ...btnBase, fontSize: '10px', fontWeight: 700, letterSpacing: '0.4px', color: showEq || eqState.enabled ? C.red : 'rgba(255,255,255,0.45)', background: showEq ? `${C.red}1a` : 'none', borderRadius: '7px', padding: '5px 8px', gap: '4px', width: 'auto', border: showEq ? `1px solid ${C.red}44` : '1px solid transparent' }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/>
+            <line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/>
+            <line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/>
+            <line x1="17" y1="16" x2="23" y2="16"/>
+          </svg>
+          EQ
+        </button>
       </div>
+
+      {/* EQ panel — shown below player bar when open */}
+      {showEq && (
+        <div style={{
+          background: 'rgba(8,2,4,0.97)', backdropFilter: 'blur(28px)',
+          borderTop: `1px solid rgba(230,57,70,0.22)`,
+          padding: '12px 24px 14px',
+          display: 'flex', alignItems: 'center', gap: '16px',
+        }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.06em', textTransform: 'uppercase', width: 50 }}>EQ</span>
+            {eqState.bands.map((gain, i) => (
+              <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, maxWidth: 32 }}>
+                <div
+                  onClick={() => setBand(i, gain > 0 ? 0 : 6)}
+                  style={{
+                    width: '100%', borderRadius: 3, cursor: 'pointer',
+                    height: `${Math.abs(gain) / 12 * 28}px`, minHeight: 4,
+                    background: gain === 0 ? 'rgba(255,255,255,0.15)' : gain > 0 ? C.red : 'rgba(80,80,200,0.9)',
+                    transition: 'height 100ms, background 100ms',
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={toggleEq}
+            style={{
+              fontSize: 10, fontWeight: 700, padding: '5px 10px', borderRadius: 6, cursor: 'pointer',
+              background: eqState.enabled ? C.red : 'rgba(255,255,255,0.08)', color: '#fff', border: 'none', flexShrink: 0,
+            }}
+          >
+            {eqState.enabled ? 'ON' : 'OFF'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
